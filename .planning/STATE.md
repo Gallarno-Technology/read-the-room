@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: "Completed 02-02-PLAN.md: lyrics_service.py, profanity_scanner.py, daemon+content_checker wiring"
-last_updated: "2026-04-01T20:53:52.416Z"
+status: executing
+stopped_at: "Completed 02-03-PLAN.md: daemon.py save_state() read-merge fix and poll_loop state reload"
+last_updated: "2026-04-01T23:00:36.575Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 1
+  total_plans: 6
+  completed_plans: 5
   percent: 0
 ---
 
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-04-01)
 
 ## Current Position
 
-Phase: 3
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 02 (content-filtering-auto-skip) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
 Last activity: 2026-04-01
 
 Progress: [░░░░░░░░░░] 0%
@@ -56,6 +56,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P02 | 30min | 3 tasks | 4 files |
 | Phase 02 P01 | 3min | 2 tasks | 8 files |
 | Phase 02 P02 | 5min | 3 tasks | 5 files |
+| Phase 02 P03 | 4min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,8 @@ Recent decisions affecting current work:
 - [Phase 02]: Used lrclibapi.search_lyrics() instead of get_lyrics() — get_lyrics() requires album_name+duration which are not in ContentChecker's interface
 - [Phase 02]: [SCAN] log moved into ContentChecker.check() for all code paths — has direct access to matched words from profanity scanner
 - [Phase 02]: LyricsResult.cached field added to distinguish SQLite cache hits from fresh LRCLIB fetches
+- [Phase 02]: save_state() read-merges disk state before writing — daemon_fields merged onto on_disk dict so external keys like family_safe_mode are never dropped
+- [Phase 02]: poll_loop reloads state = load_state() after each save_state() call — FSM toggle via make fsm-on/fsm-off takes effect within one poll cycle without daemon restart
 
 ### Pending Todos
 
@@ -91,6 +94,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T20:50:08.082Z
-Stopped at: Completed 02-02-PLAN.md: lyrics_service.py, profanity_scanner.py, daemon+content_checker wiring
+Last session: 2026-04-01T23:00:36.574Z
+Stopped at: Completed 02-03-PLAN.md: daemon.py save_state() read-merge fix and poll_loop state reload
 Resume file: None

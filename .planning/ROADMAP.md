@@ -75,5 +75,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Core Daemon & Spotify Auth | 2/2 | Complete   | 2026-04-01 |
-| 2. Content Filtering & Auto-Skip | 1/2 | In Progress|  |
+| 2. Content Filtering & Auto-Skip | 3/4 | In Progress|  |
 | 3. Signal Notifications & Interactive Confirmations | 0/2 | Not started | - |
