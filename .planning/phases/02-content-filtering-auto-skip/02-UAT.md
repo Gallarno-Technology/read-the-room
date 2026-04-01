@@ -1,5 +1,5 @@
 ---
-status: partial
+status: diagnosed
 phase: 02-content-filtering-auto-skip
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md, 02-04-SUMMARY.md]
 started: 2026-04-01T00:00:00Z
@@ -84,9 +84,15 @@ blocked: 5
   reason: "User reported: make setup fails: touch: setting times of 'lyrics_cache.db': Permission denied. Daemon starts and polls but no severity scores in logs."
   severity: major
   test: 1
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "Docker auto-creates lyrics_cache.db as a root-owned directory (or root-owned file) on first run. Subsequent make setup fails because the host user can't touch a root-owned path. When mounted, aiosqlite.connect() gets EACCES or tries to open a directory as a SQLite file — both fatal."
+  artifacts:
+    - path: "Makefile"
+      issue: "setup target: `touch lyrics_cache.db` is unconditional — fails if root-owned artifact already exists"
+    - path: "docker-compose.yml"
+      issue: "no user: directive — daemon runs as root inside container, creating root-owned bind-mount files"
+  missing:
+    - "Makefile setup target must defensively remove root-owned artifacts or use sudo chown before touch"
+    - "docker-compose.yml should set user: \"${UID}:${GID}\" so container files are owned by the host user"
   debug_session: ""
 
 - truth: "daemon poll loop completes content check on every track change without ERROR"
@@ -94,9 +100,12 @@ blocked: 5
   reason: "User reported: FSM persists correctly, but every track change throws ERROR: sqlite3.OperationalError: unable to open database file — aiosqlite cannot open the lyrics_cache.db bind mount"
   severity: blocker
   test: 2
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "Downstream of the same lyrics_cache.db ownership/mount issue as test 1. The container process cannot open the bind-mounted file for read/write. All five lyrics-dependent tests (6–10) are blocked by this."
+  artifacts:
+    - path: "lyrics_service.py"
+      issue: "_ensure_db() calls aiosqlite.connect(db_path) — fails with EACCES or directory-open error on root-owned bind mount"
+  missing:
+    - "Fix Makefile + docker-compose.yml (same fix as test 1)"
   debug_session: ""
 
 - truth: "Sonos speaker is detected as is_restricted=True and SoCo is used to skip the track"
@@ -104,7 +113,12 @@ blocked: 5
   reason: "User reported: Device shows name='unknown' is_restricted=False — Sonos not detected. SpotifySkipClient used instead of SoCo, gets 403 Restricted device from Spotify API. [SKIP_FAILED] logged."
   severity: blocker
   test: 5
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "daemon.py calls sp.currently_playing() (GET /me/player/currently-playing) which does not include a device object in its response. The device key is only present in sp.current_playback() (GET /me/player). result.get('device', {}) always returns {} so is_restricted defaults to False and SpotifySkipClient is always selected."
+  artifacts:
+    - path: "daemon.py"
+      issue: "Line 105: sp.currently_playing() used instead of sp.current_playback() — response lacks device field"
+    - path: "daemon.py"
+      issue: "Lines 134-136: result.get('device', {}) always returns {} — name and is_restricted silently default"
+  missing:
+    - "Replace sp.currently_playing() with sp.current_playback() on line 105 — device object then present in response"
+  debug_session: ".planning/debug/sonos-not-detected.md"
