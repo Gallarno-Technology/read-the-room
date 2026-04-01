@@ -12,26 +12,26 @@ Three phases deliver a working family-safe Spotify daemon. Phase 1 establishes t
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Core Daemon & Spotify Auth** - Authenticated poll loop running as a macOS LaunchAgent; detects track changes
+- [ ] **Phase 1: Core Daemon & Spotify Auth** - Authenticated poll loop running as a Docker service with restart:always; detects track changes
 - [ ] **Phase 2: Content Filtering & Auto-Skip** - Three-tier filter (explicit flag → LRCLIB → profanity scan) with dual skip path (SoCo + Spotify API) and Family Safe Mode toggle
 - [ ] **Phase 3: Signal Notifications & Interactive Confirmations** - Skip notifications and allow/skip prompts via Signal; 5-skip playlist prompt
 
 ## Phase Details
 
 ### Phase 1: Core Daemon & Spotify Auth
-**Goal**: A daemon runs continuously on the home Mac, authenticates with Spotify, and correctly detects the currently playing track every ~1 second
+**Goal**: A daemon runs continuously on the home server (Proxmox/Arch Linux Docker), authenticates with Spotify via terminal OAuth, and correctly detects the currently playing track every ~1 second
 **Depends on**: Nothing (first phase)
 **Requirements**: CORE-01, CORE-02, CORE-03, CORE-04
 **Success Criteria** (what must be TRUE):
-  1. Running `python daemon.py` (or starting the LaunchAgent) produces a live log showing the current Spotify track updating within 1 second of a track change
-  2. After the one-time `python setup_auth.py` browser step, the daemon restarts and operates headlessly with no browser or re-authentication required
-  3. Stopping and restarting the LaunchAgent (or killing the process) shows the service automatically restarting and resuming the poll loop
-  4. `state.json` exists on disk and persists across restarts
-**Plans**: TBD
+  1. Running `docker compose up -d` starts the daemon; `docker compose logs -f daemon` shows a track name + artist + explicit flag within ~1 second of a track change
+  2. After the one-time `python setup_auth.py` terminal OAuth step, the daemon restarts and operates headlessly with no browser or re-authentication required
+  3. Running `docker compose stop` stops the daemon cleanly within 1-2 seconds (SIGTERM delivered via exec-form CMD); `docker compose up -d` resumes polling automatically
+  4. `state.json` exists on disk and persists the last track ID across container restarts and rebuilds
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: OAuth setup script, spotipy client, token cache, and 429 backoff
-- [ ] 01-02: Asyncio poll loop, track-change detection, adaptive interval, launchd plist, graceful shutdown
+- [ ] 01-01-PLAN.md — OAuth setup script (setup_auth.py), requirements.txt, .env.example, Dockerfile, docker-compose.yml
+- [ ] 01-02-PLAN.md — Asyncio poll loop (daemon.py), track-change detection, 429 backoff, graceful shutdown, state.json
 
 ### Phase 2: Content Filtering & Auto-Skip
 **Goal**: When Family Safe Mode is on, tracks that violate family-safe rules are automatically skipped — via SoCo for Sonos speakers, Spotify API for all other devices — before children hear more than a second or two
@@ -47,8 +47,8 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 02-01: ContentChecker (explicit flag tier), SonosClient skip path, Spotify API skip path, FSM toggle
-- [ ] 02-02: LyricsService — LRCLIB fetch, profanity scan, SQLite cache, instrumental/miss handling, consecutive-skip guard
+- [ ] 02-01-PLAN.md — ContentChecker (explicit flag tier), SonosClient skip path, Spotify API skip path, FSM toggle
+- [ ] 02-02-PLAN.md — LyricsService — LRCLIB fetch, profanity scan, SQLite cache, instrumental/miss handling, consecutive-skip guard
 **UI hint**: no
 
 ### Phase 3: Signal Notifications & Interactive Confirmations
@@ -64,8 +64,8 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 03-01: signal-cli-rest-api Docker setup, device linking, SignalNotifier HTTP send, skip notification integration
-- [ ] 03-02: WebSocket receive loop, pending-confirmation map, 30s timeout, 5-skip prompt, reconnect logic
+- [ ] 03-01-PLAN.md — signal-cli-rest-api Docker setup, device linking, SignalNotifier HTTP send, skip notification integration
+- [ ] 03-02-PLAN.md — WebSocket receive loop, pending-confirmation map, 30s timeout, 5-skip prompt, reconnect logic
 
 ## Progress
 
