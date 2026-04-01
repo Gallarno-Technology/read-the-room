@@ -109,9 +109,10 @@ class ContentChecker:
             )
             return (action, reason, severity)
 
-        # No lyrics service configured yet — allow non-explicit tracks.
-        log.info(
-            "[SCAN] track=%r artist=%r severity=0 matched=[] action=allow",
+        # No lyrics service configured yet (or failed to initialize) — allow non-explicit tracks.
+        log.warning(
+            "[SCAN] track=%r artist=%r severity=0 matched=[] action=allow reason=no_lyrics_service "
+            "(lyrics pipeline not active — check LYRICS_DB_PATH and container logs)",
             track_name,
             artist_name,
         )
