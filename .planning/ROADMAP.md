@@ -30,7 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — OAuth setup script (setup_auth.py), requirements.txt, .env.example, Dockerfile, docker-compose.yml
+- [x] 01-01-PLAN.md — OAuth setup script (setup_auth.py), requirements.txt, .env.example, Dockerfile, docker-compose.yml
 - [ ] 01-02-PLAN.md — Asyncio poll loop (daemon.py), track-change detection, 429 backoff, graceful shutdown, state.json
 
 ### Phase 2: Content Filtering & Auto-Skip
@@ -74,6 +74,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core Daemon & Spotify Auth | 0/2 | Not started | - |
+| 1. Core Daemon & Spotify Auth | 1/2 | In Progress|  |
 | 2. Content Filtering & Auto-Skip | 0/2 | Not started | - |
 | 3. Signal Notifications & Interactive Confirmations | 0/2 | Not started | - |
