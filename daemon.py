@@ -65,15 +65,20 @@ def load_state() -> dict:
         return {"last_track_id": None}
 
 
-def save_state(state: dict) -> None:
-    """Write state to STATE_PATH.
+def save_state(daemon_fields: dict) -> None:
+    """Merge daemon_fields into the current on-disk state and write back.
 
-    Direct write (not atomic rename) — os.replace() fails on bind-mounted files
-    on Linux (EBUSY: mount holds the inode). Safe here: state.json holds only a
-    track ID and the daemon recovers cleanly from a missing/corrupt file.
+    Reads the existing state.json first so that keys written externally
+    (e.g. family_safe_mode from `make fsm-on`) are not overwritten.
+
+    Direct write (not atomic rename) — os.replace() fails on bind-mounted
+    files on Linux (EBUSY). Safe here: the daemon recovers cleanly from a
+    missing/corrupt file via load_state().
     """
+    on_disk = load_state()
+    on_disk.update(daemon_fields)
     with open(STATE_PATH, "w") as f:
-        json.dump(state, f)
+        json.dump(on_disk, f)
 
 
 # ---------------------------------------------------------------------------
@@ -119,8 +124,8 @@ async def poll_loop(
                         track["artists"][0]["name"],
                         track["explicit"],
                     )
-                    state["last_track_id"] = track_id
-                    save_state(state)
+                    save_state({"last_track_id": track_id})
+                    state = load_state()   # re-read disk so family_safe_mode and future keys are fresh
                     last_heartbeat = time.monotonic()
 
                     # Phase 2: Content filtering (FSM-02: only when FSM is on)
