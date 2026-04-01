@@ -7,10 +7,10 @@
 
 ### Daemon & Spotify Integration
 
-- [ ] **CORE-01**: Service polls Spotify playback state every ~1 second and detects when a new track begins
+- [x] **CORE-01**: Service polls Spotify playback state every ~1 second and detects when a new track begins
 - [x] **CORE-02**: Service authenticates with Spotify via OAuth (one-time browser setup, then headless token refresh)
 - [x] **CORE-03**: Service runs as a macOS LaunchAgent and auto-restarts on crash
-- [ ] **CORE-04**: Service reads the `explicit` flag from the currently playing Spotify track
+- [x] **CORE-04**: Service reads the `explicit` flag from the currently playing Spotify track
 
 ### Content Filtering
 
@@ -73,10 +73,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CORE-01 | Phase 1 | Pending |
+| CORE-01 | Phase 1 | Complete |
 | CORE-02 | Phase 1 | Complete |
 | CORE-03 | Phase 1 | Complete |
-| CORE-04 | Phase 1 | Pending |
+| CORE-04 | Phase 1 | Complete |
 | FILT-01 | Phase 2 | Pending |
 | FILT-02 | Phase 2 | Pending |
 | FILT-03 | Phase 2 | Pending |

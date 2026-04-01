@@ -12,7 +12,7 @@ Three phases deliver a working family-safe Spotify daemon. Phase 1 establishes t
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Core Daemon & Spotify Auth** - Authenticated poll loop running as a Docker service with restart:always; detects track changes
+- [x] **Phase 1: Core Daemon & Spotify Auth** - Authenticated poll loop running as a Docker service with restart:always; detects track changes (completed 2026-04-01)
 - [ ] **Phase 2: Content Filtering & Auto-Skip** - Three-tier filter (explicit flag → LRCLIB → profanity scan) with dual skip path (SoCo + Spotify API) and Family Safe Mode toggle
 - [ ] **Phase 3: Signal Notifications & Interactive Confirmations** - Skip notifications and allow/skip prompts via Signal; 5-skip playlist prompt
 
@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md — OAuth setup script (setup_auth.py), requirements.txt, .env.example, Dockerfile, docker-compose.yml
-- [ ] 01-02-PLAN.md — Asyncio poll loop (daemon.py), track-change detection, 429 backoff, graceful shutdown, state.json
+- [x] 01-02-PLAN.md — Asyncio poll loop (daemon.py), track-change detection, 429 backoff, graceful shutdown, state.json
 
 ### Phase 2: Content Filtering & Auto-Skip
 **Goal**: When Family Safe Mode is on, tracks that violate family-safe rules are automatically skipped — via SoCo for Sonos speakers, Spotify API for all other devices — before children hear more than a second or two
@@ -74,6 +74,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core Daemon & Spotify Auth | 1/2 | In Progress|  |
+| 1. Core Daemon & Spotify Auth | 2/2 | Complete   | 2026-04-01 |
 | 2. Content Filtering & Auto-Skip | 0/2 | Not started | - |
 | 3. Signal Notifications & Interactive Confirmations | 0/2 | Not started | - |
