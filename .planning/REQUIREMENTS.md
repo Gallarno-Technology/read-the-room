@@ -14,7 +14,7 @@
 
 ### Content Filtering
 
-- [ ] **FILT-01**: Tracks marked `explicit: true` by Spotify are immediately flagged for auto-skip
+- [x] **FILT-01**: Tracks marked `explicit: true` by Spotify are immediately flagged for auto-skip
 - [ ] **FILT-02**: For non-explicit tracks, lyrics are fetched from LRCLIB using the track title and artist
 - [ ] **FILT-03**: Lyrics are scanned for profanity using the `obscenity` library (handles obfuscation and leet-speak)
 - [ ] **FILT-04**: Instrumental tracks (LRCLIB `instrumental: true` or no lyrics found) are allowed without scanning
@@ -23,14 +23,14 @@
 
 ### Skip Execution
 
-- [ ] **SKIP-01**: Tracks playing on Sonos speakers are skipped via SoCo (Python, local UPnP — Spotify API skip fails on Sonos `is_restricted` devices)
-- [ ] **SKIP-02**: Tracks playing on non-Sonos devices are skipped via Spotify API (`POST /me/player/next`)
-- [ ] **SKIP-03**: The service detects whether the active playback device is a Sonos speaker and routes skip accordingly
+- [x] **SKIP-01**: Tracks playing on Sonos speakers are skipped via SoCo (Python, local UPnP — Spotify API skip fails on Sonos `is_restricted` devices)
+- [x] **SKIP-02**: Tracks playing on non-Sonos devices are skipped via Spotify API (`POST /me/player/next`)
+- [x] **SKIP-03**: The service detects whether the active playback device is a Sonos speaker and routes skip accordingly
 
 ### Family Safe Mode
 
-- [ ] **FSM-01**: Family Safe Mode can be toggled on/off (persisted in a local state file)
-- [ ] **FSM-02**: Filtering and skipping only occurs when Family Safe Mode is active
+- [x] **FSM-01**: Family Safe Mode can be toggled on/off (persisted in a local state file)
+- [x] **FSM-02**: Filtering and skipping only occurs when Family Safe Mode is active
 - [ ] **FSM-03**: After 5 consecutive skips, a Signal notification prompts the user to switch playlist or radio
 
 ### Signal Notifications
@@ -77,17 +77,17 @@
 | CORE-02 | Phase 1 | Complete |
 | CORE-03 | Phase 1 | Complete |
 | CORE-04 | Phase 1 | Complete |
-| FILT-01 | Phase 2 | Pending |
+| FILT-01 | Phase 2 | Complete |
 | FILT-02 | Phase 2 | Pending |
 | FILT-03 | Phase 2 | Pending |
 | FILT-04 | Phase 2 | Pending |
 | FILT-05 | Phase 2 | Pending |
 | FILT-06 | Phase 2 | Pending |
-| SKIP-01 | Phase 2 | Pending |
-| SKIP-02 | Phase 2 | Pending |
-| SKIP-03 | Phase 2 | Pending |
-| FSM-01 | Phase 2 | Pending |
-| FSM-02 | Phase 2 | Pending |
+| SKIP-01 | Phase 2 | Complete |
+| SKIP-02 | Phase 2 | Complete |
+| SKIP-03 | Phase 2 | Complete |
+| FSM-01 | Phase 2 | Complete |
+| FSM-02 | Phase 2 | Complete |
 | FSM-03 | Phase 3 | Pending |
 | SIG-01 | Phase 3 | Pending |
 | SIG-02 | Phase 3 | Pending |

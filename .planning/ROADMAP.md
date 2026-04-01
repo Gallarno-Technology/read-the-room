@@ -47,7 +47,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — SkipClient interface (SoCo + Spotify), ContentChecker with explicit-flag tier, FSM toggle, daemon.py integration, OAuth scope expansion
+- [x] 02-01-PLAN.md — SkipClient interface (SoCo + Spotify), ContentChecker with explicit-flag tier, FSM toggle, daemon.py integration, OAuth scope expansion
 - [ ] 02-02-PLAN.md — LyricsService (LRCLIB fetch + SQLite cache), ProfanityScanner (severity mapping + leet-speak), full pipeline wiring
 **UI hint**: no
 
@@ -75,5 +75,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Core Daemon & Spotify Auth | 2/2 | Complete   | 2026-04-01 |
-| 2. Content Filtering & Auto-Skip | 0/2 | Not started | - |
+| 2. Content Filtering & Auto-Skip | 1/2 | In Progress|  |
 | 3. Signal Notifications & Interactive Confirmations | 0/2 | Not started | - |
