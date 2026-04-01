@@ -102,7 +102,7 @@ async def poll_loop(
 
     while not stop_event.is_set():
         try:
-            result = sp.currently_playing()
+            result = sp.current_playback()
 
             if result is None or result.get("item") is None:
                 # 204 No Content (nothing playing) or item=null (podcast/ad)
