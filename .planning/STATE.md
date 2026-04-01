@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 02-04-PLAN.md: LRCLIB error visibility, timeout, and no_lyrics_service WARNING log"
-last_updated: "2026-04-01T23:08:15.174Z"
+stopped_at: "Completed 02-05-PLAN.md: Docker ownership fix, Makefile setup fix, Sonos detection fix"
+last_updated: "2026-04-01T23:37:51.275Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 7
+  completed_plans: 7
   percent: 0
 ---
 
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-01)
 
 ## Current Position
 
-Phase: 3
-Plan: Not started
+Phase: 02 (content-filtering-auto-skip) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
 Last activity: 2026-04-01
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02 P02 | 5min | 3 tasks | 5 files |
 | Phase 02 P03 | 4min | 1 tasks | 1 files |
 | Phase 02-content-filtering-auto-skip P04 | 1min | 2 tasks | 2 files |
+| Phase 02-content-filtering-auto-skip P05 | 1min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,8 @@ Recent decisions affecting current work:
 - [Phase 02]: poll_loop reloads state = load_state() after each save_state() call — FSM toggle via make fsm-on/fsm-off takes effect within one poll cycle without daemon restart
 - [Phase 02-content-filtering-auto-skip]: asyncio.TimeoutError is a subclass of Exception — no separate except clause needed for LRCLIB timeout; caught by existing handler
 - [Phase 02-content-filtering-auto-skip]: Makefile setup target already had 'touch lyrics_cache.db' — confirmed correct, no modification required
+- [Phase 02-content-filtering-auto-skip]: docker-compose.yml user directive uses ${UID}:${GID} from shell environment — no .env entry needed, Docker Compose expands at 'docker compose up' time
+- [Phase 02-content-filtering-auto-skip]: sp.current_playback() chosen over sp.currently_playing() — GET /me/player returns full device context including is_restricted; GET /me/player/currently-playing omits device object
 
 ### Pending Todos
 
@@ -97,6 +100,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T23:03:18.240Z
-Stopped at: Completed 02-04-PLAN.md: LRCLIB error visibility, timeout, and no_lyrics_service WARNING log
+Last session: 2026-04-01T23:37:51.274Z
+Stopped at: Completed 02-05-PLAN.md: Docker ownership fix, Makefile setup fix, Sonos detection fix
 Resume file: None
