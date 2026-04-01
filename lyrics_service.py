@@ -119,18 +119,23 @@ class LyricsService:
         try:
             # Try get_lyrics first using search_lyrics (which only requires track+artist).
             # search_lyrics returns a list sorted by relevance; take the first match.
-            search_results = await loop.run_in_executor(
-                None,
-                lambda: self._api.search_lyrics(
-                    track_name=track_name,
-                    artist_name=artist_name,
+            search_results = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    lambda: self._api.search_lyrics(
+                        track_name=track_name,
+                        artist_name=artist_name,
+                    ),
                 ),
+                timeout=10,
             )
             if search_results:
                 result = search_results[0]
-        except (NotFoundError, APIError, Exception):
+        except (NotFoundError, APIError, Exception) as exc:
             log.warning(
-                "[LRCLIB] fetch failed for %r by %r", track_name, artist_name
+                "[LRCLIB] fetch failed for %r by %r: %s",
+                track_name, artist_name, exc,
+                exc_info=True,
             )
             # Treat as lyrics unavailable (FILT-05)
             return LyricsResult(instrumental=False, lyrics=None, cached=False)
