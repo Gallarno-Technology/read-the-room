@@ -18,6 +18,9 @@ import spotipy
 from spotipy.exceptions import SpotifyException
 from spotipy.oauth2 import CacheFileHandler, SpotifyOAuth
 
+from content_checker import ContentChecker
+from skip_client import SocoSkipClient, SpotifySkipClient
+
 load_dotenv()
 
 # ---------------------------------------------------------------------------
@@ -26,6 +29,7 @@ load_dotenv()
 POLL_INTERVAL = float(os.environ.get("POLL_INTERVAL_SECONDS", "1"))       # D-04, D-05
 HEARTBEAT_INTERVAL = float(os.environ.get("HEARTBEAT_INTERVAL_SECONDS", "300"))  # D-10
 STATE_PATH = os.environ.get("STATE_PATH", "state.json")
+PROFANITY_MIN_SEVERITY = int(os.environ.get("PROFANITY_MIN_SEVERITY", "2"))  # D-10
 
 # ---------------------------------------------------------------------------
 # Logging — plain text with timestamps to stdout (D-08, D-09)
@@ -72,7 +76,12 @@ def save_state(state: dict) -> None:
 # ---------------------------------------------------------------------------
 # Poll loop
 # ---------------------------------------------------------------------------
-async def poll_loop(sp: spotipy.Spotify) -> None:
+async def poll_loop(
+    sp: spotipy.Spotify,
+    content_checker: ContentChecker,
+    soco_skip: SocoSkipClient,
+    spotify_skip: SpotifySkipClient,
+) -> None:
     """Main polling coroutine. Runs until stop_event is set."""
     state = load_state()
     last_heartbeat = time.monotonic()
@@ -110,6 +119,52 @@ async def poll_loop(sp: spotipy.Spotify) -> None:
                     state["last_track_id"] = track_id
                     save_state(state)
                     last_heartbeat = time.monotonic()
+
+                    # Phase 2: Content filtering (FSM-02: only when FSM is on)
+                    # D-06: read family_safe_mode each cycle — toggle takes effect within 1 poll
+                    if state.get("family_safe_mode", False):
+                        device = result.get("device", {})
+                        device_name = device.get("name", "unknown")
+                        is_restricted = device.get("is_restricted", False)
+
+                        # D-02: Log device info on every track change
+                        log.info(
+                            "[DEVICE] name=%r is_restricted=%s",
+                            device_name, is_restricted,
+                        )
+
+                        action, reason, severity = await content_checker.check(track)
+
+                        # D-09: Log scan result for ALL tracks (including allowed)
+                        log.info(
+                            "[SCAN] track=%r artist=%r severity=%d reason=%s action=%s",
+                            track["name"],
+                            track["artists"][0]["name"],
+                            severity,
+                            reason,
+                            action,
+                        )
+
+                        if action == "skip":
+                            # SKIP-03: Select skip client based on is_restricted (D-01)
+                            client = soco_skip if is_restricted else spotify_skip
+                            success = await client.skip(device_name, device.get("id"))
+
+                            if success:
+                                # D-07: Structured skip log
+                                log.info(
+                                    "[SKIP] reason=%s track=%r artist=%r",
+                                    reason,
+                                    track["name"],
+                                    track["artists"][0]["name"],
+                                )
+                            else:
+                                log.warning(
+                                    "[SKIP_FAILED] reason=%s track=%r artist=%r",
+                                    reason,
+                                    track["name"],
+                                    track["artists"][0]["name"],
+                                )
 
         except SpotifyException as exc:
             if exc.http_status == 429:
@@ -166,7 +221,7 @@ async def main() -> None:
         client_id=os.environ["SPOTIFY_CLIENT_ID"],
         client_secret=os.environ["SPOTIFY_CLIENT_SECRET"],
         redirect_uri=os.environ["SPOTIFY_REDIRECT_URI"],
-        scope="user-read-currently-playing",
+        scope="user-read-currently-playing user-modify-playback-state",
         open_browser=False,  # D-01 pattern: headless, never block on browser
         cache_handler=cache_handler,
     )
@@ -179,7 +234,12 @@ async def main() -> None:
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, stop_event.set)
 
-    await poll_loop(sp)
+    # Phase 2: Instantiate content filter and skip clients
+    content_checker = ContentChecker(min_severity=PROFANITY_MIN_SEVERITY)
+    soco_skip = SocoSkipClient()
+    spotify_skip = SpotifySkipClient(sp)
+
+    await poll_loop(sp, content_checker, soco_skip, spotify_skip)
     log.info("Daemon stopped cleanly")
 
 

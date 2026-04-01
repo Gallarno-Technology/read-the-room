@@ -1,9 +1,10 @@
-.PHONY: setup auth up down logs
+.PHONY: setup auth up down logs fsm-on fsm-off fsm-status
 
 ## Pre-create host-side bind-mount files. Run once before first `make auth`.
 setup:
 	@[ -f state.json ] || echo '{"last_track_id": null}' > state.json
 	@mkdir -p token_cache
+	@touch lyrics_cache.db
 	@[ -f .env ] || cp .env.example .env
 	@echo "Setup complete. Edit .env with your Spotify credentials, then run: make auth"
 
@@ -24,3 +25,14 @@ down:
 
 logs:
 	docker compose logs -f daemon
+
+## Family Safe Mode toggle (D-05). Merges into existing state.json — does not overwrite other keys.
+## Runs inside the container so the same bind-mounted state.json path is used.
+fsm-on:
+	@docker compose exec daemon python -c "import json; s=json.load(open('state.json')); s['family_safe_mode']=True; json.dump(s, open('state.json','w')); print('Family Safe Mode: ON')"
+
+fsm-off:
+	@docker compose exec daemon python -c "import json; s=json.load(open('state.json')); s['family_safe_mode']=False; json.dump(s, open('state.json','w')); print('Family Safe Mode: OFF')"
+
+fsm-status:
+	@docker compose exec daemon python -c "import json; s=json.load(open('state.json')); print('Family Safe Mode:', 'ON' if s.get('family_safe_mode', False) else 'OFF')"
