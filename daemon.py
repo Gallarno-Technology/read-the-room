@@ -59,11 +59,14 @@ def load_state() -> dict:
 
 
 def save_state(state: dict) -> None:
-    """Atomically write state to STATE_PATH."""
-    tmp_path = STATE_PATH + ".tmp"
-    with open(tmp_path, "w") as f:
+    """Write state to STATE_PATH.
+
+    Direct write (not atomic rename) — os.replace() fails on bind-mounted files
+    on Linux (EBUSY: mount holds the inode). Safe here: state.json holds only a
+    track ID and the daemon recovers cleanly from a missing/corrupt file.
+    """
+    with open(STATE_PATH, "w") as f:
         json.dump(state, f)
-    os.replace(tmp_path, STATE_PATH)
 
 
 # ---------------------------------------------------------------------------
