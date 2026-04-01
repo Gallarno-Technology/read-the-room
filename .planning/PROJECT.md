@@ -12,14 +12,13 @@ Songs that violate family-safe rules are skipped automatically before children h
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] User can toggle Family Safe Mode on/off — Validated in Phase 2: Content Filtering & Auto-Skip
+- [x] Service monitors currently playing Spotify track in real-time — Validated in Phase 1: Core Daemon & Spotify Auth
+- [x] Songs marked explicit by Spotify are auto-skipped — Validated in Phase 2: Content Filtering & Auto-Skip
+- [x] Songs with curse words detected in lyrics are auto-skipped — Validated in Phase 2: Content Filtering & Auto-Skip
 
 ### Active
 
-- [ ] User can toggle Family Safe Mode on/off
-- [ ] Service monitors currently playing Spotify track in real-time
-- [ ] Songs marked explicit by Spotify are auto-skipped
-- [ ] Songs with curse words detected in lyrics are auto-skipped
 - [ ] Ambiguous songs trigger a Signal notification asking user to confirm skip or allow
 - [ ] Auto-skipped songs always send a Signal notification (what was skipped and why)
 - [ ] After 5 consecutive skips, Signal notification prompts user to switch playlist/radio
@@ -82,4 +81,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-01 after initialization*
+*Last updated: 2026-04-01 after Phase 2 completion — Content Filtering & Auto-Skip verified*
