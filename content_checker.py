@@ -50,11 +50,16 @@ class ContentChecker:
                       'clean' | 'lyrics_unavailable' | 'no_lyrics_service'
             - severity: 0-3 (0=none, 1=mild, 2=moderate, 3=severe)
         """
+        track_name = track.get("name", "unknown")
+        artist_name = track["artists"][0]["name"] if track.get("artists") else "unknown"
+
         # Tier 1: Spotify explicit flag (FILT-01)
         # Instant check — no network call required.
         if track.get("explicit", False):
-            log.debug(
-                "ContentChecker: tier 1 explicit match for track %r", track.get("name")
+            log.info(
+                "[SCAN] track=%r artist=%r severity=3 matched=[] action=skip",
+                track_name,
+                artist_name,
             )
             return ("skip", "explicit", 3)
 
@@ -63,24 +68,51 @@ class ContentChecker:
         if self.lyrics_service is not None and self.profanity_scanner is not None:
             lyrics_result = await self.lyrics_service.get_lyrics(
                 track_id=track["id"],
-                track_name=track["name"],
-                artist_name=track["artists"][0]["name"],
+                track_name=track_name,
+                artist_name=artist_name,
             )
 
             # FILT-04: Instrumental tracks are allowed without scanning
             if lyrics_result.instrumental:
+                log.info(
+                    "[SCAN] track=%r artist=%r severity=0 matched=[] action=allow",
+                    track_name,
+                    artist_name,
+                )
                 return ("allow", "instrumental", 0)
 
             # FILT-05: Lyrics unavailable = ambiguous, do NOT auto-skip
             if lyrics_result.lyrics is None:
+                log.info(
+                    "[SCAN] track=%r artist=%r severity=0 matched=[] action=allow",
+                    track_name,
+                    artist_name,
+                )
                 return ("allow", "lyrics_unavailable", 0)
 
-            # Tier 3: Profanity scan
+            # Tier 3: Profanity scan (D-09)
             severity, matched = self.profanity_scanner.scan(lyrics_result.lyrics)
             if severity >= self.min_severity:
-                return ("skip", "profanity", severity)
+                action = "skip"
+                reason = "profanity"
+            else:
+                action = "allow"
+                reason = "clean"
 
-            return ("allow", "clean", severity)
+            log.info(
+                "[SCAN] track=%r artist=%r severity=%d matched=%s action=%s",
+                track_name,
+                artist_name,
+                severity,
+                matched,
+                action,
+            )
+            return (action, reason, severity)
 
-        # No lyrics service configured yet (Plan 01) — allow non-explicit tracks.
+        # No lyrics service configured yet — allow non-explicit tracks.
+        log.info(
+            "[SCAN] track=%r artist=%r severity=0 matched=[] action=allow",
+            track_name,
+            artist_name,
+        )
         return ("allow", "no_lyrics_service", 0)
