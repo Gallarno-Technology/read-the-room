@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 02-03-PLAN.md: daemon.py save_state() read-merge fix and poll_loop state reload"
-last_updated: "2026-04-01T23:00:36.575Z"
+stopped_at: "Completed 02-04-PLAN.md: LRCLIB error visibility, timeout, and no_lyrics_service WARNING log"
+last_updated: "2026-04-01T23:03:18.241Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-01)
 ## Current Position
 
 Phase: 02 (content-filtering-auto-skip) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-04-01
 
@@ -57,6 +57,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02 P01 | 3min | 2 tasks | 8 files |
 | Phase 02 P02 | 5min | 3 tasks | 5 files |
 | Phase 02 P03 | 4min | 1 tasks | 1 files |
+| Phase 02-content-filtering-auto-skip P04 | 1min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,8 @@ Recent decisions affecting current work:
 - [Phase 02]: LyricsResult.cached field added to distinguish SQLite cache hits from fresh LRCLIB fetches
 - [Phase 02]: save_state() read-merges disk state before writing — daemon_fields merged onto on_disk dict so external keys like family_safe_mode are never dropped
 - [Phase 02]: poll_loop reloads state = load_state() after each save_state() call — FSM toggle via make fsm-on/fsm-off takes effect within one poll cycle without daemon restart
+- [Phase 02-content-filtering-auto-skip]: asyncio.TimeoutError is a subclass of Exception — no separate except clause needed for LRCLIB timeout; caught by existing handler
+- [Phase 02-content-filtering-auto-skip]: Makefile setup target already had 'touch lyrics_cache.db' — confirmed correct, no modification required
 
 ### Pending Todos
 
@@ -94,6 +97,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T23:00:36.574Z
-Stopped at: Completed 02-03-PLAN.md: daemon.py save_state() read-merge fix and poll_loop state reload
+Last session: 2026-04-01T23:03:18.240Z
+Stopped at: Completed 02-04-PLAN.md: LRCLIB error visibility, timeout, and no_lyrics_service WARNING log
 Resume file: None
