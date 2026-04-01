@@ -4,6 +4,7 @@
 setup:
 	@[ -f state.json ] || echo '{"last_track_id": null}' > state.json
 	@mkdir -p token_cache
+	@[ ! -f lyrics_cache.db ] || sudo rm -f lyrics_cache.db
 	@touch lyrics_cache.db
 	@[ -f .env ] || cp .env.example .env
 	@echo "Setup complete. Edit .env with your Spotify credentials, then run: make auth"
