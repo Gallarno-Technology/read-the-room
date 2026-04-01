@@ -1,0 +1,13 @@
+# Secrets and runtime state — never commit
+.env
+state.json
+token_cache/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Docker
+.docker/
