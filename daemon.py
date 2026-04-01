@@ -19,6 +19,8 @@ from spotipy.exceptions import SpotifyException
 from spotipy.oauth2 import CacheFileHandler, SpotifyOAuth
 
 from content_checker import ContentChecker
+from lyrics_service import LyricsService
+from profanity_scanner import ProfanityScanner
 from skip_client import SocoSkipClient, SpotifySkipClient
 
 load_dotenv()
@@ -30,6 +32,7 @@ POLL_INTERVAL = float(os.environ.get("POLL_INTERVAL_SECONDS", "1"))       # D-04
 HEARTBEAT_INTERVAL = float(os.environ.get("HEARTBEAT_INTERVAL_SECONDS", "300"))  # D-10
 STATE_PATH = os.environ.get("STATE_PATH", "state.json")
 PROFANITY_MIN_SEVERITY = int(os.environ.get("PROFANITY_MIN_SEVERITY", "2"))  # D-10
+LYRICS_DB_PATH = os.environ.get("LYRICS_DB_PATH", "lyrics_cache.db")
 
 # ---------------------------------------------------------------------------
 # Logging — plain text with timestamps to stdout (D-08, D-09)
@@ -135,15 +138,8 @@ async def poll_loop(
 
                         action, reason, severity = await content_checker.check(track)
 
-                        # D-09: Log scan result for ALL tracks (including allowed)
-                        log.info(
-                            "[SCAN] track=%r artist=%r severity=%d reason=%s action=%s",
-                            track["name"],
-                            track["artists"][0]["name"],
-                            severity,
-                            reason,
-                            action,
-                        )
+                        # D-09: [SCAN] log is emitted inside content_checker.check()
+                        # for all code paths (explicit, instrumental, profanity, clean, etc.)
 
                         if action == "skip":
                             # SKIP-03: Select skip client based on is_restricted (D-01)
@@ -234,12 +230,19 @@ async def main() -> None:
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, stop_event.set)
 
-    # Phase 2: Instantiate content filter and skip clients
-    content_checker = ContentChecker(min_severity=PROFANITY_MIN_SEVERITY)
+    # Phase 2: Instantiate lyrics pipeline and content filter
+    lyrics_service = LyricsService(db_path=LYRICS_DB_PATH)
+    profanity_scanner = ProfanityScanner(min_severity=PROFANITY_MIN_SEVERITY)
+    content_checker = ContentChecker(
+        lyrics_service=lyrics_service,
+        profanity_scanner=profanity_scanner,
+        min_severity=PROFANITY_MIN_SEVERITY,
+    )
     soco_skip = SocoSkipClient()
     spotify_skip = SpotifySkipClient(sp)
 
     await poll_loop(sp, content_checker, soco_skip, spotify_skip)
+    await lyrics_service.close()
     log.info("Daemon stopped cleanly")
 
 
