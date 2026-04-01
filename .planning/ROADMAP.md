@@ -44,11 +44,11 @@ Plans:
   4. Toggling Family Safe Mode off (editing `state.json` or via a toggle command) causes explicit and profane tracks to play through without skipping
   5. Tracks that were already fetched from LRCLIB on a previous play are served from the SQLite cache on repeat plays (observable via log showing "cache hit")
   6. Tracks playing on Sonos skip without error; tracks playing on non-Sonos devices skip via the Spotify API
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — ContentChecker (explicit flag tier), SonosClient skip path, Spotify API skip path, FSM toggle
-- [ ] 02-02-PLAN.md — LyricsService — LRCLIB fetch, profanity scan, SQLite cache, instrumental/miss handling, consecutive-skip guard
+- [ ] 02-01-PLAN.md — SkipClient interface (SoCo + Spotify), ContentChecker with explicit-flag tier, FSM toggle, daemon.py integration, OAuth scope expansion
+- [ ] 02-02-PLAN.md — LyricsService (LRCLIB fetch + SQLite cache), ProfanityScanner (severity mapping + leet-speak), full pipeline wiring
 **UI hint**: no
 
 ### Phase 3: Signal Notifications & Interactive Confirmations
