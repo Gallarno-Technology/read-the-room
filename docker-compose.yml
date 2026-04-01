@@ -1,0 +1,11 @@
+services:
+  daemon:
+    build: .
+    restart: always        # D-13: replaces macOS LaunchAgent KeepAlive; auto-restarts on crash
+    network_mode: host     # D-12: required for SoCo UPnP/multicast to reach Sonos speakers (Phase 2)
+    env_file: .env         # D-14: all runtime config from .env; no interpolation needed in compose file
+    volumes:
+      # Bind mounts to host — both paths must be pre-created on host before first `docker compose up`
+      # Pre-create: echo '{"last_track_id": null}' > state.json && mkdir -p token_cache
+      - ./state.json:/app/state.json      # Persists track state across container restarts/rebuilds
+      - ./token_cache:/app/token_cache    # Persists OAuth token across container restarts/rebuilds
