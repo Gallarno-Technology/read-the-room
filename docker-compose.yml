@@ -4,6 +4,7 @@ services:
     restart: always        # D-13: replaces macOS LaunchAgent KeepAlive; auto-restarts on crash
     network_mode: host     # D-12: required for SoCo UPnP/multicast to reach Sonos speakers (Phase 2)
     env_file: .env         # D-14: all runtime config from .env; no interpolation needed in compose file
+    user: "${UID}:${GID}"  # Run as host UID:GID so bind-mount files are user-owned, not root-owned
     volumes:
       # Bind mounts to host — all paths must be pre-created on host before first `docker compose up`
       # Pre-create: echo '{"last_track_id": null}' > state.json && mkdir -p token_cache && touch lyrics_cache.db
