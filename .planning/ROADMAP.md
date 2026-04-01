@@ -48,7 +48,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — SkipClient interface (SoCo + Spotify), ContentChecker with explicit-flag tier, FSM toggle, daemon.py integration, OAuth scope expansion
-- [ ] 02-02-PLAN.md — LyricsService (LRCLIB fetch + SQLite cache), ProfanityScanner (severity mapping + leet-speak), full pipeline wiring
+- [x] 02-02-PLAN.md — LyricsService (LRCLIB fetch + SQLite cache), ProfanityScanner (severity mapping + leet-speak), full pipeline wiring
 **UI hint**: no
 
 ### Phase 3: Signal Notifications & Interactive Confirmations

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: "Completed 02-01-PLAN.md: skip_client.py, content_checker.py, daemon FSM integration"
-last_updated: "2026-04-01T20:42:32.195Z"
+status: verifying
+stopped_at: "Completed 02-02-PLAN.md: lyrics_service.py, profanity_scanner.py, daemon+content_checker wiring"
+last_updated: "2026-04-01T20:50:08.083Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-01)
 
 Phase: 02 (content-filtering-auto-skip) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-01
 
 Progress: [░░░░░░░░░░] 0%
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P01 | 2 | 3 tasks | 7 files |
 | Phase 01 P02 | 30min | 3 tasks | 4 files |
 | Phase 02 P01 | 3min | 2 tasks | 8 files |
+| Phase 02 P02 | 5min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,9 @@ Recent decisions affecting current work:
 - [Phase 02-01]: SkipClient ABC designed so BridgeSkipClient can be added later without touching daemon.py (D-04)
 - [Phase 02-01]: SocoSkipClient caches speaker IP after first discovery to avoid SSDP multicast latency on subsequent skips
 - [Phase 02-01]: ContentChecker tiers 2-3 conditioned on lyrics_service != None -- dormant stub until Plan 02 wires in LyricsService and ProfanityScanner
+- [Phase 02]: Used lrclibapi.search_lyrics() instead of get_lyrics() — get_lyrics() requires album_name+duration which are not in ContentChecker's interface
+- [Phase 02]: [SCAN] log moved into ContentChecker.check() for all code paths — has direct access to matched words from profanity scanner
+- [Phase 02]: LyricsResult.cached field added to distinguish SQLite cache hits from fresh LRCLIB fetches
 
 ### Pending Todos
 
@@ -87,6 +91,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T20:42:32.193Z
-Stopped at: Completed 02-01-PLAN.md: skip_client.py, content_checker.py, daemon FSM integration
+Last session: 2026-04-01T20:50:08.082Z
+Stopped at: Completed 02-02-PLAN.md: lyrics_service.py, profanity_scanner.py, daemon+content_checker wiring
 Resume file: None

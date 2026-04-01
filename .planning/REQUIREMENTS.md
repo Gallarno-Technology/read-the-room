@@ -15,11 +15,11 @@
 ### Content Filtering
 
 - [x] **FILT-01**: Tracks marked `explicit: true` by Spotify are immediately flagged for auto-skip
-- [ ] **FILT-02**: For non-explicit tracks, lyrics are fetched from LRCLIB using the track title and artist
-- [ ] **FILT-03**: Lyrics are scanned for profanity using the `obscenity` library (handles obfuscation and leet-speak)
-- [ ] **FILT-04**: Instrumental tracks (LRCLIB `instrumental: true` or no lyrics found) are allowed without scanning
-- [ ] **FILT-05**: Tracks with lyrics unavailable in LRCLIB are treated as ambiguous (not auto-skipped)
-- [ ] **FILT-06**: Fetched lyrics are cached locally (SQLite, keyed by track ID) to avoid repeat API calls
+- [x] **FILT-02**: For non-explicit tracks, lyrics are fetched from LRCLIB using the track title and artist
+- [x] **FILT-03**: Lyrics are scanned for profanity using the `obscenity` library (handles obfuscation and leet-speak)
+- [x] **FILT-04**: Instrumental tracks (LRCLIB `instrumental: true` or no lyrics found) are allowed without scanning
+- [x] **FILT-05**: Tracks with lyrics unavailable in LRCLIB are treated as ambiguous (not auto-skipped)
+- [x] **FILT-06**: Fetched lyrics are cached locally (SQLite, keyed by track ID) to avoid repeat API calls
 
 ### Skip Execution
 
@@ -78,11 +78,11 @@
 | CORE-03 | Phase 1 | Complete |
 | CORE-04 | Phase 1 | Complete |
 | FILT-01 | Phase 2 | Complete |
-| FILT-02 | Phase 2 | Pending |
-| FILT-03 | Phase 2 | Pending |
-| FILT-04 | Phase 2 | Pending |
-| FILT-05 | Phase 2 | Pending |
-| FILT-06 | Phase 2 | Pending |
+| FILT-02 | Phase 2 | Complete |
+| FILT-03 | Phase 2 | Complete |
+| FILT-04 | Phase 2 | Complete |
+| FILT-05 | Phase 2 | Complete |
+| FILT-06 | Phase 2 | Complete |
 | SKIP-01 | Phase 2 | Complete |
 | SKIP-02 | Phase 2 | Complete |
 | SKIP-03 | Phase 2 | Complete |
