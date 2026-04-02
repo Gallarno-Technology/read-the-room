@@ -63,13 +63,14 @@ Plans:
   3. Clicking the FSM toggle flips Family Safe Mode on/off; the daemon picks up the change within one poll cycle
   4. After 5 consecutive skips, Spotify playback pauses automatically and a warning banner appears in the dashboard
   5. Dismissing the warning banner hides it; it reappears if 5 more consecutive skips occur
-**Plans**: 4 plans
+**Plans**: 5 plans
 
 Plans:
 - [x] 03-01-PLAN.md — daemon.py skip event queue + 5-skip counter/pause, FastAPI web_ui service (SSE /events, POST /fsm, GET /fsm)
 - [x] 03-02-PLAN.md — Dashboard HTML/CSS/JS template (FSM toggle, skip feed, badges, banner, SSE status), web_ui Dockerfile, docker-compose web_ui service, Makefile ui-logs target
 - [x] 03-03-PLAN.md — Gap closure: fix web_ui/Dockerfile wrong requirements.txt path (Gap 1), reset consecutive_skips on FSM re-enable (Gap 3)
 - [x] 03-04-PLAN.md — Gap closure: replace broken in-process queue import with file-based IPC (data/skip_events.jsonl daemon writes + web_ui tails) and shared docker volume (Gap 2)
+- [ ] 03-05-PLAN.md — Gap closure: add pause() to SkipClient ABC and implementations; fix 5-skip pause to use await client.pause() for Sonos support (UAT Gap)
 
 ## Progress
 
@@ -80,4 +81,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Core Daemon & Spotify Auth | 2/2 | Complete   | 2026-04-01 |
 | 2. Content Filtering & Auto-Skip | 7/7 | Complete   | 2026-04-02 |
-| 3. Web UI Dashboard | 3/4 | In Progress|  |
+| 3. Web UI Dashboard | 4/5 | In Progress|  |
