@@ -39,7 +39,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — TDD scaffold: failing tests for probe_sonos_speakers and updated skip_client warnings
+- [x] 04-01-PLAN.md — TDD scaffold: failing tests for probe_sonos_speakers and updated skip_client warnings
 - [ ] 04-02-PLAN.md — Implementation: probe_sonos_speakers in daemon.py, updated warnings in skip_client.py, reframed .env.example comment
 
 ### Phase 5: Deployment & Documentation
@@ -62,5 +62,5 @@ Plans:
 | 1. Core Daemon & Spotify Auth | v1.0 | 2/2 | Complete | 2026-04-01 |
 | 2. Content Filtering & Auto-Skip | v1.0 | 7/7 | Complete | 2026-04-02 |
 | 3. Web UI Dashboard | v1.0 | 5/5 | Complete | 2026-04-02 |
-| 4. Sonos Discovery Hardening | v1.1 | 0/2 | Not started | - |
+| 4. Sonos Discovery Hardening | v1.1 | 1/2 | In Progress|  |
 | 5. Deployment & Documentation | v1.1 | 0/? | Not started | - |

@@ -7,9 +7,9 @@
 
 ### DISC — Sonos Discovery
 
-- [ ] **DISC-01**: Sonos speakers are discovered automatically via SSDP on a properly configured network — no `SONOS_SPEAKER_IPS` required
-- [ ] **DISC-02**: `SONOS_SPEAKER_IPS` remains as an explicit override fallback, documented as an escape hatch for restricted networks
-- [ ] **DISC-03**: Service logs a clear, actionable message when SSDP discovery fails (includes firewall/multicast hint)
+- [x] **DISC-01**: Sonos speakers are discovered automatically via SSDP on a properly configured network — no `SONOS_SPEAKER_IPS` required
+- [x] **DISC-02**: `SONOS_SPEAKER_IPS` remains as an explicit override fallback, documented as an escape hatch for restricted networks
+- [x] **DISC-03**: Service logs a clear, actionable message when SSDP discovery fails (includes firewall/multicast hint)
 
 ### DEPL — Deployment
 
@@ -55,9 +55,9 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DISC-01 | Phase 4 | Pending |
-| DISC-02 | Phase 4 | Pending |
-| DISC-03 | Phase 4 | Pending |
+| DISC-01 | Phase 4 | Complete |
+| DISC-02 | Phase 4 | Complete |
+| DISC-03 | Phase 4 | Complete |
 | DEPL-01 | Phase 5 | Pending |
 | DEPL-02 | Phase 5 | Pending |
 | DEPL-03 | Phase 5 | Pending |

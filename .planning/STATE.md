@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Deployment
-status: planning
-stopped_at: Phase 4 context gathered (discuss mode)
-last_updated: "2026-04-02T18:44:54.644Z"
-last_activity: 2026-04-02 — Roadmap created for v1.1 (Phases 4-5)
+status: executing
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-04-02T19:28:30.045Z"
+last_activity: 2026-04-02
 progress:
   total_phases: 2
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 2
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** v1.1 Deployment — Phase 4 ready to plan
+**Current focus:** Phase 04 — sonos-discovery-hardening
 
 ## Current Position
 
-Phase: 4 of 5 (Sonos Discovery Hardening)
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-04-02 — Roadmap created for v1.1 (Phases 4-5)
+Phase: 04 (sonos-discovery-hardening) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-04-02
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -49,6 +49,7 @@ Progress: [░░░░░░░░░░] 0%
 | v1.0 Phase 03 | 5 | ~15 min | ~3 min |
 
 *Updated after each plan completion*
+| Phase 04-sonos-discovery-hardening P01 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,8 @@ Recent decisions affecting current work:
 - SSDP multicast blocked by host firewall — `SONOS_SPEAKER_IPS` is the current workaround; Phase 4 makes SSDP work first, IP var becomes fallback
 - network_mode: host is already in docker-compose.yml (required for SSDP multicast to work at all)
 - docker restart:always already in docker-compose.yml — Phase 5 just needs to document and verify this
+- [Phase 04-sonos-discovery-hardening]: Tests import probe_sonos_speakers from daemon module; patch target is daemon.soco.discovery.discover
+- [Phase 04-sonos-discovery-hardening]: Pre-existing pause test failures documented in deferred-items.md; out of scope for Plan 04-01
 
 ### Pending Todos
 
@@ -72,6 +75,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-02T18:44:54.643Z
-Stopped at: Phase 4 context gathered (discuss mode)
-Resume file: .planning/phases/04-sonos-discovery-hardening/04-CONTEXT.md
+Last session: 2026-04-02T19:28:30.043Z
+Stopped at: Completed 04-01-PLAN.md
+Resume file: None
