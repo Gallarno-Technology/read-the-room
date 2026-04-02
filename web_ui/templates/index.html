@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Family Safe Mode</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;600&family=Playfair+Display:wght@600&family=Source+Sans+3:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0b08;
+      --surface: #1c1a14;
+      --surface-raised: #242018;
+      --accent: #c9a84c;
+      --accent-dim: #8a6f2e;
+      --danger: #a83232;
+      --warn: #b5722a;
+      --text: #e8e0cc;
+      --text-dim: #9a9080;
+      --text-faint: #5a5448;
+      --border: #2e2a1e;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Source Sans 3', sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .page-wrap {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 64px 32px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      margin-bottom: 32px;
+    }
+
+    header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 1.2;
+      color: var(--text);
+    }
+
+    #sse-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .sse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-faint);
+      display: inline-block;
+    }
+
+    .sse-dot.connected {
+      background: var(--accent);
+    }
+
+    .sse-dot.reconnecting {
+      background: var(--warn);
+    }
+
+    #sse-label {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    #skip-banner {
+      position: relative;
+      border-left: 4px solid var(--danger);
+      background: rgba(168, 50, 50, 0.08);
+      padding: 16px;
+      margin-bottom: 24px;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    #skip-banner[hidden] {
+      display: none;
+    }
+
+    #banner-dismiss {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 4px;
+    }
+
+    #banner-dismiss:hover {
+      color: var(--text);
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+
+    .card-heading {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 1.2;
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+
+    .section-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+
+    #fsm-toggle {
+      width: 100%;
+      height: 44px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'Courier Prime', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.1s;
+    }
+
+    .fsm-on {
+      background: var(--accent);
+      color: #0d0b08;
+    }
+
+    .fsm-on:hover {
+      background: var(--accent-dim) !important;
+    }
+
+    .fsm-off {
+      background: var(--surface-raised);
+      color: var(--text);
+      border: 1px solid var(--border) !important;
+    }
+
+    .fsm-off:hover {
+      background: var(--surface) !important;
+    }
+
+    #fsm-error {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--danger);
+      min-height: 16px;
+    }
+
+    #skip-feed {
+      list-style: none;
+      max-height: 480px;
+      overflow-y: auto;
+    }
+
+    #skip-feed li {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-family: 'Courier Prime', monospace;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    #skip-feed li:last-child {
+      border-bottom: none;
+    }
+
+    #skip-feed li.empty {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+
+    .empty-heading {
+      font-family: 'Playfair Display', serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-dim);
+    }
+
+    .empty-body {
+      font-family: 'Source Sans 3', sans-serif;
+      font-size: 13px;
+      color: var(--text-faint);
+    }
+
+    .feed-sep {
+      color: var(--text-faint);
+    }
+
+    .feed-timestamp {
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+
+    .badge {
+      font-family: 'Courier Prime', monospace;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .badge--explicit {
+      background: rgba(168, 50, 50, 0.2);
+      color: #e06060;
+      border-color: rgba(168, 50, 50, 0.3);
+    }
+
+    .badge--profanity {
+      background: rgba(181, 114, 42, 0.2);
+      color: #d4924a;
+      border-color: rgba(181, 114, 42, 0.3);
+    }
+
+    .badge--adult {
+      background: rgba(201, 168, 76, 0.15);
+      color: #c9a84c;
+      border-color: rgba(201, 168, 76, 0.25);
+    }
+
+    .badge--approved {
+      background: rgba(80, 140, 80, 0.15);
+      color: #70a870;
+      border-color: rgba(80, 140, 80, 0.25);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .feed-new {
+      animation: fadeIn 0.2s ease-in;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+    <header>
+      <h1>Spotify Family Safe Mode</h1>
+      <span id="sse-status">
+        <span class="sse-dot" id="sse-dot"></span>
+        <span id="sse-label"></span>
+      </span>
+    </header>
+
+    <div id="skip-banner" hidden>
+      5 consecutive skips — switch your playlist and resume.
+      <button id="banner-dismiss" aria-label="Dismiss warning">&#x2715;</button>
+    </div>
+
+    <div class="card">
+      <button id="fsm-toggle" class="fsm-off">The Library is Closed</button>
+      <div id="fsm-error"></div>
+    </div>
+
+    <div class="card">
+      <h2 class="card-heading">Incident Log</h2>
+      <hr class="section-divider">
+      <ul id="skip-feed" aria-label="Skip history" aria-live="polite">
+        <li class="empty">
+          <span class="empty-heading">No skips yet</span>
+          <span class="empty-body">Skips will appear here in real-time when Family Safe Mode is on.</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    // FSM initial state injected by web_ui/main.py at serve time
+    const FSM_INITIAL = "__FSM_INITIAL__";
+    let fsmEnabled = FSM_INITIAL === "true";
+
+    const fsmBtn = document.getElementById('fsm-toggle');
+    const fsmError = document.getElementById('fsm-error');
+    const skipFeed = document.getElementById('skip-feed');
+    const banner = document.getElementById('skip-banner');
+    const sseDot = document.getElementById('sse-dot');
+    const sseLabel = document.getElementById('sse-label');
+    const bannerDismiss = document.getElementById('banner-dismiss');
+
+    function setFsmUI(enabled) {
+      fsmEnabled = enabled;
+      if (enabled) {
+        fsmBtn.className = 'fsm-on';
+        fsmBtn.textContent = 'The Library is Open';
+      } else {
+        fsmBtn.className = 'fsm-off';
+        fsmBtn.textContent = 'The Library is Closed';
+      }
+    }
+
+    // Apply initial FSM state on page load
+    setFsmUI(fsmEnabled);
+
+    // FSM toggle click handler
+    fsmBtn.addEventListener('click', async function() {
+      const newState = !fsmEnabled;
+      setFsmUI(newState);
+      fsmError.textContent = '';
+      try {
+        const resp = await fetch('/fsm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: newState })
+        });
+        if (!resp.ok) {
+          throw new Error('HTTP ' + resp.status);
+        }
+      } catch (err) {
+        setFsmUI(!newState);
+        fsmError.textContent = 'Could not update — try again.';
+        setTimeout(function() { fsmError.textContent = ''; }, 3000);
+      }
+    });
+
+    function setBadgeClass(reason) {
+      const r = (reason || '').toLowerCase();
+      if (r.includes('explicit')) return 'badge--explicit';
+      if (r.includes('profanity') || r.includes('language')) return 'badge--profanity';
+      if (r.includes('adult')) return 'badge--adult';
+      return 'badge--explicit';
+    }
+
+    function badgeLabel(reason) {
+      const r = (reason || '').toLowerCase();
+      if (r.includes('explicit')) return 'Flagged: explicit tag';
+      if (r.includes('profanity') || r.includes('language')) return 'Flagged: strong language';
+      if (r.includes('adult')) return 'Flagged: adult themes';
+      return 'Flagged: explicit tag';
+    }
+
+    function removeEmptyState() {
+      const empty = skipFeed.querySelector('li.empty');
+      if (empty) empty.remove();
+    }
+
+    function prependSkipItem(evt) {
+      removeEmptyState();
+
+      const li = document.createElement('li');
+      li.className = 'feed-new';
+
+      const track = document.createElement('span');
+      track.textContent = evt.track || 'Unknown track';
+
+      const sep1 = document.createElement('span');
+      sep1.className = 'feed-sep';
+      sep1.textContent = ' \u2014 ';
+
+      const artist = document.createElement('span');
+      artist.textContent = evt.artist || 'Unknown artist';
+
+      const sep2 = document.createElement('span');
+      sep2.className = 'feed-sep';
+      sep2.textContent = ' \u00b7 ';
+
+      const badge = document.createElement('span');
+      badge.className = 'badge ' + setBadgeClass(evt.reason);
+      badge.textContent = badgeLabel(evt.reason);
+
+      const sep3 = document.createElement('span');
+      sep3.className = 'feed-sep';
+      sep3.textContent = ' \u00b7 ';
+
+      const ts = document.createElement('span');
+      ts.className = 'feed-timestamp';
+      ts.textContent = evt.timestamp || '';
+
+      li.appendChild(track);
+      li.appendChild(sep1);
+      li.appendChild(artist);
+      li.appendChild(sep2);
+      li.appendChild(badge);
+      li.appendChild(sep3);
+      li.appendChild(ts);
+
+      skipFeed.insertBefore(li, skipFeed.firstChild);
+    }
+
+    // SSE connection
+    const es = new EventSource('/events');
+
+    es.onopen = function() {
+      sseDot.className = 'sse-dot connected';
+      sseLabel.textContent = '';
+    };
+
+    es.onerror = function() {
+      sseDot.className = 'sse-dot reconnecting';
+      sseLabel.textContent = 'Reconnecting\u2026';
+    };
+
+    es.onmessage = function(e) {
+      try {
+        const evt = JSON.parse(e.data);
+        if (evt.type === 'skip') {
+          prependSkipItem(evt);
+        } else if (evt.type === 'five_skip_warning') {
+          banner.removeAttribute('hidden');
+        }
+      } catch (err) {
+        // Ignore malformed events
+      }
+    };
+
+    // Banner dismiss
+    bannerDismiss.addEventListener('click', function() {
+      banner.setAttribute('hidden', '');
+    });
+  </script>
+</body>
+</html>
