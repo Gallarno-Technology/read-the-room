@@ -69,12 +69,14 @@ async def test_probe_seeds_ip_cache():
     mock_speaker.player_name = "Living Room"
     mock_speaker.ip_address = "192.168.1.164"
 
-    soco_client = SocoSkipClient()
-    assert "Living Room" not in soco_client._ip_cache
-
     with patch("daemon.soco.discovery.discover", return_value={mock_speaker}), \
          patch.dict(os.environ, {}, clear=False):
         os.environ.pop("SONOS_SPEAKER_IPS", None)
+        # Create SocoSkipClient AFTER clearing SONOS_SPEAKER_IPS so constructor
+        # does not pre-seed _ip_cache from the real .env value.
+        soco_client = SocoSkipClient()
+        assert "Living Room" not in soco_client._ip_cache
+
         await probe_sonos_speakers(soco_client)
 
     assert soco_client._ip_cache.get("Living Room") == "192.168.1.164", (
