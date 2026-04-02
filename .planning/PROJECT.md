@@ -47,7 +47,7 @@ Songs that violate family-safe rules are skipped automatically before children h
 
 - **Shipped v1.0** on 2026-04-02: 3 phases, 14 plans, ~1,500 LOC Python
 - Tech stack: Python 3.12, asyncio, spotipy, SoCo, FastAPI, aiosqlite, LRCLIB, better-profanity, Docker
-- Sonos SSDP discovery blocked by host firewall — workaround: `SONOS_SPEAKER_IPS` env var
+- Sonos SSDP auto-discovery via `probe_sonos_speakers()` at startup; `SONOS_SPEAKER_IPS` is now fallback/escape hatch (Phase 4 complete 2026-04-02)
 - Sonos in Spotify Connect mode returns error 701 on UPnP `next()` — daemon falls back to Spotify API
 - Children are ages 3 and 7 — filtering errs on the side of caution
 - Music plays through Living Room Sonos (192.168.1.164); Dining Room IP unknown (offline)
@@ -83,4 +83,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-02 after v1.1 Deployment milestone start*
+*Last updated: 2026-04-02 after Phase 4 complete — Sonos discovery hardening*
