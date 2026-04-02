@@ -2,7 +2,7 @@
 
 ## Overview
 
-Three phases deliver a working family-safe Spotify daemon. Phase 1 establishes the authenticated poll loop — the skeleton everything attaches to. Phase 2 builds the content filter and auto-skip on top of that loop, which is the product's core value. Phase 3 closes the loop with Signal notifications and interactive confirmations, making the system observable and controllable without touching the server.
+Three phases deliver a working family-safe Spotify daemon. Phase 1 establishes the authenticated poll loop — the skeleton everything attaches to. Phase 2 builds the content filter and auto-skip on top of that loop, which is the product's core value. Phase 3 closes the loop with a Web UI dashboard — a real-time skip feed and FSM toggle served by FastAPI — making the system observable and controllable without touching the server.
 
 ## Phases
 
@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Core Daemon & Spotify Auth** - Authenticated poll loop running as a Docker service with restart:always; detects track changes (completed 2026-04-01)
 - [x] **Phase 2: Content Filtering & Auto-Skip** - Three-tier filter (explicit flag → LRCLIB → profanity scan) with dual skip path (SoCo + Spotify API) and Family Safe Mode toggle (completed 2026-04-02)
-- [ ] **Phase 3: Signal Notifications & Interactive Confirmations** - Skip notifications and allow/skip prompts via Signal; 5-skip playlist prompt
+- [ ] **Phase 3: Web UI Dashboard** - Real-time skip history feed and FSM toggle via FastAPI + plain HTML/JS + SSE; 5-consecutive-skip pause; dismissible warning banner
 
 ## Phase Details
 
@@ -51,21 +51,23 @@ Plans:
 - [x] 02-02-PLAN.md — LyricsService (LRCLIB fetch + SQLite cache), ProfanityScanner (severity mapping + leet-speak), full pipeline wiring
 **UI hint**: no
 
-### Phase 3: Signal Notifications & Interactive Confirmations
-**Goal**: Every automatic skip and every ambiguous track generates a Signal message; the user can reply to ambiguous prompts in real-time and the daemon acts on the reply within 30 seconds
+### Phase 3: Web UI Dashboard
+> **Scope change from original:** Signal notifications dropped entirely (see 03-CONTEXT.md D-01). Phase delivers a FastAPI + plain HTML/JS Web UI dashboard. Requirements SIG-01–SIG-04 and FSM-03 are remapped to Web UI equivalents.
+
+**Goal**: A browser-accessible dashboard at http://localhost:8888 shows a real-time skip history feed (what was skipped, when, and why) and a Family Safe Mode toggle — no server access required for day-to-day operation
 **Depends on**: Phase 2
 **Requirements**: FSM-03, SIG-01, SIG-02, SIG-03, SIG-04
 **Success Criteria** (what must be TRUE):
-  1. When a track is auto-skipped, a Signal DM arrives within a few seconds showing the track name, artist, and skip reason
-  2. When an ambiguous track plays (lyrics unavailable), a Signal DM arrives asking "Allow or Skip?" and replying "allow" lets the track play; replying "skip" skips it
-  3. If no reply arrives within 30 seconds, the ambiguous track is skipped automatically and a Signal message confirms the timeout action
-  4. After 5 consecutive skips, a Signal message prompts the user to consider switching playlist or radio
-  5. Restarting the signal-cli-rest-api Docker container and then triggering a skip produces a delivered Signal notification (WebSocket reconnects without daemon restart)
-**Plans**: TBD
+  1. Visiting http://localhost:8888 shows the dashboard with an FSM toggle button and an "Incident Log" section
+  2. When a track is auto-skipped, a new entry appears in the skip feed within seconds (track name, artist, reason badge, timestamp) — no page refresh needed
+  3. Clicking the FSM toggle flips Family Safe Mode on/off; the daemon picks up the change within one poll cycle
+  4. After 5 consecutive skips, Spotify playback pauses automatically and a warning banner appears in the dashboard
+  5. Dismissing the warning banner hides it; it reappears if 5 more consecutive skips occur
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — signal-cli-rest-api Docker setup, device linking, SignalNotifier HTTP send, skip notification integration
-- [ ] 03-02-PLAN.md — WebSocket receive loop, pending-confirmation map, 30s timeout, 5-skip prompt, reconnect logic
+- [ ] 03-01-PLAN.md — daemon.py skip event queue + 5-skip counter/pause, FastAPI web_ui service (SSE /events, POST /fsm, GET /fsm)
+- [ ] 03-02-PLAN.md — Dashboard HTML/CSS/JS template (FSM toggle, skip feed, badges, banner, SSE status), web_ui Dockerfile, docker-compose web_ui service, Makefile ui-logs target
 
 ## Progress
 
@@ -76,4 +78,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Core Daemon & Spotify Auth | 2/2 | Complete   | 2026-04-01 |
 | 2. Content Filtering & Auto-Skip | 7/7 | Complete   | 2026-04-02 |
-| 3. Signal Notifications & Interactive Confirmations | 0/2 | Not started | - |
+| 3. Web UI Dashboard | 0/2 | Not started | - |
