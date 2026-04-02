@@ -23,7 +23,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 **Milestone Goal:** Make the project easy to clone and run on any Docker host, fix Sonos SSDP discovery so manual IP mapping isn't required, and verify boot persistence.
 
 - [x] **Phase 4: Sonos Discovery Hardening** — SSDP auto-discovery with IP fallback and actionable failure logging (completed 2026-04-02)
-- [ ] **Phase 5: Deployment & Documentation** — Clone-and-run README, healthcheck, and safe update workflow
+- [x] **Phase 5: Deployment & Documentation** — Clone-and-run README, healthcheck, and safe update workflow (completed 2026-04-02)
 
 ## Phase Details
 
@@ -55,7 +55,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Healthcheck: TDD tests + docker-compose.yml block + daemon.py touch-file probe
+- [x] 05-01-PLAN.md — Healthcheck: TDD tests + docker-compose.yml block + daemon.py touch-file probe
 - [x] 05-02-PLAN.md — Documentation: README.md (Quick Start/Prerequisites/Updating) + PROXMOX.md
 
 ## Progress
@@ -66,4 +66,4 @@ Plans:
 | 2. Content Filtering & Auto-Skip | v1.0 | 7/7 | Complete | 2026-04-02 |
 | 3. Web UI Dashboard | v1.0 | 5/5 | Complete | 2026-04-02 |
 | 4. Sonos Discovery Hardening | v1.1 | 2/2 | Complete   | 2026-04-02 |
-| 5. Deployment & Documentation | v1.1 | 0/2 | Not started | - |
+| 5. Deployment & Documentation | v1.1 | 2/2 | Complete   | 2026-04-02 |

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Deployment
-status: executing
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-04-02T21:36:52.502Z"
+status: verifying
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-04-02T21:37:59.787Z"
 last_activity: 2026-04-02
 progress:
   total_phases: 2
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 
 Phase: 05 (deployment-documentation) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-02
 
 Progress: [░░░░░░░░░░] 0%
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04-sonos-discovery-hardening P01 | 3 | 2 tasks | 2 files |
 | Phase 04-sonos-discovery-hardening P02 | 3 | 2 tasks | 4 files |
 | Phase 05-deployment-documentation P02 | 2min | 2 tasks | 2 files |
+| Phase 05-deployment-documentation P01 | 2 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,7 @@ Recent decisions affecting current work:
 - [Phase 05-deployment-documentation]: README uses raw docker compose commands as primary path; make setup noted as alternative only
 - [Phase 05-deployment-documentation]: PROXMOX.md omits specific firewall commands per D-06; links to official Proxmox docs instead
 - [Phase 05-deployment-documentation]: UID/GID pitfall addressed with both shell export and .env approaches in Quick Start
+- [Phase 05-deployment-documentation]: Touch-file healthcheck (DEPL-04): interval 30s x retries 3 = 90s detection window; absolute path /app/.healthcheck avoids cwd ambiguity
 
 ### Pending Todos
 
@@ -82,6 +84,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-02T21:36:52.500Z
-Stopped at: Completed 05-02-PLAN.md
+Last session: 2026-04-02T21:37:59.786Z
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None
