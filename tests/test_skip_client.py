@@ -132,3 +132,57 @@ async def test_soco_pause_returns_false_when_speaker_not_found(caplog):
                for record in caplog.records), (
         "Expected a warning log about speaker not found"
     )
+
+
+# ---------------------------------------------------------------------------
+# DISC-03: Updated lazy-discovery failure warning (D-08)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_soco_skip_warning_includes_multicast_hint(caplog):
+    """SocoSkipClient.skip() warning when speaker not found must mention multicast port and env var (D-08).
+
+    This test is RED until Plan 04-02 updates the warning text in skip_client.py.
+    """
+    client = SocoSkipClient()
+
+    with patch("soco.discovery.discover", return_value=set()):
+        import logging
+        with caplog.at_level(logging.WARNING, logger="skip_client"):
+            result = await client.skip("Nonexistent Speaker", "device-abc")
+
+    assert result is False
+    warning_messages = [r.message for r in caplog.records if r.levelno == logging.WARNING]
+    assert warning_messages, "Expected at least one WARNING when speaker not found in skip()"
+    combined = " ".join(warning_messages)
+    assert "multicast UDP port 1900" in combined, (
+        f"skip() WARNING must mention 'multicast UDP port 1900'. Got: {combined}"
+    )
+    assert "SONOS_SPEAKER_IPS" in combined, (
+        f"skip() WARNING must mention 'SONOS_SPEAKER_IPS'. Got: {combined}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_soco_pause_warning_includes_multicast_hint(caplog):
+    """SocoSkipClient.pause() warning when speaker not found must mention multicast port and env var (D-08).
+
+    This test is RED until Plan 04-02 updates the warning text in skip_client.py.
+    """
+    client = SocoSkipClient()
+
+    with patch("soco.discovery.discover", return_value=set()):
+        import logging
+        with caplog.at_level(logging.WARNING, logger="skip_client"):
+            result = await client.pause("Nonexistent Speaker", "device-abc")
+
+    assert result is False
+    warning_messages = [r.message for r in caplog.records if r.levelno == logging.WARNING]
+    assert warning_messages, "Expected at least one WARNING when speaker not found in pause()"
+    combined = " ".join(warning_messages)
+    assert "multicast UDP port 1900" in combined, (
+        f"pause() WARNING must mention 'multicast UDP port 1900'. Got: {combined}"
+    )
+    assert "SONOS_SPEAKER_IPS" in combined, (
+        f"pause() WARNING must mention 'SONOS_SPEAKER_IPS'. Got: {combined}"
+    )
