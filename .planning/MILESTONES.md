@@ -1,5 +1,18 @@
 # Milestones
 
+## v1.1 Deployment (Shipped: 2026-04-02)
+
+**Phases completed:** 2 phases, 4 plans, 6 tasks
+
+**Key accomplishments:**
+
+- TDD RED scaffold: 6 failing probe tests + 2 failing warning-text tests establish behavioral contracts for DISC-01, DISC-02, DISC-03 before any implementation
+- SSDP auto-discovery wired as first-class startup step in daemon.py with probe_sonos_speakers; actionable multicast warnings in skip_client.py; SONOS_SPEAKER_IPS reframed as escape hatch in .env.example
+- One-liner:
+- README.md and PROXMOX.md written — clone-and-run setup guide with OAuth flow, UID/GID pitfall docs, and Proxmox LXC multicast/SSDP escape hatch via SONOS_SPEAKER_IPS
+
+---
+
 ## v1.0 MVP (Shipped: 2026-04-02)
 
 **Phases completed:** 3 phases, 14 plans, 28 tasks

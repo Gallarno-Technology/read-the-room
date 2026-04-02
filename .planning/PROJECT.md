@@ -22,13 +22,14 @@ Songs that violate family-safe rules are skipped automatically before children h
 - ✓ After 5 consecutive explicit skips, playback pauses — v1.0
 - ✓ Real-time skip history feed in browser dashboard — v1.0
 - ✓ FSM toggle accessible from browser dashboard — v1.0
+- ✓ Sonos SSDP discovery works without manual IP configuration — v1.1
+- ✓ Project has a complete clone-and-run README usable by anyone with Docker — v1.1
+- ✓ Service survives host reboots without manual intervention — v1.1
+- ✓ Silently hung daemon container restarted automatically by Docker healthcheck — v1.1
 
 ### Active
 
-- [ ] Sonos SSDP discovery works without manual IP configuration (firewall/multicast issue)
 - [ ] Support for multiple Sonos rooms without env var mapping
-- [ ] Project has a complete clone-and-run README usable by anyone with Docker
-- [ ] Service survives host reboots without manual intervention
 
 ### Deferred (v2+)
 
@@ -45,22 +46,13 @@ Songs that violate family-safe rules are skipped automatically before children h
 
 ## Context
 
-- **Shipped v1.0** on 2026-04-02: 3 phases, 14 plans, ~1,500 LOC Python
-- Tech stack: Python 3.12, asyncio, spotipy, SoCo, FastAPI, aiosqlite, LRCLIB, better-profanity, Docker
-- Sonos SSDP auto-discovery via `probe_sonos_speakers()` at startup; `SONOS_SPEAKER_IPS` is now fallback/escape hatch (Phase 4 complete 2026-04-02)
+- **Shipped v1.1** on 2026-04-02: 5 phases total, 18 plans, ~1,213 lines (Python + YAML + docs)
+- Tech stack: Python 3.12, asyncio, spotipy, SoCo, FastAPI, aiosqlite, LRCLIB, better-profanity, Docker, pytest
+- Sonos SSDP auto-discovery via `probe_sonos_speakers()` at startup; `SONOS_SPEAKER_IPS=Name=IP,...` is explicit escape hatch for LXC/Proxmox hosts
 - Sonos in Spotify Connect mode returns error 701 on UPnP `next()` — daemon falls back to Spotify API
+- Docker healthcheck: `poll_loop()` touches `/app/.healthcheck` every cycle; 90s hang detection (interval 30s × retries 3)
 - Children are ages 3 and 7 — filtering errs on the side of caution
 - Music plays through Living Room Sonos (192.168.1.164); Dining Room IP unknown (offline)
-
-## Current Milestone: v1.1 Deployment
-
-**Goal:** Make the project easy to clone and run on any Docker host, fix Sonos SSDP discovery so manual IP mapping isn't required, and verify boot persistence.
-
-**Target features:**
-- Sonos SSDP auto-discovery (diagnose multicast block; `SONOS_SPEAKER_IPS` becomes fallback only)
-- Boot persistence verified and documented (`systemctl enable docker` + `restart:always`)
-- Clone-and-run README (env setup, OAuth flow, Sonos network requirements, Proxmox/LXC notes)
-- `docker-compose.yml` healthcheck for silent hang detection
 
 ## Key Decisions
 
@@ -69,10 +61,13 @@ Songs that violate family-safe rules are skipped automatically before children h
 | Signal bot → Web dashboard | Signal bot scope too broad for v1; web dashboard simpler and sufficient | ✓ Good — dashboard works well |
 | SoCo for Sonos + Spotify API fallback | Sonos is_restricted=True blocks Web API; SoCo handles UPnP directly | ✓ Good — fallback handles Spotify Connect edge case |
 | File-based IPC (skip_events.jsonl) | In-process asyncio.Queue doesn't cross Docker container boundary | ✓ Good — file tail reliable |
-| SONOS_SPEAKER_IPS env var | SSDP multicast blocked by host firewall; direct IP bypasses discovery | ✓ Good — immediate fix |
+| SONOS_SPEAKER_IPS env var | SSDP multicast blocked by host firewall; direct IP bypasses discovery | ✓ Good — now escape hatch; SSDP is primary |
 | Pause on 5th skip instead of skip+pause | Race condition: skip moves track before pause fires | ✓ Good — pause on current track works reliably |
 | Manual FSM toggle | Simplest v1; auto-detect Sonos is v2 | ✓ Good |
 | Explicit flag + lyric scan | Sentiment analysis complex; layered approach ships incrementally | ✓ Good |
+| Touch-file healthcheck probe | Simplest cross-language probe; mtime check catches hung event loop (process alive but deadlocked) | ✓ Good — verified working |
+| PROXMOX.md as separate file | Keeps README minimal; LXC multicast edge case is niche enough to warrant dedicated doc | ✓ Good |
+| 3-section README (Quick Start / Prerequisites / Updating) | Minimal surface area; no troubleshooting section forces good defaults over workarounds | ✓ Good |
 
 ## Evolution
 
@@ -83,4 +78,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-02 after Phase 5 complete — Docker healthcheck + README/PROXMOX documentation*
+*Last updated: 2026-04-02 after v1.1 milestone — Deployment complete*

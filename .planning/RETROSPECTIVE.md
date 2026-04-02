@@ -55,6 +55,53 @@
 
 ---
 
+## Milestone: v1.1 — Deployment
+
+**Shipped:** 2026-04-02
+**Phases:** 2 | **Plans:** 4 | **LOC:** +~713 lines (Python + YAML + docs)
+
+### What Was Built
+
+- `probe_sonos_speakers()` as first-class startup step in `daemon.py` — SSDP auto-discovery with actionable multicast failure warnings (firewall/bridge hints) in `skip_client.py`
+- `SONOS_SPEAKER_IPS` reframed from workaround to documented escape hatch (`Name=IP,...` format) in `.env.example`
+- Docker healthcheck: `poll_loop()` touches `/app/.healthcheck` every cycle; `docker-compose.yml` detects 90s hang (interval 30s × retries 3) and triggers auto-restart
+- `README.md`: 7-step Quick Start with OAuth flow, UID/GID pitfall, `systemctl enable docker` boot persistence
+- `PROXMOX.md`: LXC SSDP multicast context + `SONOS_SPEAKER_IPS` bypass for restricted networks; no specific firewall commands (links to official docs)
+- TDD scaffold first (RED) → implementation (GREEN) for both discovery and healthcheck — pytest + pytest-asyncio added to requirements
+
+### What Worked
+
+- **TDD RED/GREEN discipline** — writing failing tests first for `probe_sonos_speakers` and healthcheck made the behavioral contracts explicit before any wiring; caught edge cases (stale file, coordinator-only probe) that inline implementation would have missed
+- **Touch-file healthcheck simplicity** — cross-language, zero dependencies, detects the exact failure mode (hung event loop, process alive); no custom HTTP health endpoint needed
+- **PROXMOX.md as a separate file** — isolating the LXC multicast edge case kept README minimal; developers who don't need it never see it
+- **3-section README constraint** — forcing Quick Start / Prerequisites / Updating only prevented scope creep into troubleshooting and reference docs; README stayed actionable
+
+### What Was Inefficient
+
+- **pytest not in requirements.txt** — the image didn't have pytest installed; `docker compose run --rm daemon python -m pytest` failed on first try. Any test infrastructure should be verified in the container at the end of the first test-writing task
+- **Container name typo in UAT** — healthcheck UAT described `docker exec <container>` without the exact container name; user hit a typo-based error. UAT tests with CLI commands should include the exact container name from `docker ps`
+
+### Patterns Established
+
+- **TDD for daemon behaviors** — new daemon.py behaviors (polling, probing, touching files) get a `tests/test_*.py` file with RED tests before implementation; `docker compose run --rm daemon python -m pytest` is the verification step
+- **Escape hatch env var = documented at birth** — every hardware/network discovery mechanism ships with a manual override in `.env.example` on day 1, with a comment explaining when to use it
+- **Separate edge-case docs** — niche deployment scenarios (Proxmox/LXC, VPN, unusual networks) go in dedicated `.md` files linked from README via blockquote, not inline
+
+### Key Lessons
+
+1. **pytest must be in the image** — add test runner dependencies to `requirements.txt` before writing any test; don't assume the dev environment matches the container
+2. **Healthcheck probe = mtime check on a touched file** — simpler than HTTP, works for any polling daemon, catches hung event loops that HTTP endpoints would miss
+3. **Minimal README sections > comprehensive README** — 3 sections (Quick Start, Prerequisites, Updating) forces the author to make the happy path work without workarounds; troubleshooting sections invite workarounds instead of fixes
+4. **SSDP is primary, IP override is escape hatch** — the default should always be discovery; manual overrides should be labeled as such in all docs
+
+### Cost Observations
+
+- Model mix: primarily Sonnet 4.6 (GSD balanced profile)
+- Sessions: ~3 sessions (2026-04-02)
+- Notable: 2-phase milestone executed in a single day; parallel executor agents for Wave 1 saved meaningful wall-clock time
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -62,14 +109,17 @@
 | Milestone | Sessions | Phases | Key Change |
 |-----------|----------|--------|------------|
 | v1.0 | ~8 | 3 | First milestone; GSD coarse granularity established |
+| v1.1 | ~3 | 2 | TDD RED/GREEN discipline adopted; parallel wave execution |
 
 ### Cumulative Quality
 
 | Milestone | Tests | Coverage | Zero-Dep Additions |
 |-----------|-------|----------|--------------------|
 | v1.0 | manual UAT | — | 0 (all deps intentional) |
+| v1.1 | pytest (healthcheck + Sonos probe) | targeted | pytest, pytest-asyncio |
 
 ### Top Lessons (Verified Across Milestones)
 
 1. Design for the container/process boundary from day 1 — asyncio queues don't cross walls
 2. Hardware discovery needs manual override escape hatches from day 1
+3. Test runner must be in the container image — verify with `docker compose run` before writing tests
