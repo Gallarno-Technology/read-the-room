@@ -10,6 +10,7 @@ without modifying daemon.py — just instantiate the new implementation there.
 """
 import asyncio
 import logging
+import os
 from abc import ABC, abstractmethod
 
 import soco
@@ -19,6 +20,23 @@ from soco.exceptions import SoCoUPnPException
 from spotipy.exceptions import SpotifyException
 
 log = logging.getLogger(__name__)
+
+
+def _soco_next(speaker: "soco.SoCo") -> None:
+    """Skip to next track, routing the command to the group coordinator.
+
+    UPnP transport commands (Next, Pause) must target the group coordinator —
+    sending them to a non-coordinator member returns error 701 "Transition not
+    available".  If the speaker is standalone (no group), it IS the coordinator.
+    """
+    coordinator = speaker.group.coordinator if speaker.group else speaker
+    coordinator.next()
+
+
+def _soco_pause(speaker: "soco.SoCo") -> None:
+    """Pause playback, routing the command to the group coordinator."""
+    coordinator = speaker.group.coordinator if speaker.group else speaker
+    coordinator.pause()
 
 
 class SkipClient(ABC):
@@ -108,7 +126,16 @@ class SocoSkipClient(SkipClient):
 
     def __init__(self) -> None:
         # IP cache: device_name -> ip_address
+        # Pre-seed from SONOS_SPEAKER_IPS env var to bypass SSDP discovery entirely.
+        # Format: "Dining Room=192.168.1.50,Living Room=192.168.1.51"
         self._ip_cache: dict[str, str] = {}
+        raw = os.environ.get("SONOS_SPEAKER_IPS", "")
+        for entry in raw.split(","):
+            entry = entry.strip()
+            if "=" in entry:
+                name, ip = entry.rsplit("=", 1)
+                self._ip_cache[name.strip()] = ip.strip()
+                log.info("SocoSkipClient: pre-seeded IP cache: %r -> %s", name.strip(), ip.strip())
 
     async def skip(self, device_name: str, device_id: str) -> bool:
         """Skip to next track on a Sonos speaker.
@@ -124,13 +151,13 @@ class SocoSkipClient(SkipClient):
             cached_ip = self._ip_cache[device_name]
             try:
                 speaker = soco.SoCo(cached_ip)
-                await loop.run_in_executor(None, speaker.next)
+                await loop.run_in_executor(None, _soco_next, speaker)
                 log.debug(
                     "SocoSkipClient: skipped via cached IP %s for %r",
                     cached_ip, device_name,
                 )
                 return True
-            except SoCoUPnPException as exc:
+            except (SoCoUPnPException, OSError) as exc:
                 log.warning(
                     "SocoSkipClient: cached IP %s failed for %r, retrying discovery: %s",
                     cached_ip, device_name, exc,
@@ -165,7 +192,7 @@ class SocoSkipClient(SkipClient):
         self._ip_cache[device_name] = device.ip_address
 
         try:
-            await loop.run_in_executor(None, device.next)
+            await loop.run_in_executor(None, _soco_next, device)
             log.debug(
                 "SocoSkipClient: skipped via discovery for %r (IP cached: %s)",
                 device_name, device.ip_address,
@@ -192,13 +219,13 @@ class SocoSkipClient(SkipClient):
             cached_ip = self._ip_cache[device_name]
             try:
                 speaker = soco.SoCo(cached_ip)
-                await loop.run_in_executor(None, speaker.pause)
+                await loop.run_in_executor(None, _soco_pause, speaker)
                 log.debug(
                     "SocoSkipClient: paused via cached IP %s for %r",
                     cached_ip, device_name,
                 )
                 return True
-            except SoCoUPnPException as exc:
+            except (SoCoUPnPException, OSError) as exc:
                 log.warning(
                     "SocoSkipClient: cached IP %s failed for %r during pause, retrying discovery: %s",
                     cached_ip, device_name, exc,
@@ -230,7 +257,7 @@ class SocoSkipClient(SkipClient):
         self._ip_cache[device_name] = device.ip_address
 
         try:
-            await loop.run_in_executor(None, device.pause)
+            await loop.run_in_executor(None, _soco_pause, device)
             log.debug(
                 "SocoSkipClient: paused via discovery for %r (IP cached: %s)",
                 device_name, device.ip_address,

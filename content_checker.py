@@ -75,7 +75,7 @@ class ContentChecker:
             # FILT-04: Instrumental tracks are allowed without scanning
             if lyrics_result.instrumental:
                 log.info(
-                    "[SCAN] track=%r artist=%r severity=0 matched=[] action=allow",
+                    "[SCAN] track=%r artist=%r severity=0 matched=[] action=allow reason=instrumental",
                     track_name,
                     artist_name,
                 )
@@ -84,7 +84,7 @@ class ContentChecker:
             # FILT-05: Lyrics unavailable = ambiguous, do NOT auto-skip
             if lyrics_result.lyrics is None:
                 log.info(
-                    "[SCAN] track=%r artist=%r severity=0 matched=[] action=allow",
+                    "[SCAN] track=%r artist=%r severity=0 matched=[] action=allow reason=lyrics_unavailable",
                     track_name,
                     artist_name,
                 )

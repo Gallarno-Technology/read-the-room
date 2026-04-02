@@ -172,56 +172,69 @@ async def poll_loop(
                             consecutive_skips = 0
 
                         if action == "skip":
-                            # SKIP-03: Select skip client based on is_restricted (D-01)
+                            # SKIP-03: Select skip client based on is_restricted (D-01).
+                            # When Spotify Connect controls a Sonos, UPnP next() fails with
+                            # error 701 (queue owned by Spotify, not Sonos). Fall back to
+                            # spotify_skip in that case — it works despite is_restricted=True.
                             client = soco_skip if is_restricted else spotify_skip
-                            success = await client.skip(device_name, device.get("id"))
 
-                            if success:
-                                # D-07: Structured skip log
-                                log.info(
-                                    "[SKIP] reason=%s track=%r artist=%r",
-                                    reason,
-                                    track["name"],
-                                    track["artists"][0]["name"],
-                                )
-                                # Phase 3 D-08: push structured event to SSE queue
+                            # Phase 3 D-11/D-13: on the 5th consecutive skip, pause instead
+                            # of skipping. Pausing on the current track avoids the race where
+                            # skip() moves Spotify to the next track before pause() fires,
+                            # causing playback to continue.
+                            if consecutive_skips + 1 >= 5:
+                                log.warning("[5SKIP] 5 consecutive skips — pausing playback")
+                                paused = await client.pause(device_name, device.get("id"))
+                                if not paused and is_restricted:
+                                    paused = await spotify_skip.pause(device_name, device.get("id"))
+                                if not paused:
+                                    log.warning("[5SKIP] pause failed for device %r — playback may continue", device_name)
                                 skip_event_queue.put_nowait({
-                                    "type": "skip",
-                                    "track": track["name"],
-                                    "artist": track["artists"][0]["name"],
-                                    "reason": reason,
+                                    "type": "five_skip_warning",
                                     "timestamp": time.strftime("%H:%M:%S"),
                                 })
                                 _append_skip_event({
-                                    "type": "skip",
-                                    "track": track["name"],
-                                    "artist": track["artists"][0]["name"],
-                                    "reason": reason,
+                                    "type": "five_skip_warning",
                                     "timestamp": time.strftime("%H:%M:%S"),
                                 })
-                                # Phase 3 D-11/D-13: 5-consecutive-skip counter
-                                consecutive_skips += 1
-                                if consecutive_skips >= 5:
-                                    log.warning("[5SKIP] 5 consecutive skips — pausing playback")
-                                    paused = await client.pause(device_name, device.get("id"))
-                                    if not paused:
-                                        log.warning("[5SKIP] pause failed for device %r — playback may continue", device_name)
+                                consecutive_skips = 0
+                            else:
+                                success = await client.skip(device_name, device.get("id"))
+                                if not success and is_restricted:
+                                    log.info("[SKIP] SoCo failed, retrying via Spotify API for %r", device_name)
+                                    success = await spotify_skip.skip(device_name, device.get("id"))
+
+                                if success:
+                                    # D-07: Structured skip log
+                                    log.info(
+                                        "[SKIP] reason=%s track=%r artist=%r",
+                                        reason,
+                                        track["name"],
+                                        track["artists"][0]["name"],
+                                    )
+                                    # Phase 3 D-08: push structured event to SSE queue
                                     skip_event_queue.put_nowait({
-                                        "type": "five_skip_warning",
+                                        "type": "skip",
+                                        "track": track["name"],
+                                        "artist": track["artists"][0]["name"],
+                                        "reason": reason,
                                         "timestamp": time.strftime("%H:%M:%S"),
                                     })
                                     _append_skip_event({
-                                        "type": "five_skip_warning",
+                                        "type": "skip",
+                                        "track": track["name"],
+                                        "artist": track["artists"][0]["name"],
+                                        "reason": reason,
                                         "timestamp": time.strftime("%H:%M:%S"),
                                     })
-                                    consecutive_skips = 0
-                            else:
-                                log.warning(
-                                    "[SKIP_FAILED] reason=%s track=%r artist=%r",
-                                    reason,
-                                    track["name"],
-                                    track["artists"][0]["name"],
-                                )
+                                    consecutive_skips += 1
+                                else:
+                                    log.warning(
+                                        "[SKIP_FAILED] reason=%s track=%r artist=%r",
+                                        reason,
+                                        track["name"],
+                                        track["artists"][0]["name"],
+                                    )
 
         except SpotifyException as exc:
             if exc.http_status == 429:

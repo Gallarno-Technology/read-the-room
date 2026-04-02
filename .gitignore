@@ -11,3 +11,7 @@ __pycache__/
 
 # Docker
 .docker/
+
+# Runtime data and caches
+data/
+lyrics_cache.db

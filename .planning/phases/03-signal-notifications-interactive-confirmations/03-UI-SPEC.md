@@ -1,7 +1,8 @@
 ---
 phase: 3
 slug: signal-notifications-interactive-confirmations
-status: draft
+status: approved
+reviewed_at: 2026-04-01
 shadcn_initialized: false
 preset: none
 created: 2026-04-01
@@ -126,7 +127,7 @@ These are the HTML/CSS components the executor must build. No library — each i
 | Property | Spec |
 |----------|------|
 | Element | `<span class="badge badge--{variant}">` inline within feed item |
-| Size | 11px (Courier Prime), 2px 6px padding, 4px border-radius |
+| Size | 11px (Courier Prime), 4px 8px padding, 4px border-radius |
 | Border | 1px solid (per variant) |
 
 Variants:
@@ -259,11 +260,11 @@ No JavaScript libraries, no CDN dependencies, no npm packages. All JS is inline 
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: FLAG (non-blocking — 12/13/14px cluster)
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-04-01
