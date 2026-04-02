@@ -42,41 +42,56 @@ TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 app = FastAPI(title="Spotify Family Safe Mode", docs_url=None, redoc_url=None)
 
 # ---------------------------------------------------------------------------
-# Shared event queue — populated by daemon.py when running in the same process.
-# In the docker-compose multi-service setup, this is a local subscriber queue
-# that daemon.py's module-level skip_event_queue feeds via a bridge task.
+# File-based IPC bridge — daemon writes skip_events.jsonl; we tail it here.
+# Replaces the broken in-process asyncio.Queue import (Gap-2 fix).
+# Both containers share the file via a docker-compose ./data volume mount.
 # ---------------------------------------------------------------------------
-# Import daemon's queue if available (same-process mode); else use a local queue.
-try:
-    from daemon import skip_event_queue as _daemon_queue  # type: ignore[import]
-    _SOURCE_QUEUE: asyncio.Queue = _daemon_queue
-    log.info("web_ui: connected to daemon skip_event_queue (in-process mode)")
-except ImportError:
-    _SOURCE_QUEUE = asyncio.Queue()
-    log.info("web_ui: daemon not importable — using local queue (standalone mode)")
+SKIP_EVENTS_PATH = os.environ.get("SKIP_EVENTS_PATH", "data/skip_events.jsonl")
 
-# Each SSE client gets its own subscriber queue. The broadcaster task copies
-# events from _SOURCE_QUEUE to all active subscriber queues.
+# Each SSE client gets its own subscriber queue (maxsize=100).
 _subscribers: list[asyncio.Queue] = []
 
 
-async def _broadcaster() -> None:
-    """Relay events from source queue to all subscriber queues."""
-    while True:
-        event = await _SOURCE_QUEUE.get()
-        dead = []
-        for q in _subscribers:
+async def _file_tail() -> None:
+    """Tail skip_events.jsonl and push new JSON-line events to all SSE subscribers.
+
+    Starts reading from the END of the file on startup (skips history) so the browser
+    only sees events that occur while it is connected — consistent with the original
+    in-process queue behaviour.
+    """
+    log.info("web_ui: tailing %s for SSE events", SKIP_EVENTS_PATH)
+    # Wait until the file exists (daemon may start slightly after web_ui)
+    while not os.path.exists(SKIP_EVENTS_PATH):
+        await asyncio.sleep(1)
+
+    with open(SKIP_EVENTS_PATH) as fh:
+        fh.seek(0, 2)  # seek to end — skip existing history
+        while True:
+            line = fh.readline()
+            if not line:
+                await asyncio.sleep(0.25)  # poll every 250 ms
+                continue
+            line = line.strip()
+            if not line:
+                continue
             try:
-                q.put_nowait(event)
-            except asyncio.QueueFull:
-                dead.append(q)
-        for q in dead:
-            _subscribers.remove(q)
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                log.warning("web_ui: skipping malformed event line: %r", line)
+                continue
+            dead = []
+            for q in _subscribers:
+                try:
+                    q.put_nowait(event)
+                except asyncio.QueueFull:
+                    dead.append(q)
+            for q in dead:
+                _subscribers.remove(q)
 
 
 @app.on_event("startup")
 async def _startup() -> None:
-    asyncio.create_task(_broadcaster())
+    asyncio.create_task(_file_tail())
 
 
 # ---------------------------------------------------------------------------
