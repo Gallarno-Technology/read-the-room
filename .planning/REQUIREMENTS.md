@@ -13,11 +13,11 @@
 
 ### DEPL — Deployment
 
-- [ ] **DEPL-01**: README covers complete first-time setup: prerequisites, clone, `.env` config, Spotify OAuth, and `docker compose up -d`
-- [ ] **DEPL-02**: README documents Sonos network requirements (multicast UDP port 1900, firewall rules, Proxmox LXC bridge config)
-- [ ] **DEPL-03**: Service survives host reboots without manual intervention — Docker daemon auto-start documented and verified
+- [x] **DEPL-01**: README covers complete first-time setup: prerequisites, clone, `.env` config, Spotify OAuth, and `docker compose up -d`
+- [x] **DEPL-02**: README documents Sonos network requirements (multicast UDP port 1900, firewall rules, Proxmox LXC bridge config)
+- [x] **DEPL-03**: Service survives host reboots without manual intervention — Docker daemon auto-start documented and verified
 - [ ] **DEPL-04**: `docker-compose.yml` includes a healthcheck that detects a silently hung daemon and triggers automatic restart
-- [ ] **DEPL-05**: Updating to a new version requires only `git pull && docker compose up -d --build` — no manual migration steps, data safe across updates
+- [x] **DEPL-05**: Updating to a new version requires only `git pull && docker compose up -d --build` — no manual migration steps, data safe across updates
 
 ## v2 Requirements
 
@@ -58,11 +58,11 @@
 | DISC-01 | Phase 4 | Complete |
 | DISC-02 | Phase 4 | Complete |
 | DISC-03 | Phase 4 | Complete |
-| DEPL-01 | Phase 5 | Pending |
-| DEPL-02 | Phase 5 | Pending |
-| DEPL-03 | Phase 5 | Pending |
+| DEPL-01 | Phase 5 | Complete |
+| DEPL-02 | Phase 5 | Complete |
+| DEPL-03 | Phase 5 | Complete |
 | DEPL-04 | Phase 5 | Pending |
-| DEPL-05 | Phase 5 | Pending |
+| DEPL-05 | Phase 5 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 8 total

@@ -56,7 +56,7 @@ Plans:
 
 Plans:
 - [ ] 05-01-PLAN.md — Healthcheck: TDD tests + docker-compose.yml block + daemon.py touch-file probe
-- [ ] 05-02-PLAN.md — Documentation: README.md (Quick Start/Prerequisites/Updating) + PROXMOX.md
+- [x] 05-02-PLAN.md — Documentation: README.md (Quick Start/Prerequisites/Updating) + PROXMOX.md
 
 ## Progress
 
