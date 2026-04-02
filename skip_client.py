@@ -182,8 +182,9 @@ class SocoSkipClient(SkipClient):
         if device is None:
             log.warning(
                 "SocoSkipClient: Sonos speaker %r not found on network. "
-                "Spotify device name may not match Sonos room name exactly. "
-                "Caller should fall back to Spotify API skip.",
+                "Check: (1) device name matches Sonos room name exactly, "
+                "(2) multicast UDP port 1900 is open on host firewall, "
+                "(3) set SONOS_SPEAKER_IPS=Name=IP in .env for restricted networks.",
                 device_name,
             )
             return False
@@ -248,7 +249,9 @@ class SocoSkipClient(SkipClient):
         if device is None:
             log.warning(
                 "SocoSkipClient: Sonos speaker %r not found on network during pause. "
-                "Spotify device name may not match Sonos room name exactly.",
+                "Check: (1) device name matches Sonos room name exactly, "
+                "(2) multicast UDP port 1900 is open on host firewall, "
+                "(3) set SONOS_SPEAKER_IPS=Name=IP in .env for restricted networks.",
                 device_name,
             )
             return False
