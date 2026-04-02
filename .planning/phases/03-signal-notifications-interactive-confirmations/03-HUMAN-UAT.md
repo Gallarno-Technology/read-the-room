@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 03-signal-notifications-interactive-confirmations
 source: [03-VERIFICATION.md]
 started: 2026-04-02T11:10:00Z
@@ -47,7 +47,15 @@ blocked: 0
   reason: "User reported: five skip warning exists in log, banner appears, playback does not stop"
   severity: major
   test: 4
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "sp.pause_playback() fails silently for Sonos (is_restricted=True) devices because Spotify API cannot control restricted devices; also called synchronously in async loop without run_in_executor. SocoSkipClient and SpotifySkipClient have no pause() method."
+  artifacts:
+    - path: "daemon.py"
+      issue: "Line 207: sp.pause_playback() called synchronously and without device_id; fails silently for Sonos via bare except"
+    - path: "skip_client.py"
+      issue: "SkipClient ABC and both implementations only define skip() — no pause() method exists"
+  missing:
+    - "Add async pause(device_name, device_id) to SkipClient ABC"
+    - "Implement pause() in SocoSkipClient using speaker.pause() via run_in_executor"
+    - "Implement pause() in SpotifySkipClient using sp.pause_playback(device_id) via run_in_executor"
+    - "Replace sp.pause_playback() in daemon.py with await client.pause(device_name, device.get('id'))"
   debug_session: ""
