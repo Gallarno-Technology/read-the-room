@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: MVP
-status: complete
-stopped_at: v1.0 milestone archived
+milestone: v1.1
+milestone_name: Deployment
+status: defining_requirements
+stopped_at: —
 last_updated: "2026-04-02T00:00:00.000Z"
 last_activity: 2026-04-02
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 14
-  completed_plans: 14
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
   percent: 0
 ---
 
@@ -21,13 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Planning v2.0 milestone — run `/gsd:new-milestone`
+**Current focus:** v1.1 Deployment — defining requirements
 
 ## Current Position
 
-Phase: 03 (signal-notifications-interactive-confirmations) — EXECUTING
-Plan: 2 of 5
-Status: Ready to execute
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-02 — Milestone v1.1 started
 Last activity: 2026-04-02
 
 Progress: [░░░░░░░░░░] 0%

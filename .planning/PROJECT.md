@@ -27,6 +27,11 @@ Songs that violate family-safe rules are skipped automatically before children h
 
 - [ ] Sonos SSDP discovery works without manual IP configuration (firewall/multicast issue)
 - [ ] Support for multiple Sonos rooms without env var mapping
+- [ ] Project has a complete clone-and-run README usable by anyone with Docker
+- [ ] Service survives host reboots without manual intervention
+
+### Deferred (v2+)
+
 - [ ] Sentiment analysis for adult themes (depression, violence, drug use)
 - [ ] Per-child profiles or age-based filtering tiers
 
@@ -46,6 +51,16 @@ Songs that violate family-safe rules are skipped automatically before children h
 - Sonos in Spotify Connect mode returns error 701 on UPnP `next()` — daemon falls back to Spotify API
 - Children are ages 3 and 7 — filtering errs on the side of caution
 - Music plays through Living Room Sonos (192.168.1.164); Dining Room IP unknown (offline)
+
+## Current Milestone: v1.1 Deployment
+
+**Goal:** Make the project easy to clone and run on any Docker host, fix Sonos SSDP discovery so manual IP mapping isn't required, and verify boot persistence.
+
+**Target features:**
+- Sonos SSDP auto-discovery (diagnose multicast block; `SONOS_SPEAKER_IPS` becomes fallback only)
+- Boot persistence verified and documented (`systemctl enable docker` + `restart:always`)
+- Clone-and-run README (env setup, OAuth flow, Sonos network requirements, Proxmox/LXC notes)
+- `docker-compose.yml` healthcheck for silent hang detection
 
 ## Key Decisions
 
@@ -68,4 +83,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-02 after v1.0 MVP milestone*
+*Last updated: 2026-04-02 after v1.1 Deployment milestone start*
