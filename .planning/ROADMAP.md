@@ -66,7 +66,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — daemon.py skip event queue + 5-skip counter/pause, FastAPI web_ui service (SSE /events, POST /fsm, GET /fsm)
+- [x] 03-01-PLAN.md — daemon.py skip event queue + 5-skip counter/pause, FastAPI web_ui service (SSE /events, POST /fsm, GET /fsm)
 - [ ] 03-02-PLAN.md — Dashboard HTML/CSS/JS template (FSM toggle, skip feed, badges, banner, SSE status), web_ui Dockerfile, docker-compose web_ui service, Makefile ui-logs target
 
 ## Progress
@@ -78,4 +78,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Core Daemon & Spotify Auth | 2/2 | Complete   | 2026-04-01 |
 | 2. Content Filtering & Auto-Skip | 7/7 | Complete   | 2026-04-02 |
-| 3. Web UI Dashboard | 0/2 | Not started | - |
+| 3. Web UI Dashboard | 1/2 | In Progress|  |

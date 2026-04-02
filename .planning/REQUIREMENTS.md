@@ -31,14 +31,14 @@
 
 - [x] **FSM-01**: Family Safe Mode can be toggled on/off (persisted in a local state file)
 - [x] **FSM-02**: Filtering and skipping only occurs when Family Safe Mode is active
-- [ ] **FSM-03**: After 5 consecutive skips, a Signal notification prompts the user to switch playlist or radio
+- [x] **FSM-03**: After 5 consecutive skips, a Signal notification prompts the user to switch playlist or radio
 
 ### Signal Notifications
 
-- [ ] **SIG-01**: A Signal notification is sent whenever a track is auto-skipped (includes track name, artist, and reason)
+- [x] **SIG-01**: A Signal notification is sent whenever a track is auto-skipped (includes track name, artist, and reason)
 - [ ] **SIG-02**: For ambiguous tracks (lyrics unavailable, borderline profanity), a Signal notification asks the user to allow or skip — with a 30-second timeout defaulting to skip
 - [ ] **SIG-03**: The user can reply "allow" or "skip" to the Signal prompt and the service acts on the reply in real-time
-- [ ] **SIG-04**: Signal integration uses signal-cli-rest-api (Docker, json-rpc/WebSocket mode)
+- [x] **SIG-04**: Signal integration uses signal-cli-rest-api (Docker, json-rpc/WebSocket mode)
 
 ## v2 Requirements
 
@@ -88,11 +88,11 @@
 | SKIP-03 | Phase 2 | Complete |
 | FSM-01 | Phase 2 | Complete |
 | FSM-02 | Phase 2 | Complete |
-| FSM-03 | Phase 3 | Pending |
-| SIG-01 | Phase 3 | Pending |
+| FSM-03 | Phase 3 | Complete |
+| SIG-01 | Phase 3 | Complete |
 | SIG-02 | Phase 3 | Pending |
 | SIG-03 | Phase 3 | Pending |
-| SIG-04 | Phase 3 | Pending |
+| SIG-04 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 20 total
