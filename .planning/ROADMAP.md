@@ -36,7 +36,11 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
   2. Setting `SONOS_SPEAKER_IPS` in `.env` skips SSDP and uses the provided IPs directly (fallback still works)
   3. When SSDP discovery finds no speakers, the log contains a message with a concrete firewall/multicast remediation hint
   4. `.env.example` documents `SONOS_SPEAKER_IPS` as an optional escape hatch with a comment explaining when to use it
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — TDD scaffold: failing tests for probe_sonos_speakers and updated skip_client warnings
+- [ ] 04-02-PLAN.md — Implementation: probe_sonos_speakers in daemon.py, updated warnings in skip_client.py, reframed .env.example comment
 
 ### Phase 5: Deployment & Documentation
 **Goal**: Any developer with Docker can clone the repo and have the service running — and the service survives reboots, hangs silently, and updates cleanly
@@ -58,5 +62,5 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 | 1. Core Daemon & Spotify Auth | v1.0 | 2/2 | Complete | 2026-04-01 |
 | 2. Content Filtering & Auto-Skip | v1.0 | 7/7 | Complete | 2026-04-02 |
 | 3. Web UI Dashboard | v1.0 | 5/5 | Complete | 2026-04-02 |
-| 4. Sonos Discovery Hardening | v1.1 | 0/? | Not started | - |
+| 4. Sonos Discovery Hardening | v1.1 | 0/2 | Not started | - |
 | 5. Deployment & Documentation | v1.1 | 0/? | Not started | - |
