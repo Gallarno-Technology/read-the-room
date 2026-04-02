@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-04-PLAN.md
-last_updated: "2026-04-02T11:01:22.373Z"
+stopped_at: Completed 03-05-PLAN.md
+last_updated: "2026-04-02T11:59:22.357Z"
 last_activity: 2026-04-02
 progress:
   total_phases: 3
   completed_phases: 3
-  total_plans: 13
-  completed_plans: 13
+  total_plans: 14
+  completed_plans: 14
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-01)
 ## Current Position
 
 Phase: 03 (signal-notifications-interactive-confirmations) — EXECUTING
-Plan: 3 of 4
+Plan: 2 of 5
 Status: Ready to execute
 Last activity: 2026-04-02
 
@@ -65,6 +65,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 03 P02 | 2min | 2 tasks | 5 files |
 | Phase 03-signal-notifications-interactive-confirmations P03 | 1min | 2 tasks | 2 files |
 | Phase 03 P04 | 2min | 2 tasks | 3 files |
+| Phase 03 P05 | 2min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -108,6 +109,9 @@ Recent decisions affecting current work:
 - [Phase 03]: prev_fsm initialized as False in poll_loop — correctly resets consecutive_skips when FSM transitions False->True without spurious first-cycle reset
 - [Phase 03]: File-based IPC (jsonl tail) chosen over message broker for cross-container SSE event sharing — simplest fix preserving existing API contract
 - [Phase 03]: SKIP_EVENTS_PATH env var exposed in both daemon.py and web_ui/main.py — allows path override in tests or alternate deployments
+- [Phase 03]: SocoSkipClient.pause mirrors skip() — same IP cache + SSDP discovery fallback, speaker.pause() replaces speaker.next()
+- [Phase 03]: SpotifySkipClient.pause passes device_id to sp.pause_playback — bare call without device_id silently fails for non-active sessions
+- [Phase 03]: daemon.py 5-skip block uses await client.pause(device_name, device.get('id')) — client already in scope from skip call, no new variable needed
 
 ### Pending Todos
 
@@ -120,6 +124,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-02T11:01:22.371Z
-Stopped at: Completed 03-04-PLAN.md
+Last session: 2026-04-02T11:59:22.355Z
+Stopped at: Completed 03-05-PLAN.md
 Resume file: None

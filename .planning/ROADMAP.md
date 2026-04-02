@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Core Daemon & Spotify Auth** - Authenticated poll loop running as a Docker service with restart:always; detects track changes (completed 2026-04-01)
 - [x] **Phase 2: Content Filtering & Auto-Skip** - Three-tier filter (explicit flag → LRCLIB → profanity scan) with dual skip path (SoCo + Spotify API) and Family Safe Mode toggle (completed 2026-04-02)
-- [ ] **Phase 3: Web UI Dashboard** - Real-time skip history feed and FSM toggle via FastAPI + plain HTML/JS + SSE; 5-consecutive-skip pause; dismissible warning banner (gap closure in progress)
+- [x] **Phase 3: Web UI Dashboard** - Real-time skip history feed and FSM toggle via FastAPI + plain HTML/JS + SSE; 5-consecutive-skip pause; dismissible warning banner (gap closure in progress) (completed 2026-04-02)
 
 ## Phase Details
 
@@ -70,7 +70,7 @@ Plans:
 - [x] 03-02-PLAN.md — Dashboard HTML/CSS/JS template (FSM toggle, skip feed, badges, banner, SSE status), web_ui Dockerfile, docker-compose web_ui service, Makefile ui-logs target
 - [x] 03-03-PLAN.md — Gap closure: fix web_ui/Dockerfile wrong requirements.txt path (Gap 1), reset consecutive_skips on FSM re-enable (Gap 3)
 - [x] 03-04-PLAN.md — Gap closure: replace broken in-process queue import with file-based IPC (data/skip_events.jsonl daemon writes + web_ui tails) and shared docker volume (Gap 2)
-- [ ] 03-05-PLAN.md — Gap closure: add pause() to SkipClient ABC and implementations; fix 5-skip pause to use await client.pause() for Sonos support (UAT Gap)
+- [x] 03-05-PLAN.md — Gap closure: add pause() to SkipClient ABC and implementations; fix 5-skip pause to use await client.pause() for Sonos support (UAT Gap)
 
 ## Progress
 
@@ -81,4 +81,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Core Daemon & Spotify Auth | 2/2 | Complete   | 2026-04-01 |
 | 2. Content Filtering & Auto-Skip | 7/7 | Complete   | 2026-04-02 |
-| 3. Web UI Dashboard | 4/5 | In Progress|  |
+| 3. Web UI Dashboard | 5/5 | Complete   | 2026-04-02 |
