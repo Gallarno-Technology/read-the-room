@@ -203,10 +203,9 @@ async def poll_loop(
                                 consecutive_skips += 1
                                 if consecutive_skips >= 5:
                                     log.warning("[5SKIP] 5 consecutive skips — pausing playback")
-                                    try:
-                                        sp.pause_playback()
-                                    except Exception as exc:  # noqa: BLE001
-                                        log.error("[5SKIP] pause_playback failed: %s", exc)
+                                    paused = await client.pause(device_name, device.get("id"))
+                                    if not paused:
+                                        log.warning("[5SKIP] pause failed for device %r — playback may continue", device_name)
                                     skip_event_queue.put_nowait({
                                         "type": "five_skip_warning",
                                         "timestamp": time.strftime("%H:%M:%S"),
