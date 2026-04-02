@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 02-05-PLAN.md: Docker ownership fix, Makefile setup fix, Sonos detection fix"
-last_updated: "2026-04-01T23:42:31.994Z"
-last_activity: 2026-04-01
+stopped_at: "Completed 02-07-PLAN.md: SoCo fuzzy speaker discovery via discover() + strip/lower"
+last_updated: "2026-04-02T01:16:20.857Z"
+last_activity: 2026-04-02
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 9
+  completed_plans: 9
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-01)
 Phase: 3
 Plan: Not started
 Status: Ready to execute
-Last activity: 2026-04-01
+Last activity: 2026-04-02
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -59,6 +59,8 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02 P03 | 4min | 1 tasks | 1 files |
 | Phase 02-content-filtering-auto-skip P04 | 1min | 2 tasks | 2 files |
 | Phase 02-content-filtering-auto-skip P05 | 1min | 3 tasks | 3 files |
+| Phase 02 P06 | 5min | 2 tasks | 2 files |
+| Phase 02-content-filtering-auto-skip P07 | 3min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -88,6 +90,9 @@ Recent decisions affecting current work:
 - [Phase 02-content-filtering-auto-skip]: Makefile setup target already had 'touch lyrics_cache.db' — confirmed correct, no modification required
 - [Phase 02-content-filtering-auto-skip]: docker-compose.yml user directive uses ${UID}:${GID} from shell environment — no .env entry needed, Docker Compose expands at 'docker compose up' time
 - [Phase 02-content-filtering-auto-skip]: sp.current_playback() chosen over sp.currently_playing() — GET /me/player returns full device context including is_restricted; GET /me/player/currently-playing omits device object
+- [Phase 02]: Makefile setup target: two-line -d then -f guard before touch covers all three lyrics_cache.db states (directory, file, absent)
+- [Phase 02]: [SCAN] log lines always include reason= for short-circuit paths (instrumental, lyrics_unavailable) to distinguish them from a zero-score full scan
+- [Phase 02-content-filtering-auto-skip]: soco.discovery.discover() replaces by_name: discover() returns all speakers for iteration; normalize both sides with .strip().lower() to tolerate casing/whitespace mismatches between Spotify device name and Sonos room name
 
 ### Pending Todos
 
@@ -100,6 +105,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T23:37:51.274Z
-Stopped at: Completed 02-05-PLAN.md: Docker ownership fix, Makefile setup fix, Sonos detection fix
+Last session: 2026-04-02T01:11:48.488Z
+Stopped at: Completed 02-07-PLAN.md: SoCo fuzzy speaker discovery via discover() + strip/lower
 Resume file: None

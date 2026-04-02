@@ -13,7 +13,7 @@ Three phases deliver a working family-safe Spotify daemon. Phase 1 establishes t
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Core Daemon & Spotify Auth** - Authenticated poll loop running as a Docker service with restart:always; detects track changes (completed 2026-04-01)
-- [ ] **Phase 2: Content Filtering & Auto-Skip** - Three-tier filter (explicit flag → LRCLIB → profanity scan) with dual skip path (SoCo + Spotify API) and Family Safe Mode toggle
+- [x] **Phase 2: Content Filtering & Auto-Skip** - Three-tier filter (explicit flag → LRCLIB → profanity scan) with dual skip path (SoCo + Spotify API) and Family Safe Mode toggle (completed 2026-04-02)
 - [ ] **Phase 3: Signal Notifications & Interactive Confirmations** - Skip notifications and allow/skip prompts via Signal; 5-skip playlist prompt
 
 ## Phase Details
@@ -75,5 +75,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Core Daemon & Spotify Auth | 2/2 | Complete   | 2026-04-01 |
-| 2. Content Filtering & Auto-Skip | 3/4 | In Progress|  |
+| 2. Content Filtering & Auto-Skip | 7/7 | Complete   | 2026-04-02 |
 | 3. Signal Notifications & Interactive Confirmations | 0/2 | Not started | - |
