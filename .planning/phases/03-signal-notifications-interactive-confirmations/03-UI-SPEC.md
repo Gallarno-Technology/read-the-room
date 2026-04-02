@@ -23,7 +23,10 @@ created: 2026-04-01
 | Preset | not applicable |
 | Component library | none — plain HTML/CSS only |
 | Icon library | none — text labels and Unicode symbols only (▶ ■ ✕) |
-| Font | system-ui, -apple-system, sans-serif (body); monospace (track data values) |
+| Font — headings | Playfair Display — headers, section titles |
+| Font — body | Source Sans 3 — body text, descriptions |
+| Font — mono | Courier Prime — labels, metadata, monospace tags |
+| Font loading | Self-hosted or Google Fonts `<link>` in `<head>` — executor's choice |
 
 **Rationale (from CONTEXT.md D-03):** FastAPI + plain HTML/JS was chosen explicitly for minimal complexity — no npm, no framework, no build pipeline. Styling is embedded CSS in the served HTML template.
 
@@ -51,12 +54,12 @@ Exceptions: none
 
 | Role | Size | Weight | Line Height | Font Family |
 |------|------|--------|-------------|-------------|
-| Body | 14px | 400 | 1.5 | system-ui, -apple-system, sans-serif |
-| Label | 12px | 600 | 1.3 | system-ui, -apple-system, sans-serif |
-| Heading | 18px | 600 | 1.2 | system-ui, -apple-system, sans-serif |
-| Track data | 13px | 400 | 1.4 | monospace |
+| Heading | 18px | 600 | 1.2 | Playfair Display |
+| Body | 14px | 400 | 1.5 | Source Sans 3 |
+| Label | 12px | 600 | 1.3 | Courier Prime |
+| Track data | 13px | 400 | 1.4 | Courier Prime |
 
-**Track data** (track name, artist, skip reason, timestamp) uses monospace to align columns in the skip feed list. All other text uses system-ui.
+**Heading** (page title, section titles) uses Playfair Display. **Body** (descriptions, FSM status text) uses Source Sans 3. **Label and Track data** (badges, metadata, track name/artist/timestamp in the skip feed) both use Courier Prime — monospace alignment is preserved and the label/metadata role is visually unified.
 
 ---
 
@@ -64,21 +67,25 @@ Exceptions: none
 
 Dark theme. The daemon is a headless server tool — dark background reduces perceived complexity and matches terminal conventions users of this project already use.
 
-| Role | Value | Usage |
-|------|-------|-------|
-| Dominant (60%) | #111111 | Page background, body surface |
-| Secondary (30%) | #1e1e1e | Card/panel background (skip feed container, FSM toggle row) |
-| Accent (10%) | #1db954 | Spotify green — FSM toggle "ON" state indicator, skip count badge |
-| Destructive | #e53e3e | 5-skip warning banner background tint, skip reason "explicit" badge |
-| Text primary | #f0f0f0 | Body text, headings |
-| Text secondary | #888888 | Timestamps, secondary labels |
-| Border | #2a2a2a | Panel borders, separator lines |
+| Token | Value | Role | Usage |
+|-------|-------|------|-------|
+| `--bg` | #0d0b08 | Dominant (60%) | Page background, body surface |
+| `--surface` | #1c1a14 | Secondary (30%) | Card/panel background (skip feed container, FSM toggle row) |
+| `--surface-raised` | #242018 | Raised surface | Hover states, inline code backgrounds |
+| `--accent` | #c9a84c | Accent (10%) | FSM toggle "ON" state, SSE connected indicator |
+| `--accent-dim` | #8a6f2e | Accent dim | Accent hover state |
+| `--danger` | #a83232 | Destructive | 5-skip warning banner, "explicit" badge |
+| `--warn` | #b5722a | Warning | "profanity" badge, SSE reconnecting indicator |
+| `--text` | #e8e0cc | Text primary | Body text, headings |
+| `--text-dim` | #9a9080 | Text secondary | Timestamps, secondary labels |
+| `--text-faint` | #5a5448 | Text faint | Placeholders, disabled states |
+| `--border` | #2e2a1e | Border | Panel borders, separator lines |
 
-Accent (#1db954) reserved for:
+Accent (`--accent` #c9a84c) reserved for:
 - FSM toggle button background when state is ON
 - Active/connected SSE status indicator dot
 
-Destructive (#e53e3e) reserved for:
+Destructive (`--danger` #a83232) reserved for:
 - 5-skip warning banner background (10% opacity tint, full-color left border)
 - Skip reason badge when reason is "explicit"
 
@@ -95,7 +102,7 @@ These are the HTML/CSS components the executor must build. No library — each i
 | Property | Spec |
 |----------|------|
 | Element | `<button id="fsm-toggle">` |
-| States | ON (accent background #1db954, text "Family Safe: ON") / OFF (secondary background #1e1e1e, text "Family Safe: OFF") |
+| States | ON (accent background `--accent` #c9a84c, text "The Library is Open") / OFF (surface background `--surface` #1c1a14, text "The Library is Closed") |
 | Interaction | Click → POST /fsm with `{"enabled": bool}` → optimistic update, revert on error |
 | Width | Full-width of its container row |
 | Height | 44px (touch-target minimum) |
@@ -107,7 +114,7 @@ These are the HTML/CSS components the executor must build. No library — each i
 | Property | Spec |
 |----------|------|
 | Element | `<ul id="skip-feed">` |
-| Item structure | `<li>` — track name (monospace, 13px) + " — " + artist + " · " + reason badge + " · " + timestamp (text-secondary) |
+| Item structure | `<li>` — track name (Courier Prime, 13px) + " — " + artist + " · " + reason badge + " · " + timestamp (`--text-dim`) |
 | Max height | 480px with `overflow-y: auto` |
 | Scroll behavior | New events prepended to top (newest first) |
 | Update mechanism | SSE via `EventSource('/events')` — no page refresh (CONTEXT.md D-04, D-07) |
@@ -118,9 +125,18 @@ These are the HTML/CSS components the executor must build. No library — each i
 
 | Property | Spec |
 |----------|------|
-| Element | `<span class="badge">` inline within feed item |
-| Values | "explicit" (destructive #e53e3e background, white text) / "profanity" (amber #d97706 background, white text) / "timeout" (secondary #888 background, white text) |
-| Size | 11px label, 2px 6px padding, 4px border-radius |
+| Element | `<span class="badge badge--{variant}">` inline within feed item |
+| Size | 11px (Courier Prime), 2px 6px padding, 4px border-radius |
+| Border | 1px solid (per variant) |
+
+Variants:
+
+| Label | Background | Color | Border |
+|-------|------------|-------|--------|
+| "Flagged: explicit tag" | rgba(168,50,50,0.2) | #e06060 | rgba(168,50,50,0.3) |
+| "Flagged: strong language" | rgba(181,114,42,0.2) | #d4924a | rgba(181,114,42,0.3) |
+| "Flagged: adult themes" | rgba(201,168,76,0.15) | #c9a84c | rgba(201,168,76,0.25) |
+| "Approved" | rgba(80,140,80,0.15) | #70a870 | rgba(80,140,80,0.25) |
 
 ### 4. Five-Skip Warning Banner
 
@@ -128,7 +144,7 @@ These are the HTML/CSS components the executor must build. No library — each i
 |----------|------|
 | Element | `<div id="skip-banner" hidden>` — shown via JS when SSE delivers a `type: "five_skip_warning"` event |
 | Copy | See Copywriting section |
-| Visual | Left border 4px solid #e53e3e, background rgba(229,62,62,0.08), padding 16px |
+| Visual | Left border 4px solid `--danger` #a83232, background rgba(168,50,50,0.08), padding 16px |
 | Dismiss | `<button>` with "✕" label, top-right absolute position; click sets `hidden` attribute |
 | Persistence | Banner is in-memory only — dismissed state resets on page reload (no localStorage needed for v1) |
 | Source | CONTEXT.md D-12 |
@@ -138,7 +154,7 @@ These are the HTML/CSS components the executor must build. No library — each i
 | Property | Spec |
 |----------|------|
 | Element | `<span id="sse-status">` in page header |
-| States | Connected (8px circle, #1db954) / Reconnecting (8px circle, #d97706) |
+| States | Connected (8px circle, `--accent` #c9a84c) / Reconnecting (8px circle, `--warn` #b5722a) |
 | Mechanism | Set on `EventSource.onopen` / `EventSource.onerror` |
 
 ---
@@ -183,7 +199,7 @@ Page max-width: 640px, centered. Horizontal padding: 32px.
 | Banner dismiss | Click ✕ | Set `hidden` on banner |
 | SSE connect | `EventSource.onopen` | Set SSE indicator to connected (green) |
 | SSE error/reconnect | `EventSource.onerror` | Set SSE indicator to reconnecting (amber); EventSource retries automatically |
-| FSM error | POST /fsm returns non-2xx | Revert button state; show inline error: "Could not update — try again" (red, 12px, fades after 3s) |
+| FSM error | POST /fsm returns non-2xx | Revert button state; show inline error: "Could not update — try again" (`--danger` #a83232, 12px, fades after 3s) |
 
 ---
 
@@ -193,19 +209,24 @@ Page max-width: 640px, centered. Horizontal padding: 32px.
 |---------|------|
 | Page title | "Family Safe Mode" |
 | Header | "Spotify Family Safe Mode" |
-| FSM button — ON | "Family Safe: ON" |
-| FSM button — OFF | "Family Safe: OFF" |
-| Skip feed heading | "Recent Skips" |
+| FSM button — ON | "The Library is Open" |
+| FSM button — OFF | "The Library is Closed" |
+| Log section heading | "Incident Log" |
 | Empty state heading | "No skips yet" |
 | Empty state body | "Skips will appear here in real-time when Family Safe Mode is on." |
 | Five-skip banner | "5 consecutive skips — switch your playlist and resume." |
 | Five-skip banner dismiss label | "✕" (screen-reader: aria-label="Dismiss warning") |
 | FSM toggle error | "Could not update — try again." |
-| SSE status — connected | (no text, green dot only) |
-| SSE status — reconnecting | "Reconnecting…" (12px text-secondary, inline after amber dot) |
-| Skip reason badge — explicit | "explicit" |
-| Skip reason badge — profanity | "profanity" |
-| Skip reason badge — timeout | "timeout" |
+| SSE status — connected | (no text, `--accent` dot only) |
+| SSE status — reconnecting | "Reconnecting…" (12px `--text-dim`, inline after `--warn` dot) |
+| Track status — skipped | "Declined" |
+| Track status — borderline/ambiguous | "Reviewed" |
+| Track status — playing, approved | "Approved" |
+| Track status — playing, not yet analyzed | "Monitoring" |
+| Skip reason badge — profanity | "Flagged: strong language" |
+| Skip reason badge — explicit | "Flagged: explicit tag" |
+| Skip reason badge — adult themes / LLM | "Flagged: adult themes" |
+| Track status badge — clean | "Approved" |
 
 **Destructive actions in this phase:**
 - FSM toggle OFF is not destructive (reversible in one click). No confirmation dialog needed.
