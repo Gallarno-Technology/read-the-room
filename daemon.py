@@ -49,6 +49,8 @@ log = logging.getLogger(__name__)
 # Shutdown coordination
 # ---------------------------------------------------------------------------
 stop_event = asyncio.Event()
+# Shared skip event queue — consumed by web_ui SSE endpoint (Phase 3, D-08)
+skip_event_queue: asyncio.Queue = asyncio.Queue()
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +94,7 @@ async def poll_loop(
 ) -> None:
     """Main polling coroutine. Runs until stop_event is set."""
     state = load_state()
+    consecutive_skips: int = 0
     last_heartbeat = time.monotonic()
 
     log.info(
@@ -146,6 +149,9 @@ async def poll_loop(
                         # D-09: [SCAN] log is emitted inside content_checker.check()
                         # for all code paths (explicit, instrumental, profanity, clean, etc.)
 
+                        if action == "allow":
+                            consecutive_skips = 0
+
                         if action == "skip":
                             # SKIP-03: Select skip client based on is_restricted (D-01)
                             client = soco_skip if is_restricted else spotify_skip
@@ -159,6 +165,27 @@ async def poll_loop(
                                     track["name"],
                                     track["artists"][0]["name"],
                                 )
+                                # Phase 3 D-08: push structured event to SSE queue
+                                skip_event_queue.put_nowait({
+                                    "type": "skip",
+                                    "track": track["name"],
+                                    "artist": track["artists"][0]["name"],
+                                    "reason": reason,
+                                    "timestamp": time.strftime("%H:%M:%S"),
+                                })
+                                # Phase 3 D-11/D-13: 5-consecutive-skip counter
+                                consecutive_skips += 1
+                                if consecutive_skips >= 5:
+                                    log.warning("[5SKIP] 5 consecutive skips — pausing playback")
+                                    try:
+                                        sp.pause_playback()
+                                    except Exception as exc:  # noqa: BLE001
+                                        log.error("[5SKIP] pause_playback failed: %s", exc)
+                                    skip_event_queue.put_nowait({
+                                        "type": "five_skip_warning",
+                                        "timestamp": time.strftime("%H:%M:%S"),
+                                    })
+                                    consecutive_skips = 0
                             else:
                                 log.warning(
                                     "[SKIP_FAILED] reason=%s track=%r artist=%r",
