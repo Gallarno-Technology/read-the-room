@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Core Daemon & Spotify Auth** - Authenticated poll loop running as a Docker service with restart:always; detects track changes (completed 2026-04-01)
 - [x] **Phase 2: Content Filtering & Auto-Skip** - Three-tier filter (explicit flag → LRCLIB → profanity scan) with dual skip path (SoCo + Spotify API) and Family Safe Mode toggle (completed 2026-04-02)
-- [ ] **Phase 3: Web UI Dashboard** - Real-time skip history feed and FSM toggle via FastAPI + plain HTML/JS + SSE; 5-consecutive-skip pause; dismissible warning banner
+- [x] **Phase 3: Web UI Dashboard** - Real-time skip history feed and FSM toggle via FastAPI + plain HTML/JS + SSE; 5-consecutive-skip pause; dismissible warning banner (completed 2026-04-02)
 
 ## Phase Details
 
@@ -67,7 +67,7 @@ Plans:
 
 Plans:
 - [x] 03-01-PLAN.md — daemon.py skip event queue + 5-skip counter/pause, FastAPI web_ui service (SSE /events, POST /fsm, GET /fsm)
-- [ ] 03-02-PLAN.md — Dashboard HTML/CSS/JS template (FSM toggle, skip feed, badges, banner, SSE status), web_ui Dockerfile, docker-compose web_ui service, Makefile ui-logs target
+- [x] 03-02-PLAN.md — Dashboard HTML/CSS/JS template (FSM toggle, skip feed, badges, banner, SSE status), web_ui Dockerfile, docker-compose web_ui service, Makefile ui-logs target
 
 ## Progress
 
@@ -78,4 +78,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Core Daemon & Spotify Auth | 2/2 | Complete   | 2026-04-01 |
 | 2. Content Filtering & Auto-Skip | 7/7 | Complete   | 2026-04-02 |
-| 3. Web UI Dashboard | 1/2 | In Progress|  |
+| 3. Web UI Dashboard | 2/2 | Complete   | 2026-04-02 |
