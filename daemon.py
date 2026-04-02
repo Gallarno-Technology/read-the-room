@@ -33,6 +33,7 @@ HEARTBEAT_INTERVAL = float(os.environ.get("HEARTBEAT_INTERVAL_SECONDS", "300")) 
 STATE_PATH = os.environ.get("STATE_PATH", "state.json")
 PROFANITY_MIN_SEVERITY = int(os.environ.get("PROFANITY_MIN_SEVERITY", "2"))  # D-10
 LYRICS_DB_PATH = os.environ.get("LYRICS_DB_PATH", "lyrics_cache.db")
+SKIP_EVENTS_PATH = os.environ.get("SKIP_EVENTS_PATH", "data/skip_events.jsonl")
 
 # ---------------------------------------------------------------------------
 # Logging — plain text with timestamps to stdout (D-08, D-09)
@@ -81,6 +82,16 @@ def save_state(daemon_fields: dict) -> None:
     on_disk.update(daemon_fields)
     with open(STATE_PATH, "w") as f:
         json.dump(on_disk, f)
+
+
+def _append_skip_event(event: dict) -> None:
+    """Append a JSON line to the skip events log (Gap-2 fix: file-based IPC for docker-compose)."""
+    try:
+        os.makedirs(os.path.dirname(SKIP_EVENTS_PATH) or ".", exist_ok=True)
+        with open(SKIP_EVENTS_PATH, "a") as f:
+            f.write(json.dumps(event) + "\n")
+    except OSError as exc:
+        log.error("[EVENTS] failed to write skip event log: %s", exc)
 
 
 # ---------------------------------------------------------------------------
@@ -181,6 +192,13 @@ async def poll_loop(
                                     "reason": reason,
                                     "timestamp": time.strftime("%H:%M:%S"),
                                 })
+                                _append_skip_event({
+                                    "type": "skip",
+                                    "track": track["name"],
+                                    "artist": track["artists"][0]["name"],
+                                    "reason": reason,
+                                    "timestamp": time.strftime("%H:%M:%S"),
+                                })
                                 # Phase 3 D-11/D-13: 5-consecutive-skip counter
                                 consecutive_skips += 1
                                 if consecutive_skips >= 5:
@@ -190,6 +208,10 @@ async def poll_loop(
                                     except Exception as exc:  # noqa: BLE001
                                         log.error("[5SKIP] pause_playback failed: %s", exc)
                                     skip_event_queue.put_nowait({
+                                        "type": "five_skip_warning",
+                                        "timestamp": time.strftime("%H:%M:%S"),
+                                    })
+                                    _append_skip_event({
                                         "type": "five_skip_warning",
                                         "timestamp": time.strftime("%H:%M:%S"),
                                     })
