@@ -11,3 +11,14 @@ services:
       - ./state.json:/app/state.json      # Persists track state across container restarts/rebuilds
       - ./token_cache:/app/token_cache    # Persists OAuth token across container restarts/rebuilds
       - ./lyrics_cache.db:/app/lyrics_cache.db  # Persists lyrics SQLite cache across restarts (Phase 2)
+
+  web_ui:
+    build:
+      context: .
+      dockerfile: web_ui/Dockerfile
+    restart: always
+    network_mode: host
+    env_file: .env
+    user: "${UID}:${GID}"
+    volumes:
+      - ./state.json:/app/state.json  # FSM toggle reads/writes this file (D-09)

@@ -1,9 +1,10 @@
-.PHONY: setup auth up down logs fsm-on fsm-off fsm-status
+.PHONY: setup auth up down logs ui-logs fsm-on fsm-off fsm-status
 
 ## Pre-create host-side bind-mount files. Run once before first `make auth`.
 setup:
 	@[ -f state.json ] || echo '{"last_track_id": null}' > state.json
 	@mkdir -p token_cache
+	@[ ! -d lyrics_cache.db ] || sudo rm -rf lyrics_cache.db
 	@[ ! -f lyrics_cache.db ] || sudo rm -f lyrics_cache.db
 	@touch lyrics_cache.db
 	@[ -f .env ] || cp .env.example .env
@@ -26,6 +27,10 @@ down:
 
 logs:
 	docker compose logs -f daemon
+
+## Tail web_ui container logs (FastAPI/uvicorn on port 8888 — Phase 3)
+ui-logs:
+	docker compose logs -f web_ui
 
 ## Family Safe Mode toggle (D-05). Merges into existing state.json — does not overwrite other keys.
 ## Runs inside the container so the same bind-mounted state.json path is used.
