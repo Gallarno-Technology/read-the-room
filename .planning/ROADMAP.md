@@ -69,7 +69,7 @@ Plans:
 - [x] 03-01-PLAN.md — daemon.py skip event queue + 5-skip counter/pause, FastAPI web_ui service (SSE /events, POST /fsm, GET /fsm)
 - [x] 03-02-PLAN.md — Dashboard HTML/CSS/JS template (FSM toggle, skip feed, badges, banner, SSE status), web_ui Dockerfile, docker-compose web_ui service, Makefile ui-logs target
 - [x] 03-03-PLAN.md — Gap closure: fix web_ui/Dockerfile wrong requirements.txt path (Gap 1), reset consecutive_skips on FSM re-enable (Gap 3)
-- [ ] 03-04-PLAN.md — Gap closure: replace broken in-process queue import with file-based IPC (data/skip_events.jsonl daemon writes + web_ui tails) and shared docker volume (Gap 2)
+- [x] 03-04-PLAN.md — Gap closure: replace broken in-process queue import with file-based IPC (data/skip_events.jsonl daemon writes + web_ui tails) and shared docker volume (Gap 2)
 
 ## Progress
 
