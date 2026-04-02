@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Deployment
-status: executing
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-04-02T19:28:30.045Z"
+status: verifying
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-04-02T19:34:21.911Z"
 last_activity: 2026-04-02
 progress:
   total_phases: 2
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 
 Phase: 04 (sonos-discovery-hardening) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-02
 
 Progress: [░░░░░░░░░░] 0%
@@ -50,6 +50,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 04-sonos-discovery-hardening P01 | 3 | 2 tasks | 2 files |
+| Phase 04-sonos-discovery-hardening P02 | 3 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,8 @@ Recent decisions affecting current work:
 - docker restart:always already in docker-compose.yml — Phase 5 just needs to document and verify this
 - [Phase 04-sonos-discovery-hardening]: Tests import probe_sonos_speakers from daemon module; patch target is daemon.soco.discovery.discover
 - [Phase 04-sonos-discovery-hardening]: Pre-existing pause test failures documented in deferred-items.md; out of scope for Plan 04-01
+- [Phase 04-sonos-discovery-hardening]: Use falsy check 'if speakers:' in probe_sonos_speakers — soco.discovery.discover returns None or empty set on failure, both falsy
+- [Phase 04-sonos-discovery-hardening]: probe_sonos_speakers has no try/except — startup path, non-blocking means informational not exception-swallowing (D-03)
 
 ### Pending Todos
 
@@ -75,6 +78,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-02T19:28:30.043Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-04-02T19:34:21.910Z
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None
