@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 02-content-filtering-auto-skip
 source: [02-01-SUMMARY.md, 02-02-SUMMARY.md, 02-03-SUMMARY.md, 02-04-SUMMARY.md, 02-05-SUMMARY.md]
 started: 2026-04-01T00:00:00Z
@@ -74,9 +74,12 @@ blocked: 0
   reason: "User reported: make setup still fails with Permission denied when lyrics_cache.db is a root-owned directory (not file). Makefile guard uses -f which skips directories. Required manual sudo rm -rf lyrics_cache.db first."
   severity: major
   test: 1
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "Makefile line 7 guard uses `[ ! -f lyrics_cache.db ]` which only matches regular files — when Docker created lyrics_cache.db as a root-owned directory, the condition is false, sudo rm is skipped, and touch fails with Permission denied."
+  artifacts:
+    - path: "Makefile"
+      issue: "Line 7: [ ! -f lyrics_cache.db ] does not match directories — sudo rm -f never fires when lyrics_cache.db is a directory"
+  missing:
+    - "Replace -f guard with compound check: detect -d branch (sudo rm -rf) and -f branch (sudo rm -f) before touch, or use -e to catch both"
   debug_session: ""
 
 - truth: "Instrumental track is allowed immediately without running a profanity scan (reason=instrumental in log)"
@@ -84,9 +87,15 @@ blocked: 0
   reason: "User reported: LRCLIB correctly returns instrumental=True has_lyrics=False, but the scan still runs and logs severity=0 matched=[] action=allow instead of short-circuiting with reason=instrumental."
   severity: minor
   test: 8
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "content_checker.py line 78 log.info call in the instrumental branch uses the same format string as a full scan (no reason field), so the log is indistinguishable from a clean scan — the return value and early-exit logic are already correct."
+  artifacts:
+    - path: "content_checker.py"
+      issue: "Line 78: log.info format string omits reason=instrumental — log output matches a zero-score full scan"
+    - path: "content_checker.py"
+      issue: "Line 87: same omission for lyrics_unavailable branch"
+  missing:
+    - "Add reason=instrumental to log.info on line 78"
+    - "Add reason=lyrics_unavailable to log.info on line 87 for consistency"
   debug_session: ""
 
 - truth: "Sonos speaker is found by SoCo and track is skipped via SoCo next()"
@@ -94,7 +103,10 @@ blocked: 0
   reason: "User reported: is_restricted=True detected correctly and SoCo is selected, but SoCo can't find the speaker — 'Playroom' (Spotify device name) doesn't match the Sonos room name exactly. SKIP_FAILED."
   severity: blocker
   test: 5
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "SocoSkipClient.skip passes the raw Spotify device name to soco.discovery.by_name which does a strict case-sensitive equality check — any difference in casing, spacing, or punctuation causes discovery to return None."
+  artifacts:
+    - path: "skip_client.py"
+      issue: "Lines 108-109: soco.discovery.by_name(device_name) called with raw Spotify name, no normalization"
+  missing:
+    - "Replace soco.discovery.by_name with soco.discovery.discover() + iterate with .strip().lower() comparison on both sides"
   debug_session: ""
