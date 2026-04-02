@@ -95,6 +95,7 @@ async def poll_loop(
     """Main polling coroutine. Runs until stop_event is set."""
     state = load_state()
     consecutive_skips: int = 0
+    prev_fsm: bool = False
     last_heartbeat = time.monotonic()
 
     log.info(
@@ -130,6 +131,13 @@ async def poll_loop(
                     save_state({"last_track_id": track_id})
                     state = load_state()   # re-read disk so family_safe_mode and future keys are fresh
                     last_heartbeat = time.monotonic()
+
+                    # Gap-3 fix: reset consecutive_skips when FSM transitions from off to on
+                    fsm_now = state.get("family_safe_mode", False)
+                    if not prev_fsm and fsm_now:
+                        consecutive_skips = 0
+                        log.info("[FSM] consecutive_skips reset — FSM re-enabled")
+                    prev_fsm = fsm_now
 
                     # Phase 2: Content filtering (FSM-02: only when FSM is on)
                     # D-06: read family_safe_mode each cycle — toggle takes effect within 1 poll
