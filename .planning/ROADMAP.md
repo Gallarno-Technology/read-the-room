@@ -52,8 +52,11 @@ Plans:
   3. After a host reboot, the service resumes automatically with no manual intervention
   4. A silently hung daemon container is restarted automatically by Docker (healthcheck triggers restart)
   5. Running `git pull && docker compose up -d --build` updates to the latest version with no data loss and no manual migration steps
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 2 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Healthcheck: TDD tests + docker-compose.yml block + daemon.py touch-file probe
+- [ ] 05-02-PLAN.md — Documentation: README.md (Quick Start/Prerequisites/Updating) + PROXMOX.md
 
 ## Progress
 
@@ -63,4 +66,4 @@ Plans:
 | 2. Content Filtering & Auto-Skip | v1.0 | 7/7 | Complete | 2026-04-02 |
 | 3. Web UI Dashboard | v1.0 | 5/5 | Complete | 2026-04-02 |
 | 4. Sonos Discovery Hardening | v1.1 | 2/2 | Complete   | 2026-04-02 |
-| 5. Deployment & Documentation | v1.1 | 0/? | Not started | - |
+| 5. Deployment & Documentation | v1.1 | 0/2 | Not started | - |
