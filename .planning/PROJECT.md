@@ -83,4 +83,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-02 after Phase 4 complete — Sonos discovery hardening*
+*Last updated: 2026-04-02 after Phase 5 complete — Docker healthcheck + README/PROXMOX documentation*
