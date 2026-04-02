@@ -12,6 +12,12 @@ services:
       - ./token_cache:/app/token_cache    # Persists OAuth token across container restarts/rebuilds
       - ./lyrics_cache.db:/app/lyrics_cache.db  # Persists lyrics SQLite cache across restarts (Phase 2)
       - ./data:/app/data                  # Shared skip event log (Gap-2 fix: file-based IPC)
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, time; f='/app/.healthcheck'; assert time.time()-os.stat(f).st_mtime<60"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   web_ui:
     build:

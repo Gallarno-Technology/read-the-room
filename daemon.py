@@ -12,6 +12,7 @@ import os
 import random
 import signal
 import time
+from pathlib import Path
 
 from dotenv import load_dotenv
 import soco.discovery
@@ -147,6 +148,7 @@ async def poll_loop(
     )
 
     while not stop_event.is_set():
+        Path('/app/.healthcheck').touch()
         try:
             result = sp.current_playback()
 
