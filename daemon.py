@@ -14,6 +14,7 @@ import signal
 import time
 
 from dotenv import load_dotenv
+import soco.discovery
 import spotipy
 from spotipy.exceptions import SpotifyException
 from spotipy.oauth2 import CacheFileHandler, SpotifyOAuth
@@ -92,6 +93,36 @@ def _append_skip_event(event: dict) -> None:
             f.write(json.dumps(event) + "\n")
     except OSError as exc:
         log.error("[EVENTS] failed to write skip event log: %s", exc)
+
+
+# ---------------------------------------------------------------------------
+# Sonos startup probe (Phase 4, D-01 through D-07)
+# ---------------------------------------------------------------------------
+async def probe_sonos_speakers(soco_client: SocoSkipClient) -> None:
+    """Eager SSDP discovery at daemon startup (D-01, D-02, D-03, D-05, D-06, D-07).
+
+    Skipped if SONOS_SPEAKER_IPS is already set (D-02 — existing bypass preserved).
+    Non-blocking: probe result is informational only; daemon starts regardless (D-03).
+    Pre-seeds soco_client._ip_cache so first skip has no SSDP latency.
+    """
+    if os.environ.get("SONOS_SPEAKER_IPS"):
+        log.info("[SONOS] IP override active (SONOS_SPEAKER_IPS set) — skipping SSDP discovery")
+        return
+
+    log.info("[SONOS] Starting SSDP discovery (timeout=5s)...")
+    loop = asyncio.get_event_loop()
+    speakers = await loop.run_in_executor(None, soco.discovery.discover)
+
+    if speakers:
+        for speaker in speakers:
+            soco_client._ip_cache[speaker.player_name] = speaker.ip_address
+            log.info('[SONOS] Discovered: "%s" (%s)', speaker.player_name, speaker.ip_address)
+    else:
+        log.warning(
+            "[SONOS] No speakers found via SSDP. Ensure multicast UDP port 1900 is open "
+            "on the host firewall. Set SONOS_SPEAKER_IPS=Name=IP in .env as a fallback. "
+            "See README for firewall setup."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -314,6 +345,8 @@ async def main() -> None:
     )
     soco_skip = SocoSkipClient()
     spotify_skip = SpotifySkipClient(sp)
+
+    await probe_sonos_speakers(soco_skip)   # D-01: eager startup probe, non-blocking (D-03)
 
     await poll_loop(sp, content_checker, soco_skip, spotify_skip)
     await lyrics_service.close()
