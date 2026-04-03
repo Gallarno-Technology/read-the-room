@@ -222,3 +222,54 @@ async def set_fsm(body: FSMRequest) -> JSONResponse:
         log.error("POST /fsm write failed: %s", exc)
         raise HTTPException(status_code=500, detail="Could not write state.json")
     return JSONResponse({"family_safe_mode": body.enabled})
+
+
+# ---------------------------------------------------------------------------
+# Now Playing — hydration endpoint for page-load (Phase 7, SKIP-02 support)
+# ---------------------------------------------------------------------------
+
+@app.get("/now-playing")
+async def now_playing() -> JSONResponse:
+    """Return current track state from now_playing.json for page-load hydration.
+
+    Returns {"status": "idle"} (HTTP 200) if the file does not yet exist.
+    Returns the file's full JSON contents verbatim if a track is/was playing.
+    No staleness detection — Phase 8 SSE reconnect is the staleness signal (D-03).
+    """
+    try:
+        with open(NOW_PLAYING_PATH) as f:
+            data = json.load(f)
+        return JSONResponse(data)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return JSONResponse({"status": "idle"})
+
+
+# ---------------------------------------------------------------------------
+# Manual Skip — calls Spotify API directly (Phase 7, SKIP-02, SKIP-03)
+# ---------------------------------------------------------------------------
+
+@app.post("/skip")
+async def skip_track() -> JSONResponse:
+    """Skip the current track by calling sp.next_track() (Spotify /me/player/next).
+
+    SKIP-03: does NOT increment consecutive_skips — that counter lives in daemon
+    memory and is only touched by the daemon's own skip logic. This is architecturally
+    guaranteed; no special implementation needed (D-06).
+
+    Returns {"ok": true} on success (HTTP 200).
+    Returns HTTP 503 with {"detail": "skip_failed", "reason": "..."} on any error.
+    """
+    if sp is None:
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "skip_failed", "reason": "Spotify client not configured"},
+        )
+    try:
+        sp.next_track()
+        return JSONResponse({"ok": True})
+    except spotipy.SpotifyException as exc:
+        log.warning("POST /skip failed: %s", exc)
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "skip_failed", "reason": str(exc)},
+        )
