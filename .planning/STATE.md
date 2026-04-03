@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Now Playing Status
 status: executing
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-04-03T10:27:28.821Z"
+stopped_at: Completed 06-03-PLAN.md
+last_updated: "2026-04-03T10:33:00.035Z"
 last_activity: 2026-04-03
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 18
-  completed_plans: 16
+  completed_plans: 17
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 ## Current Position
 
 Phase: 06 (daemon-sse-extensions) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-04-03
 
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0% (v1.2)
 *Updated after each plan completion*
 | Phase 06-daemon-sse-extensions P01 | 5 | 1 tasks | 1 files |
 | Phase 06-daemon-sse-extensions P02 | 5 | 2 tasks | 3 files |
+| Phase 06-daemon-sse-extensions P03 | 4 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,8 @@ Recent decisions affecting current work:
 - [Phase 06-01]: eval_result not emitted on skip failure — test_eval_result_not_emitted_on_skip_failure enforces actual outcome wins over intended action
 - [Phase 06-02]: Hard rename SKIP_EVENTS_PATH to EVENTS_PATH per D-01 — no backwards-compat alias
 - [Phase 06-02]: NOW_PLAYING_PATH derived from dirname(EVENTS_PATH) so both paths share the same data/ bind-mount directory
+- [Phase 06-03]: album_art_url assigned at track detection scope (not inline in dict) to be in scope for Plan 04 now_playing writes
+- [Phase 06-03]: pathlib.Path.touch mocked in test helpers — /app/.healthcheck doesn't exist outside Docker
 
 ### Pending Todos
 
@@ -79,6 +82,6 @@ None at roadmap creation.
 
 ## Session Continuity
 
-Last session: 2026-04-03T10:27:28.819Z
-Stopped at: Completed 06-02-PLAN.md
+Last session: 2026-04-03T10:33:00.033Z
+Stopped at: Completed 06-03-PLAN.md
 Resume file: None
