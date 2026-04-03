@@ -8,6 +8,7 @@ import pytest
 import pytest_asyncio
 
 import daemon
+from content_checker import TrackEvalResult
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +100,7 @@ async def test_track_change_emitted_before_check(data_dir):
             if (data_dir / "events.jsonl").exists()
             else ""
         )
-        return ("allow", "clean", 0)
+        return TrackEvalResult(action="allow", reason="clean", severity=0)
 
     checker = MagicMock()
     checker.check = _check_spy
@@ -118,7 +119,7 @@ async def test_track_change_emitted_before_check(data_dir):
 async def test_track_change_schema(data_dir):
     """track_change line must contain all required fields with correct values."""
     checker = MagicMock()
-    checker.check = AsyncMock(return_value=("allow", "clean", 0))
+    checker.check = AsyncMock(return_value=TrackEvalResult(action="allow", reason="clean", severity=0))
     track = _make_track()
     sp = _mock_sp(track)
     await _run_one_cycle(sp, checker)
@@ -146,7 +147,7 @@ async def test_track_change_schema(data_dir):
 async def test_eval_result_passed(data_dir):
     """eval_result with eval_state='passed' emitted after check() returns allow/clean."""
     checker = MagicMock()
-    checker.check = AsyncMock(return_value=("allow", "clean", 0))
+    checker.check = AsyncMock(return_value=TrackEvalResult(action="allow", reason="clean", severity=0))
     track = _make_track()
     sp = _mock_sp(track)
     await _run_one_cycle(sp, checker)
@@ -166,7 +167,7 @@ async def test_eval_result_passed(data_dir):
 async def test_eval_result_skipped(data_dir):
     """eval_result with eval_state='skipped' emitted after check() returns skip/explicit."""
     checker = MagicMock()
-    checker.check = AsyncMock(return_value=("skip", "explicit", 3))
+    checker.check = AsyncMock(return_value=TrackEvalResult(action="skip", reason="explicit", severity=3))
     track = _make_track(explicit=True)
     sp = _mock_sp(track)
 
@@ -208,7 +209,7 @@ async def test_eval_result_skipped(data_dir):
 async def test_eval_result_fsm_off(data_dir):
     """eval_result with eval_state='fsm-off' emitted even when family_safe_mode=False."""
     checker = MagicMock()
-    checker.check = AsyncMock(return_value=("allow", "clean", 0))
+    checker.check = AsyncMock(return_value=TrackEvalResult(action="allow", reason="clean", severity=0))
     track = _make_track()
     sp = _mock_sp(track)
     # FSM is off
@@ -228,7 +229,7 @@ async def test_eval_result_fsm_off(data_dir):
 async def test_eval_result_not_emitted_on_skip_failure(data_dir):
     """eval_result must NOT be written when skip() returns False."""
     checker = MagicMock()
-    checker.check = AsyncMock(return_value=("skip", "explicit", 3))
+    checker.check = AsyncMock(return_value=TrackEvalResult(action="skip", reason="explicit", severity=3))
     track = _make_track(explicit=True)
     sp = _mock_sp(track)
 
@@ -275,7 +276,7 @@ async def test_now_playing_evaluating(data_dir):
         now_playing_snapshots.append(
             json.loads(np_file.read_text()) if np_file.exists() else None
         )
-        return ("allow", "clean", 0)
+        return TrackEvalResult(action="allow", reason="clean", severity=0)
 
     checker = MagicMock()
     checker.check = _check_spy
@@ -297,7 +298,7 @@ async def test_now_playing_evaluating(data_dir):
 async def test_now_playing_final_state(data_dir):
     """now_playing.json must be overwritten with final eval_state after check() completes."""
     checker = MagicMock()
-    checker.check = AsyncMock(return_value=("allow", "clean", 0))
+    checker.check = AsyncMock(return_value=TrackEvalResult(action="allow", reason="clean", severity=0))
     track = _make_track()
     sp = _mock_sp(track)
     await _run_one_cycle(sp, checker)
@@ -317,7 +318,7 @@ async def test_now_playing_final_state(data_dir):
 async def test_existing_events_unaffected(data_dir):
     """After a skip cycle, events.jsonl must still contain a 'skip' event (D-01 regression)."""
     checker = MagicMock()
-    checker.check = AsyncMock(return_value=("skip", "explicit", 3))
+    checker.check = AsyncMock(return_value=TrackEvalResult(action="skip", reason="explicit", severity=3))
     track = _make_track(explicit=True)
     sp = _mock_sp(track)
 
@@ -358,7 +359,7 @@ async def test_existing_events_unaffected(data_dir):
 async def test_eval_result_severity_mild(data_dir):
     """eval_result includes severity=1 when checker returns mild profanity."""
     checker = MagicMock()
-    checker.check = AsyncMock(return_value=("allow", "mild_language", 1))
+    checker.check = AsyncMock(return_value=TrackEvalResult(action="allow", reason="mild_language", severity=1))
     track = _make_track()
     sp = _mock_sp(track)
     await _run_one_cycle(sp, checker)
