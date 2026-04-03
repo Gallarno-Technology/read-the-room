@@ -102,23 +102,23 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SKIP-02 | Phase 7 | Complete |
 | SKIP-03 | Phase 7 | Complete |
 | SKIP-04 | Phase 8 | Complete |
-| PIPE-01 | Phase TBD | Pending |
-| DRUG-01 | Phase TBD | Pending |
-| DRUG-02 | Phase TBD | Pending |
-| DRUG-03 | Phase TBD | Pending |
-| SEXL-01 | Phase TBD | Pending |
-| SEXL-02 | Phase TBD | Pending |
-| SEXL-03 | Phase TBD | Pending |
-| SEXL-04 | Phase TBD | Pending |
-| LOG-01 | Phase TBD | Pending |
-| LOG-02 | Phase TBD | Pending |
-| UI-01 | Phase TBD | Pending |
+| PIPE-01 | Phase 9 | Pending |
+| DRUG-01 | Phase 10 | Pending |
+| DRUG-02 | Phase 10 | Pending |
+| DRUG-03 | Phase 11 | Pending |
+| SEXL-01 | Phase 10 | Pending |
+| SEXL-02 | Phase 10 | Pending |
+| SEXL-03 | Phase 10 | Pending |
+| SEXL-04 | Phase 11 | Pending |
+| LOG-01 | Phase 12 | Pending |
+| LOG-02 | Phase 12 | Pending |
+| UI-01 | Phase 13 | Pending |
 
 **Coverage:**
 - v1.3 requirements: 11 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 11 ⚠️
+- Mapped to phases: 11 (roadmap complete)
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-04-03 after v1.3 milestone requirements definition*
+*Last updated: 2026-04-03 after v1.3 roadmap creation — all 11 requirements mapped*
