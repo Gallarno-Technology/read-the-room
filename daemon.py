@@ -6,6 +6,7 @@ detects track changes by comparing track IDs, logs meaningful events, and
 runs headlessly inside Docker with graceful SIGTERM shutdown.
 """
 import asyncio
+import datetime
 import json
 import logging
 import os
@@ -35,7 +36,8 @@ HEARTBEAT_INTERVAL = float(os.environ.get("HEARTBEAT_INTERVAL_SECONDS", "300")) 
 STATE_PATH = os.environ.get("STATE_PATH", "state.json")
 PROFANITY_MIN_SEVERITY = int(os.environ.get("PROFANITY_MIN_SEVERITY", "2"))  # D-10
 LYRICS_DB_PATH = os.environ.get("LYRICS_DB_PATH", "lyrics_cache.db")
-SKIP_EVENTS_PATH = os.environ.get("SKIP_EVENTS_PATH", "data/skip_events.jsonl")
+EVENTS_PATH = os.environ.get("EVENTS_PATH", "data/events.jsonl")
+NOW_PLAYING_PATH = os.path.join(os.path.dirname(EVENTS_PATH) or ".", "now_playing.json")
 
 # ---------------------------------------------------------------------------
 # Logging — plain text with timestamps to stdout (D-08, D-09)
@@ -86,14 +88,14 @@ def save_state(daemon_fields: dict) -> None:
         json.dump(on_disk, f)
 
 
-def _append_skip_event(event: dict) -> None:
-    """Append a JSON line to the skip events log (Gap-2 fix: file-based IPC for docker-compose)."""
+def _append_event(event: dict) -> None:
+    """Append a JSON line to the events log (all daemon event types)."""
     try:
-        os.makedirs(os.path.dirname(SKIP_EVENTS_PATH) or ".", exist_ok=True)
-        with open(SKIP_EVENTS_PATH, "a") as f:
+        os.makedirs(os.path.dirname(EVENTS_PATH) or ".", exist_ok=True)
+        with open(EVENTS_PATH, "a") as f:
             f.write(json.dumps(event) + "\n")
     except OSError as exc:
-        log.error("[EVENTS] failed to write skip event log: %s", exc)
+        log.error("[EVENTS] failed to write event log: %s", exc)
 
 
 # ---------------------------------------------------------------------------
@@ -226,7 +228,7 @@ async def poll_loop(
                                     "type": "five_skip_warning",
                                     "timestamp": time.strftime("%H:%M:%S"),
                                 })
-                                _append_skip_event({
+                                _append_event({
                                     "type": "five_skip_warning",
                                     "timestamp": time.strftime("%H:%M:%S"),
                                 })
@@ -253,7 +255,7 @@ async def poll_loop(
                                         "reason": reason,
                                         "timestamp": time.strftime("%H:%M:%S"),
                                     })
-                                    _append_skip_event({
+                                    _append_event({
                                         "type": "skip",
                                         "track": track["name"],
                                         "artist": track["artists"][0]["name"],
