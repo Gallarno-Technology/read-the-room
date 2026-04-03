@@ -269,6 +269,11 @@
     .feed-new {
       animation: fadeIn 0.2s ease-in;
     }
+
+    #skip-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
@@ -289,6 +294,26 @@
     <div class="card">
       <button id="fsm-toggle" class="fsm-off">The Library is Closed</button>
       <div id="fsm-error"></div>
+    </div>
+
+    <div class="card" id="now-playing-card" aria-live="polite">
+      <h2 class="card-heading">Now Playing</h2>
+      <hr class="section-divider">
+      <p id="now-playing-idle" class="empty-body">Nothing playing</p>
+      <div id="now-playing-track" style="display:none">
+        <div style="display:flex; align-items:center; gap:16px">
+          <img id="now-playing-art" src="" alt="" width="64" height="64"
+               style="border-radius:4px; flex-shrink:0; display:none">
+          <div>
+            <div id="now-playing-name" style="font-size:14px; line-height:1.5"></div>
+            <div id="now-playing-artist" style="font-size:14px; color:var(--text-dim); line-height:1.5"></div>
+            <span id="now-playing-badge" class="badge"></span>
+          </div>
+        </div>
+        <button id="skip-btn" aria-label="Skip current track"
+                style="margin-top:16px; width:100%; height:44px; border:1px solid var(--border); border-radius:6px; background:var(--surface-raised); color:var(--text); font-family:'Courier Prime',monospace; font-size:13px; font-weight:600; cursor:pointer">Skip Track</button>
+        <div id="skip-error" style="margin-top:8px; font-size:12px; color:var(--danger); min-height:16px"></div>
+      </div>
     </div>
 
     <div class="card">
