@@ -4,7 +4,7 @@
 
 - ✅ **v1.0 MVP** — Phases 1-3 (shipped 2026-04-02)
 - ✅ **v1.1 Deployment** — Phases 4-5 (shipped 2026-04-02)
-- 🚧 **v1.2 Now Playing Status** — Phases 6-8 (in progress)
+- ✅ **v1.2 Now Playing Status** — Phases 6-8.1 (shipped 2026-04-03)
 - 📋 **v1.3 Drug & Sexual Reference Detection** — Phases TBD (planned)
 
 ## Phases
@@ -30,79 +30,23 @@ See `.planning/milestones/v1.1-ROADMAP.md` for full phase details.
 
 </details>
 
-### 🚧 v1.2 Now Playing Status (In Progress)
-
-**Milestone Goal:** Dashboard shows the current track with its real-time filter evaluation state and a manual skip button, so parents can see what's playing and act on it without opening Spotify.
+<details>
+<summary>✅ v1.2 Now Playing Status (Phases 6-8.1) — SHIPPED 2026-04-03</summary>
 
 - [x] **Phase 6: Daemon SSE Extensions** — Emit track_change and eval_result events for all tracks; write now_playing.json snapshot (completed 2026-04-03)
-- [ ] **Phase 7: Web UI Backend** — Spotipy init in web_ui; GET /now-playing hydration endpoint; POST /skip endpoint
+- [x] **Phase 7: Web UI Backend** — Spotipy init in web_ui; GET /now-playing hydration endpoint; POST /skip endpoint (completed 2026-04-03)
 - [x] **Phase 8: Dashboard Frontend** — Now-playing card, evaluation badge state machine, album art, skip button, SSE reconnect hydration (completed 2026-04-03)
-- [x] **Phase 8.1: Allow-reason context** — Severity-aware badge when track passes with mild language; daemon exposes severity in events; frontend shows "Mild language — allowed by settings" (INSERTED) (completed 2026-04-03)
+- [x] **Phase 8.1: Allow-reason Context** — Severity-aware badge when track passes with mild language; "Mild language" badge alongside "Passed" in dashboard (INSERTED) (completed 2026-04-03)
+
+See `.planning/milestones/v1.2-ROADMAP.md` for full phase details.
+
+</details>
 
 ### 📋 v1.3 Drug & Sexual Reference Detection (Planned)
 
 **Milestone Goal:** Extend the filter pipeline with drug reference and sexual content detection signals, both derived from existing LRCLIB lyrics with no new dependencies, logged to the incident file, and visible in the dashboard.
 
-*Phases to be numbered after v1.2 ships.*
-
-## Phase Details
-
-### Phase 6: Daemon SSE Extensions
-**Goal**: The daemon emits real-time events for every track so the web UI and browser always have current state to consume
-**Depends on**: Phase 5
-**Requirements**: DAEM-01, DAEM-02, DAEM-03
-**Success Criteria** (what must be TRUE):
-  1. A `track_change` event appears in `skip_events.jsonl` immediately when a new track is detected, before ContentChecker runs, with `eval_state: "evaluating"`
-  2. An `eval_result` event appears in `skip_events.jsonl` after ContentChecker completes for every track — including tracks that pass — with `track_id` and final `eval_state`
-  3. `data/now_playing.json` is written on track detection (evaluating state) and overwritten with the final state after evaluation
-  4. Existing skip and warning events are unaffected — all prior event types still appear correctly in the feed
-**Plans**: 4 plans
-Plans:
-- [x] 06-01-PLAN.md — Failing test scaffold (9 xfail stubs for DAEM-01, DAEM-02, DAEM-03)
-- [x] 06-02-PLAN.md — Env var + function rename: SKIP_EVENTS_PATH → EVENTS_PATH, _append_skip_event → _append_event
-- [x] 06-03-PLAN.md — Event emission in poll_loop: track_change (DAEM-01) + eval_result all branches (DAEM-02)
-- [x] 06-04-PLAN.md — now_playing.json writer: _write_now_playing helper + call sites (DAEM-03)
-
-### Phase 7: Web UI Backend
-**Goal**: The web UI container can serve current track state for page-load hydration and execute a manual skip directly against the Spotify API
-**Depends on**: Phase 6
-**Requirements**: SKIP-02, SKIP-03
-**Success Criteria** (what must be TRUE):
-  1. `GET /now-playing` returns the current track metadata and eval state read from `now_playing.json`, with a defined idle response when no track is playing
-  2. `POST /skip` calls the Spotify API and returns success — the track advances
-  3. A manual skip via `POST /skip` does not increment the daemon's consecutive-skip counter (counter stays at its pre-skip value)
-  4. The web_ui spotipy instance authenticates using the shared token cache without requiring a second OAuth flow
-**Plans**: 2 plans
-Plans:
-- [x] 07-01-PLAN.md — Infrastructure + test scaffold: spotipy in requirements.txt, token_cache volume in docker-compose.yml, 4 failing tests
-- [x] 07-02-PLAN.md — Endpoint implementation: NOW_PLAYING_PATH + sp init + GET /now-playing + POST /skip in web_ui/main.py
-
-### Phase 8: Dashboard Frontend
-**Goal**: Parents can see the current track, its real-time evaluation state badge, and album artwork, and skip it from the dashboard without opening Spotify
-**Depends on**: Phase 7
-**Requirements**: NOW-01, NOW-02, NOW-03, NOW-04, NOW-05, NOW-06, NOW-07, SKIP-01, SKIP-04
-**Success Criteria** (what must be TRUE):
-  1. Opening the dashboard mid-session shows the current track name, artist, album art, and evaluation badge without waiting for a new track to start
-  2. The badge shows "Evaluating" the moment a new track starts and updates to its final state (Passed / No lyrics / Skipped) when evaluation completes — no manual refresh needed
-  3. After SSE reconnects, the card repopulates correctly with current track state rather than going blank
-  4. An `eval_result` event with a mismatched `track_id` does not overwrite the displayed badge — only the badge matching the currently displayed track updates
-  5. Clicking the skip button skips the track; the button is disabled while the request is in flight and re-enables when the request completes
-**Plans**: 1 plan
-Plans:
-- [x] 08-01-PLAN.md — Now-playing card HTML + six badge CSS modifier classes + full JS wiring (hydration, SSE routing, skip handler)
-
-### Phase 8.1: Allow-reason context (INSERTED)
-**Goal**: When a track passes with mild language (severity=1, below the skip threshold), the dashboard badge communicates the app is aware of the content level and implies it was shown because of the user's configured threshold
-**Depends on**: Phase 8
-**Success Criteria** (what must be TRUE):
-  1. A track that passes with severity=1 shows "Mild language" badge variant instead of plain "Passed"
-  2. The badge implies the track was shown because of the user's configured threshold (e.g., sub-label or tooltip: "shown by your settings")
-  3. Tracks with severity=0 (clean) continue to show plain "Passed" unchanged
-  4. The severity field is present in both the eval_result SSE event payload and GET /now-playing response
-**Plans**: 2 plans
-Plans:
-- [x] 8.1-01-PLAN.md — Add severity field to eval_result events and now_playing.json writes in daemon.py
-- [x] 8.1-02-PLAN.md — Add .badge--mild-language CSS, flex badge container, severity rendering in index.html
+*Phases to be defined by `/gsd:new-milestone`.*
 
 ## Progress
 
@@ -113,7 +57,7 @@ Plans:
 | 3. Web UI Dashboard | v1.0 | 5/5 | Complete | 2026-04-02 |
 | 4. Sonos Discovery Hardening | v1.1 | 2/2 | Complete | 2026-04-02 |
 | 5. Deployment & Documentation | v1.1 | 2/2 | Complete | 2026-04-02 |
-| 6. Daemon SSE Extensions | v1.2 | 4/4 | Complete   | 2026-04-03 |
+| 6. Daemon SSE Extensions | v1.2 | 4/4 | Complete | 2026-04-03 |
 | 7. Web UI Backend | v1.2 | 2/2 | Complete | 2026-04-03 |
 | 8. Dashboard Frontend | v1.2 | 1/1 | Complete | 2026-04-03 |
-| 8.1. Allow-reason context | v1.2 | 2/2 | Complete | 2026-04-03 |
+| 8.1. Allow-reason Context | v1.2 | 2/2 | Complete | 2026-04-03 |

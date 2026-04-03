@@ -26,16 +26,18 @@ Songs that violate family-safe rules are skipped automatically before children h
 - ✓ Project has a complete clone-and-run README usable by anyone with Docker — v1.1
 - ✓ Service survives host reboots without manual intervention — v1.1
 - ✓ Silently hung daemon container restarted automatically by Docker healthcheck — v1.1
+- ✓ web_ui exposes GET /now-playing (hydration) and POST /skip (manual skip via Spotify API) — v1.2
+- ✓ Dashboard shows current track with real-time filter evaluation state badge — v1.2
+- ✓ Parent can manually skip current track from dashboard without opening Spotify — v1.2
+- ✓ Dashboard badge shows "Mild language" alongside "Passed" when severity=1 — v1.2
 
 ### Active
 
-- ✓ web_ui exposes GET /now-playing (hydration) and POST /skip (manual skip via Spotify API) — v1.2 (Validated in Phase 07)
-- ✓ Dashboard shows current track with real-time filter evaluation state (v1.2) (Validated in Phase 08)
-- ✓ Parent can manually skip current track from dashboard without opening Spotify (v1.2) (Validated in Phase 08)
-- ✓ Dashboard badge shows "Mild language" alongside "Passed" when severity=1 (v1.2) (Validated in Phase 8.1)
 - [ ] Drug reference detection in lyrics — boolean signal (v1.3)
 - [ ] Sexual content detection in lyrics — boolean signal (v1.3)
 - [ ] Both new signals logged in incident log alongside existing flags (v1.3)
+- [ ] Dashboard shows drug reference and sexual content badge variants in skip feed (v1.3)
+- [ ] ContentChecker.check() returns named TrackEvalResult dataclass instead of positional 3-tuple (v1.3)
 - [ ] Support for multiple Sonos rooms without env var mapping (future)
 
 ### Deferred (v2+)
@@ -54,13 +56,14 @@ Songs that violate family-safe rules are skipped automatically before children h
 
 ## Context
 
-- **Shipped v1.1** on 2026-04-02: 5 phases total, 18 plans, ~1,213 lines (Python + YAML + docs)
-- Tech stack: Python 3.12, asyncio, spotipy, SoCo, FastAPI, aiosqlite, LRCLIB, better-profanity, Docker, pytest
+- **Shipped v1.2** on 2026-04-03: 9 phases total, 23 plans, ~1,754 lines (Python + HTML/CSS/JS + tests)
+- Tech stack: Python 3.12, asyncio, spotipy, SoCo, FastAPI, SSE, LRCLIB, better-profanity, Docker, pytest; vanilla JS frontend (no framework)
 - Sonos SSDP auto-discovery via `probe_sonos_speakers()` at startup; `SONOS_SPEAKER_IPS=Name=IP,...` is explicit escape hatch for LXC/Proxmox hosts
 - Sonos in Spotify Connect mode returns error 701 on UPnP `next()` — daemon falls back to Spotify API
 - Docker healthcheck: `poll_loop()` touches `/app/.healthcheck` every cycle; 90s hang detection (interval 30s × retries 3)
 - Children are ages 3 and 7 — filtering errs on the side of caution
 - Music plays through Living Room Sonos (192.168.1.164); Dining Room IP unknown (offline)
+- setup_auth.py requires scope `user-read-playback-state user-read-currently-playing user-modify-playback-state` — all three needed
 
 ## Key Decisions
 
@@ -76,17 +79,12 @@ Songs that violate family-safe rules are skipped automatically before children h
 | Touch-file healthcheck probe | Simplest cross-language probe; mtime check catches hung event loop (process alive but deadlocked) | ✓ Good — verified working |
 | PROXMOX.md as separate file | Keeps README minimal; LXC multicast edge case is niche enough to warrant dedicated doc | ✓ Good |
 | 3-section README (Quick Start / Prerequisites / Updating) | Minimal surface area; no troubleshooting section forces good defaults over workarounds | ✓ Good |
-
-## Current Milestone: v1.2 Now Playing Status
-
-**Goal:** Dashboard shows the current track with its real-time filter evaluation state and a manual skip button, so parents can see what's playing and act on it without opening Spotify.
-
-**Target features:**
-- Now-playing card: track name, artist, evaluation state badge (evaluating → passed / no-lyrics / skipped)
-- "Evaluating" is always the initial state on every new track — Spotify/Sonos API latency means no instant result is reliable
-- Manual skip button — triggers skip from web UI without duplicating Spotify auth
-- Album artwork — nice-to-have, not a requirement
-- Current track only — existing skip feed history unchanged
+| SSE + now_playing.json dual delivery | SSE for real-time updates; file snapshot for page-load hydration — decoupled, no shared state between containers | ✓ Good — hydration on reconnect works reliably |
+| Shared token cache volume (daemon ↔ web_ui) | web_ui spotipy reuses daemon OAuth token via Docker volume; no second auth flow needed | ✓ Good — single `make auth` covers both containers |
+| Manual skip bypasses consecutive-skip counter | Parent intent is deliberate; counter is for algorithmic cascade detection only | ✓ Good — correct semantics |
+| severity=0 sentinel for non-profanity-scan branches | eval_result always includes severity field; frontend can rely on it always being present | ✓ Good — frontend never gets KeyError |
+| Multi-badge flex container (badge-group) | Additive badge pattern: eval_state badge + criteria badges; extensible for v1.3 drug/sexual badges | ✓ Good — groundwork laid for v1.3 |
+| OAuth scope missing user-read-playback-state | setup_auth.py originally requested wrong scope; sp.current_playback() requires user-read-playback-state not user-read-currently-playing | ⚠ Fixed — update setup_auth.py and re-run make auth on existing installs |
 
 ## Current Milestone: v1.3 Drug & Sexual Reference Detection
 
@@ -108,4 +106,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-03 — Phase 8.1 complete: severity field propagated into eval_result SSE events and now_playing.json; dashboard shows amber "Mild language" badge alongside green "Passed" for severity=1 tracks; multi-badge container groundwork in place for v1.3*
+*Last updated: 2026-04-03 after v1.2 milestone — Now-playing dashboard shipped: real-time eval badge, album art, manual skip, severity-aware "Mild language" badge. Multi-badge container pattern ready for v1.3.*
