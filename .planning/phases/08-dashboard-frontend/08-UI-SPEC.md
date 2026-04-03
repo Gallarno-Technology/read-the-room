@@ -29,6 +29,12 @@ No shadcn gate required. Project uses no React/Next.js/Vite stack — pure serve
 
 ---
 
+## Visuals
+
+The primary visual anchor is the "Now Playing" card heading at 18px/600 Playfair Display.
+
+---
+
 ## Spacing Scale
 
 Declared values (all multiples of 4). Pre-populated from existing `index.html` usage.
@@ -58,9 +64,8 @@ Pre-populated from `index.html` `:root` and element selectors.
 
 | Role | Size | Weight | Line Height | Font Family |
 |------|------|--------|-------------|-------------|
-| Badge label | 11px | 400 | 1.0 (white-space:nowrap) | Courier Prime, monospace |
 | Meta / timestamp / error | 12px | 400 | 1.4 | Source Sans 3, sans-serif |
-| Feed item / button | 13px | 400 (feed) / 600 (button) | 1.4 | Courier Prime, monospace |
+| Badge label / feed item / button | 13px | 400 (badge/feed) / 600 (button) | 1.4 | Courier Prime, monospace |
 | Body / card sub-text | 14px | 400 | 1.5 | Source Sans 3, sans-serif |
 | Heading / card heading | 18px | 600 | 1.2 | Playfair Display, serif |
 
@@ -69,7 +74,7 @@ Rules:
 - Artist name: 14px, weight 400, Source Sans 3, color `var(--text-dim)` — one step dimmer than track name
 - Card heading "Now Playing": 18px, weight 600, Playfair Display — matches `.card-heading`
 - Skip button text: 13px, weight 600, Courier Prime — matches `#fsm-toggle` button
-- Eval badge label: 11px, weight 400, Courier Prime — matches existing `.badge`
+- Eval badge label: 13px, weight 400, Courier Prime — unified with feed item and skip button at the 13px mono scale
 - Skip error message: 12px, weight 400, Source Sans 3, color `var(--danger)` — matches `#fsm-error`
 
 ---
@@ -154,7 +159,7 @@ Placement: inserted between the FSM toggle card and the Incident Log card (CONTE
 
 ### Eval-State Badge (`#now-playing-badge`)
 
-- Base class: `.badge` (inherits 11px Courier Prime, padding 4px 8px, border-radius 4px)
+- Base class: `.badge` (inherits 13px Courier Prime, padding 4px 8px, border-radius 4px)
 - Modifier class: one of the six `.badge--*` classes from the Color section above
 - State machine (driven by SSE events and hydration):
 
