@@ -1,13 +1,13 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: Drug & Sexual Reference Detection
-status: ready to plan
+milestone: v1.2
+milestone_name: Now Playing Status
+status: defining requirements
 stopped_at: ""
-last_updated: "2026-04-02T00:00:00.000Z"
+last_updated: "2026-04-02T23:30:00.000Z"
 last_activity: 2026-04-02
 progress:
-  total_phases: 5
+  total_phases: 0
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Phase 06 — Return Type Refactor
+**Current focus:** v1.2 Now Playing Status — defining requirements
 
 ## Current Position
 
-Phase: 6 of 10 (v1.2 starts at Phase 6)
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-04-02 — v1.3 roadmap created; 5 phases (06-10), 10 requirements mapped
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-02 — Milestone v1.2 Now Playing Status started
 
 Progress: [░░░░░░░░░░] 0% (v1.2)
 

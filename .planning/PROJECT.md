@@ -29,12 +29,12 @@ Songs that violate family-safe rules are skipped automatically before children h
 
 ### Active
 
-- [ ] Drug reference detection in lyrics (boolean signal)
-- [ ] Sexual content detection in lyrics (boolean signal)
-- [ ] Both signals logged in incident log alongside existing flags
-- [ ] Support for multiple Sonos rooms without env var mapping
-- [ ] Dashboard shows current track with real-time filter evaluation state
-- [ ] Parent can manually skip current track from dashboard without opening Spotify
+- [ ] Dashboard shows current track with real-time filter evaluation state (v1.2)
+- [ ] Parent can manually skip current track from dashboard without opening Spotify (v1.2)
+- [ ] Drug reference detection in lyrics — boolean signal (v1.3)
+- [ ] Sexual content detection in lyrics — boolean signal (v1.3)
+- [ ] Both new signals logged in incident log alongside existing flags (v1.3)
+- [ ] Support for multiple Sonos rooms without env var mapping (future)
 
 ### Deferred (v2+)
 
@@ -75,7 +75,7 @@ Songs that violate family-safe rules are skipped automatically before children h
 | PROXMOX.md as separate file | Keeps README minimal; LXC multicast edge case is niche enough to warrant dedicated doc | ✓ Good |
 | 3-section README (Quick Start / Prerequisites / Updating) | Minimal surface area; no troubleshooting section forces good defaults over workarounds | ✓ Good |
 
-## Planned Milestone: v1.2 Now Playing Status
+## Current Milestone: v1.2 Now Playing Status
 
 **Goal:** Dashboard shows the current track with its real-time filter evaluation state and a manual skip button, so parents can see what's playing and act on it without opening Spotify.
 
@@ -106,4 +106,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-02 — v1.3 Drug & Sexual Reference Detection milestone started; v1.2 Now Playing Status restored*
+*Last updated: 2026-04-02 — v1.2 Now Playing Status milestone started*
