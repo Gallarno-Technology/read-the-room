@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Now Playing Status
-status: verifying
-stopped_at: Phase 8.1 context gathered (discuss mode)
-last_updated: "2026-04-03T14:42:08.248Z"
+status: executing
+stopped_at: Completed 8.1-01-PLAN.md
+last_updated: "2026-04-03T15:14:40.984Z"
 last_activity: 2026-04-03
 progress:
   total_phases: 7
   completed_phases: 6
-  total_plans: 21
-  completed_plans: 21
+  total_plans: 23
+  completed_plans: 22
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Phase 08 — dashboard-frontend
+**Current focus:** Phase 8.1 — Allow-reason context
 
 ## Current Position
 
-Phase: 08
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 8.1 (Allow-reason context) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-04-03
 
 Progress: [░░░░░░░░░░] 0% (v1.2)
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0% (v1.2)
 | Phase 07-web-ui-backend P01 | 2 | 2 tasks | 3 files |
 | Phase 07-web-ui-backend P02 | 2 | 2 tasks | 1 files |
 | Phase 08-dashboard-frontend P01 | 2 | 3 tasks | 1 files |
+| Phase 8.1-allow-reason-context P01 | 525616 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,7 @@ Recent decisions affecting current work:
 - [Phase 07-02]: SKIP-03 architecturally guaranteed: consecutive_skips is daemon in-memory only; web_ui calls Spotify directly
 - [Phase 08-dashboard-frontend]: currentTrackId set only from track_change events and hydration — never from eval_result events (NOW-07 guard)
 - [Phase 08-dashboard-frontend]: No polling — all live updates come exclusively from SSE events (D-05 constraint)
+- [Phase 8.1-allow-reason-context]: severity=0 for fsm-off and 5th-skip-pause paths (no profanity scan ran); severity=severity for allow and auto-skip paths
 
 ### Pending Todos
 
@@ -97,6 +99,6 @@ None at roadmap creation.
 
 ## Session Continuity
 
-Last session: 2026-04-03T14:42:08.247Z
-Stopped at: Phase 8.1 context gathered (discuss mode)
-Resume file: .planning/phases/8.1-allow-reason-context/8.1-CONTEXT.md
+Last session: 2026-04-03T15:14:40.982Z
+Stopped at: Completed 8.1-01-PLAN.md
+Resume file: None
