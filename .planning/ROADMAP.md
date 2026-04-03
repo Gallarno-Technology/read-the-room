@@ -63,7 +63,10 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full phase details.
   2. All `daemon.py` call sites access result fields by attribute name (e.g., `result.action`) with no tuple unpacking
   3. All 10 test mocks construct `TrackEvalResult(...)` directly; zero bare-tuple return values remain in test fixtures
   4. Test suite passes green with identical skip/pass/pause behavior to v1.2 — no behavior change
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 09-01-PLAN.md — Define TrackEvalResult dataclass; update content_checker.py, daemon.py, and test mocks
 
 ### Phase 10: Scanner Modules
 **Goal**: DrugScanner and SexualContentScanner exist as independent, fully-tested pure functions ready for pipeline injection
@@ -125,7 +128,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full phase details.
 | 7. Web UI Backend | v1.2 | 2/2 | Complete | 2026-04-03 |
 | 8. Dashboard Frontend | v1.2 | 1/1 | Complete | 2026-04-03 |
 | 8.1. Allow-reason Context | v1.2 | 2/2 | Complete | 2026-04-03 |
-| 9. TrackEvalResult Dataclass Refactor | v1.3 | 0/TBD | Not started | - |
+| 9. TrackEvalResult Dataclass Refactor | v1.3 | 0/1 | Not started | - |
 | 10. Scanner Modules | v1.3 | 0/TBD | Not started | - |
 | 11. ContentChecker Pipeline Integration | v1.3 | 0/TBD | Not started | - |
 | 12. Event Propagation & Incident Log | v1.3 | 0/TBD | Not started | - |
