@@ -257,6 +257,7 @@ async def poll_loop(
                                 "type": "eval_result",
                                 "track_id": track_id,
                                 "eval_state": _eval_state_from_result(action, reason),
+                                "severity": severity,
                                 "timestamp": time.strftime("%H:%M:%S"),
                             })
                             _write_now_playing({
@@ -265,6 +266,7 @@ async def poll_loop(
                                 "artist": track["artists"][0]["name"],
                                 "album_art_url": album_art_url,
                                 "eval_state": _eval_state_from_result(action, reason),
+                                "severity": severity,
                                 "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
                             })
 
@@ -300,6 +302,7 @@ async def poll_loop(
                                     "type": "eval_result",
                                     "track_id": track_id,
                                     "eval_state": "paused",
+                                    "severity": 0,
                                     "timestamp": time.strftime("%H:%M:%S"),
                                 })
                                 _write_now_playing({
@@ -308,6 +311,7 @@ async def poll_loop(
                                     "artist": track["artists"][0]["name"],
                                     "album_art_url": album_art_url,
                                     "eval_state": "paused",
+                                    "severity": 0,
                                     "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
                                 })
                             else:
@@ -345,6 +349,7 @@ async def poll_loop(
                                         "type": "eval_result",
                                         "track_id": track_id,
                                         "eval_state": "skipped",
+                                        "severity": severity,
                                         "timestamp": time.strftime("%H:%M:%S"),
                                     })
                                     _write_now_playing({
@@ -353,6 +358,7 @@ async def poll_loop(
                                         "artist": track["artists"][0]["name"],
                                         "album_art_url": album_art_url,
                                         "eval_state": "skipped",
+                                        "severity": severity,
                                         "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
                                     })
                                 else:
@@ -364,10 +370,12 @@ async def poll_loop(
                                     )
                     else:
                         # FSM off — D-03: still emit eval_result with fsm-off
+                        # severity=0: no profanity check ran (FSM disabled)
                         _append_event({
                             "type": "eval_result",
                             "track_id": track_id,
                             "eval_state": "fsm-off",
+                            "severity": 0,
                             "timestamp": time.strftime("%H:%M:%S"),
                         })
                         _write_now_playing({
@@ -376,6 +384,7 @@ async def poll_loop(
                             "artist": track["artists"][0]["name"],
                             "album_art_url": album_art_url,
                             "eval_state": "fsm-off",
+                            "severity": 0,
                             "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
                         })
 

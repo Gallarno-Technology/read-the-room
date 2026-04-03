@@ -158,6 +158,7 @@ async def test_eval_result_passed(data_dir):
     assert len(eval_result_lines) >= 1, "eval_result must be emitted after check()"
     assert eval_result_lines[0]["eval_state"] == "passed"
     assert eval_result_lines[0]["track_id"] == "spotify:track:abc123"
+    assert eval_result_lines[0]["severity"] == 0
 
 
 @pytest.mark.asyncio
@@ -199,6 +200,7 @@ async def test_eval_result_skipped(data_dir):
     eval_result_lines = [l for l in lines if l.get("type") == "eval_result"]
     assert len(eval_result_lines) >= 1, "eval_result must be emitted after skip"
     assert eval_result_lines[0]["eval_state"] == "skipped"
+    assert eval_result_lines[0]["severity"] == 3
 
 
 @pytest.mark.asyncio
@@ -218,6 +220,7 @@ async def test_eval_result_fsm_off(data_dir):
     eval_result_lines = [l for l in lines if l.get("type") == "eval_result"]
     assert len(eval_result_lines) >= 1, "eval_result must be emitted even when FSM is off"
     assert eval_result_lines[0]["eval_state"] == "fsm-off"
+    assert eval_result_lines[0]["severity"] == 0
 
 
 @pytest.mark.asyncio
@@ -349,3 +352,20 @@ async def test_existing_events_unaffected(data_dir):
     assert len(skip_lines) >= 1, (
         "events.jsonl must contain a 'skip' event — rename must not break existing event types"
     )
+
+
+@pytest.mark.asyncio
+async def test_eval_result_severity_mild(data_dir):
+    """eval_result includes severity=1 when checker returns mild profanity."""
+    checker = MagicMock()
+    checker.check = AsyncMock(return_value=("allow", "mild_language", 1))
+    track = _make_track()
+    sp = _mock_sp(track)
+    await _run_one_cycle(sp, checker)
+
+    events_file = data_dir / "events.jsonl"
+    assert events_file.exists()
+    lines = [json.loads(l) for l in events_file.read_text().strip().splitlines() if l.strip()]
+    eval_result_lines = [l for l in lines if l.get("type") == "eval_result"]
+    assert len(eval_result_lines) >= 1
+    assert eval_result_lines[0]["severity"] == 1
