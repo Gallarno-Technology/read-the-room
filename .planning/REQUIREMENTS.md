@@ -36,7 +36,7 @@ Requirements for milestone v1.3: Drug & Sexual Reference Detection.
 
 ### Pipeline
 
-- [ ] **PIPE-01**: `ContentChecker.check()` returns a named `TrackEvalResult` dataclass instead of a positional 3-tuple
+- [x] **PIPE-01**: `ContentChecker.check()` returns a named `TrackEvalResult` dataclass instead of a positional 3-tuple
 
 ### Drug Detection
 
@@ -102,7 +102,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SKIP-02 | Phase 7 | Complete |
 | SKIP-03 | Phase 7 | Complete |
 | SKIP-04 | Phase 8 | Complete |
-| PIPE-01 | Phase 9 | Pending |
+| PIPE-01 | Phase 9 | Complete |
 | DRUG-01 | Phase 10 | Pending |
 | DRUG-02 | Phase 10 | Pending |
 | DRUG-03 | Phase 11 | Pending |

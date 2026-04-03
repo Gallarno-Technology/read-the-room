@@ -46,7 +46,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Extend the filter pipeline with drug reference and sexual content detection signals, both derived from existing LRCLIB lyrics with no new dependencies, logged to the incident file, and visible in the dashboard.
 
-- [ ] **Phase 9: TrackEvalResult Dataclass Refactor** — Replace positional 3-tuple return from ContentChecker.check() with a named frozen dataclass; no behavior change
+- [x] **Phase 9: TrackEvalResult Dataclass Refactor** — Replace positional 3-tuple return from ContentChecker.check() with a named frozen dataclass; no behavior change (completed 2026-04-03)
 - [ ] **Phase 10: Scanner Modules** — DrugScanner and SexualContentScanner as standalone pure functions with word-boundary regex matching; disjoint keyword sets
 - [ ] **Phase 11: ContentChecker Pipeline Integration** — Wire both scanners into ContentChecker; drug and sexual detection trigger skip when FSM is active
 - [ ] **Phase 12: Event Propagation & Incident Log** — Propagate drug_reference and sexual_content booleans through all daemon event emission and now_playing.json write paths
@@ -66,7 +66,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full phase details.
 **Plans**: 1 plan
 
 Plans:
-- [ ] 09-01-PLAN.md — Define TrackEvalResult dataclass; update content_checker.py, daemon.py, and test mocks
+- [x] 09-01-PLAN.md — Define TrackEvalResult dataclass; update content_checker.py, daemon.py, and test mocks
 
 ### Phase 10: Scanner Modules
 **Goal**: DrugScanner and SexualContentScanner exist as independent, fully-tested pure functions ready for pipeline injection
@@ -128,7 +128,7 @@ Plans:
 | 7. Web UI Backend | v1.2 | 2/2 | Complete | 2026-04-03 |
 | 8. Dashboard Frontend | v1.2 | 1/1 | Complete | 2026-04-03 |
 | 8.1. Allow-reason Context | v1.2 | 2/2 | Complete | 2026-04-03 |
-| 9. TrackEvalResult Dataclass Refactor | v1.3 | 0/1 | Not started | - |
+| 9. TrackEvalResult Dataclass Refactor | v1.3 | 1/1 | Complete   | 2026-04-03 |
 | 10. Scanner Modules | v1.3 | 0/TBD | Not started | - |
 | 11. ContentChecker Pipeline Integration | v1.3 | 0/TBD | Not started | - |
 | 12. Event Propagation & Incident Log | v1.3 | 0/TBD | Not started | - |
