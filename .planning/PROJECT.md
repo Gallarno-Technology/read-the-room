@@ -37,7 +37,7 @@ Songs that violate family-safe rules are skipped automatically before children h
 - [ ] Sexual content detection in lyrics — boolean signal (v1.3)
 - [ ] Both new signals logged in incident log alongside existing flags (v1.3)
 - [ ] Dashboard shows drug reference and sexual content badge variants in skip feed (v1.3)
-- [ ] ContentChecker.check() returns named TrackEvalResult dataclass instead of positional 3-tuple (v1.3)
+- ✓ ContentChecker.check() returns named TrackEvalResult dataclass instead of positional 3-tuple — v1.3 (Validated in Phase 9: TrackEvalResult Dataclass Refactor)
 - [ ] Support for multiple Sonos rooms without env var mapping (future)
 
 ### Deferred (v2+)
@@ -106,4 +106,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-03 after v1.3 milestone start — Drug & Sexual Reference Detection milestone initialized.*
+*Last updated: 2026-04-03 after Phase 9 complete — TrackEvalResult dataclass refactor shipped; PIPE-01 validated.*
