@@ -4,8 +4,8 @@
 
 - ✅ **v1.0 MVP** — Phases 1-3 (shipped 2026-04-02)
 - ✅ **v1.1 Deployment** — Phases 4-5 (shipped 2026-04-02)
-- 📋 **v1.2 Now Playing Status** — Phases TBD (planned)
-- 🚧 **v1.3 Drug & Sexual Reference Detection** — Phases 6-10 (in progress)
+- 🚧 **v1.2 Now Playing Status** — Phases 6-8 (in progress)
+- 📋 **v1.3 Drug & Sexual Reference Detection** — Phases TBD (planned)
 
 ## Phases
 
@@ -30,76 +30,54 @@ See `.planning/milestones/v1.1-ROADMAP.md` for full phase details.
 
 </details>
 
-### 📋 v1.2 Now Playing Status (Planned)
+### 🚧 v1.2 Now Playing Status (In Progress)
 
 **Milestone Goal:** Dashboard shows the current track with its real-time filter evaluation state and a manual skip button, so parents can see what's playing and act on it without opening Spotify.
 
-*Phases not yet defined — run `/gsd:new-milestone` to plan this milestone.*
+- [ ] **Phase 6: Daemon SSE Extensions** — Emit track_change and eval_result events for all tracks; write now_playing.json snapshot
+- [ ] **Phase 7: Web UI Backend** — Spotipy init in web_ui; GET /now-playing hydration endpoint; POST /skip endpoint
+- [ ] **Phase 8: Dashboard Frontend** — Now-playing card, evaluation badge state machine, album art, skip button, SSE reconnect hydration
 
-### 🚧 v1.3 Drug & Sexual Reference Detection (In Progress)
+### 📋 v1.3 Drug & Sexual Reference Detection (Planned)
 
 **Milestone Goal:** Extend the filter pipeline with drug reference and sexual content detection signals, both derived from existing LRCLIB lyrics with no new dependencies, logged to the incident file, and visible in the dashboard.
 
-- [ ] **Phase 6: Return Type Refactor** — Replace ContentChecker.check() 3-tuple with TrackEvalResult dataclass
-- [ ] **Phase 7: Drug Scanner** — DrugScanner class with conservative phrase list, word-boundary regex, unit tests
-- [ ] **Phase 8: Sexual Content Scanner** — SexualContentScanner, SEVERITY_MAP deduplication, unit tests
-- [ ] **Phase 9: ContentChecker Integration + Incident Log** — Wire both scanners in; extend skip_events.jsonl with all four signal booleans
-- [ ] **Phase 10: Dashboard + End-to-End Validation** — New reason badges in web UI; integration tests covering all signal combinations
+*Phases to be numbered after v1.2 ships.*
 
 ## Phase Details
 
-### Phase 6: Return Type Refactor
-**Goal**: ContentChecker.check() returns a named TrackEvalResult dataclass so all subsequent signal additions and daemon call sites use attribute access instead of positional tuple unpacking
+### Phase 6: Daemon SSE Extensions
+**Goal**: The daemon emits real-time events for every track so the web UI and browser always have current state to consume
 **Depends on**: Phase 5
-**Requirements**: PIPE-01
+**Requirements**: DAEM-01, DAEM-02, DAEM-03
 **Success Criteria** (what must be TRUE):
-  1. `ContentChecker.check()` returns a `TrackEvalResult` dataclass instance, not a 3-tuple
-  2. `daemon.py` call sites access result fields by name (e.g., `result.should_skip`) with no positional unpack
-  3. All existing tests pass without modification to test logic — only import/attribute references updated
+  1. A `track_change` event appears in `skip_events.jsonl` immediately when a new track is detected, before ContentChecker runs, with `eval_state: "evaluating"`
+  2. An `eval_result` event appears in `skip_events.jsonl` after ContentChecker completes for every track — including tracks that pass — with `track_id` and final `eval_state`
+  3. `data/now_playing.json` is written on track detection (evaluating state) and overwritten with the final state after evaluation
+  4. Existing skip and warning events are unaffected — all prior event types still appear correctly in the feed
 **Plans**: TBD
 
-### Phase 7: Drug Scanner
-**Goal**: A standalone DrugScanner class exists with a conservative curated phrase list, word-boundary regex matching, and unit tests that verify false-positive candidates do not trigger
+### Phase 7: Web UI Backend
+**Goal**: The web UI container can serve current track state for page-load hydration and execute a manual skip directly against the Spotify API
 **Depends on**: Phase 6
-**Requirements**: DRUG-01, DRUG-02
+**Requirements**: SKIP-02, SKIP-03
 **Success Criteria** (what must be TRUE):
-  1. `DrugScanner.scan(lyrics)` returns `(bool, list[str])` — the boolean and the list of matched terms
-  2. Known false-positive candidates ("highway", "grasshopper", "joint venture") do not trigger the scanner
-  3. Known drug phrases from the curated list are detected correctly with word-boundary isolation
-  4. The drug term list contains 80 entries or fewer (CI-enforceable gate)
+  1. `GET /now-playing` returns the current track metadata and eval state read from `now_playing.json`, with a defined idle response when no track is playing
+  2. `POST /skip` calls the Spotify API and returns success — the track advances
+  3. A manual skip via `POST /skip` does not increment the daemon's consecutive-skip counter (counter stays at its pre-skip value)
+  4. The web_ui spotipy instance authenticates using the shared token cache without requiring a second OAuth flow
 **Plans**: TBD
 
-### Phase 8: Sexual Content Scanner
-**Goal**: A standalone SexualContentScanner class exists with a curated list that has zero overlap with existing profanity SEVERITY_MAP terms, and unit tests that verify both detection and deduplication
-**Depends on**: Phase 6
-**Requirements**: SEXL-01, SEXL-02, SEXL-03
+### Phase 8: Dashboard Frontend
+**Goal**: Parents can see the current track, its real-time evaluation state badge, and album artwork, and skip it from the dashboard without opening Spotify
+**Depends on**: Phase 7
+**Requirements**: NOW-01, NOW-02, NOW-03, NOW-04, NOW-05, NOW-06, NOW-07, SKIP-01, SKIP-04
 **Success Criteria** (what must be TRUE):
-  1. `SexualContentScanner.scan(lyrics)` returns `(bool, list[str])` with the matched terms alongside the boolean
-  2. An assertion test confirms `set(SEXUAL_TERMS) & set(SEVERITY_MAP.keys()) == set()` — no overlap with profanity list
-  3. Known sexual content phrases are detected with word-boundary isolation
-  4. Terms already in `SEVERITY_MAP` (e.g., "cock", "pussy") do not appear in the sexual content list and do not double-fire
-**Plans**: TBD
-
-### Phase 9: ContentChecker Integration + Incident Log
-**Goal**: Both new scanners are wired into ContentChecker; skip is triggered on drug or sexual detection when FSM is active; skip_events.jsonl payloads include all four signal booleans
-**Depends on**: Phase 7, Phase 8
-**Requirements**: DRUG-03, SEXL-04, LOG-01
-**Success Criteria** (what must be TRUE):
-  1. A track with drug reference lyrics is skipped automatically when Family Safe Mode is on
-  2. A track with sexual content lyrics is skipped automatically when Family Safe Mode is on
-  3. Every skip event written to `skip_events.jsonl` includes `explicit`, `profanity`, `drug_reference`, and `sexual_content` boolean fields
-  4. No new columns are added to the `lyrics_cache` SQLite table (detection is in-memory only)
-**Plans**: TBD
-
-### Phase 10: Dashboard + End-to-End Validation
-**Goal**: The web dashboard displays distinct skip reason badges for drug reference and sexual content; integration tests confirm all four signal combinations produce correct skip behavior end-to-end
-**Depends on**: Phase 9
-**Requirements**: UI-01
-**Success Criteria** (what must be TRUE):
-  1. The skip feed in the dashboard shows a distinct "Drug Reference" badge when a track is skipped for that reason
-  2. The skip feed shows a distinct "Sexual Content" badge when a track is skipped for that reason
-  3. Integration tests pass for all signal combinations: drug only, sexual only, both simultaneously, neither, profanity + drug simultaneously
-  4. The 5-consecutive-skip pause logic counts drug and sexual content skips correctly alongside existing skip types
+  1. Opening the dashboard mid-session shows the current track name, artist, album art, and evaluation badge without waiting for a new track to start
+  2. The badge shows "Evaluating" the moment a new track starts and updates to its final state (Passed / No lyrics / Skipped) when evaluation completes — no manual refresh needed
+  3. After SSE reconnects, the card repopulates correctly with current track state rather than going blank
+  4. An `eval_result` event with a mismatched `track_id` does not overwrite the displayed badge — only the badge matching the currently displayed track updates
+  5. Clicking the skip button skips the track; the button is disabled while the request is in flight and re-enables when the request completes
 **Plans**: TBD
 **UI hint**: yes
 
@@ -112,8 +90,6 @@ See `.planning/milestones/v1.1-ROADMAP.md` for full phase details.
 | 3. Web UI Dashboard | v1.0 | 5/5 | Complete | 2026-04-02 |
 | 4. Sonos Discovery Hardening | v1.1 | 2/2 | Complete | 2026-04-02 |
 | 5. Deployment & Documentation | v1.1 | 2/2 | Complete | 2026-04-02 |
-| 6. Return Type Refactor | v1.3 | 0/? | Not started | - |
-| 7. Drug Scanner | v1.3 | 0/? | Not started | - |
-| 8. Sexual Content Scanner | v1.3 | 0/? | Not started | - |
-| 9. ContentChecker Integration + Incident Log | v1.3 | 0/? | Not started | - |
-| 10. Dashboard + End-to-End Validation | v1.3 | 0/? | Not started | - |
+| 6. Daemon SSE Extensions | v1.2 | 0/? | Not started | - |
+| 7. Web UI Backend | v1.2 | 0/? | Not started | - |
+| 8. Dashboard Frontend | v1.2 | 0/? | Not started | - |

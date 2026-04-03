@@ -66,26 +66,26 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DAEM-01 | — | Pending |
-| DAEM-02 | — | Pending |
-| DAEM-03 | — | Pending |
-| NOW-01 | — | Pending |
-| NOW-02 | — | Pending |
-| NOW-03 | — | Pending |
-| NOW-04 | — | Pending |
-| NOW-05 | — | Pending |
-| NOW-06 | — | Pending |
-| NOW-07 | — | Pending |
-| SKIP-01 | — | Pending |
-| SKIP-02 | — | Pending |
-| SKIP-03 | — | Pending |
-| SKIP-04 | — | Pending |
+| DAEM-01 | Phase 6 | Pending |
+| DAEM-02 | Phase 6 | Pending |
+| DAEM-03 | Phase 6 | Pending |
+| NOW-01 | Phase 8 | Pending |
+| NOW-02 | Phase 8 | Pending |
+| NOW-03 | Phase 8 | Pending |
+| NOW-04 | Phase 8 | Pending |
+| NOW-05 | Phase 8 | Pending |
+| NOW-06 | Phase 8 | Pending |
+| NOW-07 | Phase 8 | Pending |
+| SKIP-01 | Phase 8 | Pending |
+| SKIP-02 | Phase 7 | Pending |
+| SKIP-03 | Phase 7 | Pending |
+| SKIP-04 | Phase 8 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 14 total
-- Mapped to phases: 0
-- Unmapped: 14 ⚠️
+- Mapped to phases: 14
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-04-02 after initial definition*
+*Last updated: 2026-04-02 after roadmap creation*
