@@ -1,705 +1,428 @@
-# Architecture Patterns
+# Architecture Research
 
-**Domain:** Real-time music playback monitoring and content filtering daemon
-**Researched:** 2026-04-01
-**Confidence:** HIGH (core API facts verified against official Spotify docs; polling interval guidance MEDIUM from community)
+**Domain:** Drug and sexual content detection integration into existing ContentChecker pipeline
+**Researched:** 2026-04-02
+**Confidence:** HIGH — based on direct code inspection of the v1.1 codebase
 
 ---
 
-## Recommended Architecture
+## Standard Architecture
 
-A single Python process running as a macOS LaunchAgent. The main loop polls
-`GET /me/player/currently-playing` on an adaptive interval, compares the
-returned track ID against the previous state, and issues `POST /me/player/next`
-within the same event tick when a violation is detected. State is persisted to
-a small JSON file so the process can survive crashes and restarts.
+### System Overview (Current v1.1)
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  macOS LaunchAgent (KeepAlive = true)                   │
-│                                                         │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │  Polling Loop (asyncio)                          │   │
-│  │                                                  │   │
-│  │  1. GET /me/player/currently-playing             │   │
-│  │  2. Compare track_id to last_seen_track_id       │   │
-│  │  3. On change → ContentChecker                   │   │
-│  │  4. ContentChecker returns SKIP / ALLOW          │   │
-│  │  5. On SKIP → POST /me/player/next               │   │
-│  │  6. Write state.json                             │   │
-│  │  7. Adaptive sleep (see interval table)          │   │
-│  └──────────────────────────────────────────────────┘   │
-│                                                         │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │  ContentChecker                                  │   │
-│  │  • explicit flag from track object               │   │
-│  │  • configurable keyword/artist blocklist         │   │
-│  │  • Family Safe Mode toggle (read from state)     │   │
-│  └──────────────────────────────────────────────────┘   │
-│                                                         │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │  state.json (on-disk, written after each change) │   │
-│  │  • last_track_id, last_track_name                │   │
-│  │  • family_safe_mode: bool                        │   │
-│  │  • consecutive_skips: int                        │   │
-│  │  • skip_log: [{track, reason, timestamp}]        │   │
-│  └──────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│  asyncio daemon (daemon.py)                                       │
+│                                                                   │
+│  poll_loop() → track change detected                              │
+│      │                                                            │
+│      ▼                                                            │
+│  ContentChecker.check(track) ─────────────────────────────────┐  │
+│      │                                                         │  │
+│      │  Tier 1: track["explicit"] → (skip, "explicit", 3)     │  │
+│      │                                                         │  │
+│      │  Tier 2: LyricsService.get_lyrics()                     │  │
+│      │      → instrumental  → (allow, "instrumental", 0)      │  │
+│      │      → lyrics=None   → (allow, "lyrics_unavailable", 0) │  │
+│      │                                                         │  │
+│      │  Tier 3: ProfanityScanner.scan(lyrics)                  │  │
+│      │      → severity >= min → (skip, "profanity", severity) │  │
+│      │      → otherwise       → (allow, "clean", severity)    │  │
+│      │                                                         │  │
+│      └─── returns tuple[str, str, int]  ◄───────────────────── ┘  │
+│                                                                   │
+│      ▼                                                            │
+│  skip decision → SocoSkipClient or SpotifySkipClient             │
+│      │                                                            │
+│      ▼                                                            │
+│  _append_skip_event({"type","track","artist","reason","timestamp"})│
+│      │ writes to data/skip_events.jsonl                          │
+│      ▼                                                            │
+│  skip_event_queue.put_nowait(event)                               │
+└──────────────────────────────────────────────────────────────────┘
+           │ file-based IPC
+           ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  web_ui (FastAPI)                                                 │
+│  _file_tail() reads skip_events.jsonl → SSE → browser            │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### System Overview (Target v1.2)
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  asyncio daemon (daemon.py)  [UNCHANGED]                          │
+│                                                                   │
+│  poll_loop() → track change detected                              │
+│      │                                                            │
+│      ▼                                                            │
+│  ContentChecker.check(track) ─────────────────────────────────┐  │
+│      │                                                         │  │
+│      │  Tier 1: track["explicit"] → early skip                │  │
+│      │                                                         │  │
+│      │  Tier 2: LyricsService.get_lyrics()                     │  │
+│      │      → instrumental / None → early return              │  │
+│      │                                                         │  │
+│      │  Tier 3a: ProfanityScanner.scan(lyrics)     [EXISTING] │  │
+│      │  Tier 3b: DrugScanner.scan(lyrics)          [NEW]      │  │
+│      │  Tier 3c: SexualContentScanner.scan(lyrics) [NEW]      │  │
+│      │                                                         │  │
+│      │  Compose results into TrackEvalResult       [NEW]      │  │
+│      │      explicit: bool                                     │  │
+│      │      profanity: bool                                    │  │
+│      │      drug_reference: bool                               │  │
+│      │      sexual_content: bool                               │  │
+│      │      profanity_severity: int                            │  │
+│      │      skip_reason: str                                   │  │
+│      │      should_skip: bool                                  │  │
+│      │                                                         │  │
+│      └─── returns TrackEvalResult  ◄──────────────────────────┘  │
+│                                                                   │
+│      ▼                                                            │
+│  skip decision reads result.should_skip                          │
+│      │                                                            │
+│      ▼                                                            │
+│  _append_skip_event({                  [EXTENDED]                │
+│      "type", "track", "artist",                                   │
+│      "reason", "timestamp",                                       │
+│      "explicit", "profanity",          ← NEW fields               │
+│      "drug_reference", "sexual_content"                           │
+│  })                                                               │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Component Boundaries
+## Component Responsibilities
 
-| Component | Responsibility | Communicates With |
-|-----------|---------------|-------------------|
-| `daemon.py` | Entry point, asyncio event loop, signal handling | SpotifyClient, ContentChecker, StateStore |
-| `SpotifyClient` | All HTTP calls to Spotify Web API; auth + token refresh | Spotify REST API |
-| `ContentChecker` | Evaluates a track object; returns SKIP/ALLOW + reason | StateStore (for toggle) |
-| `StateStore` | Read/write `state.json`; in-memory cache | Filesystem |
-| `launchd plist` | Process lifecycle, KeepAlive, log redirection | macOS launchd |
+| Component | Responsibility | Change in v1.2 |
+|-----------|----------------|----------------|
+| `daemon.py` | Polling loop, skip orchestration, event logging | Minimal — adapt to consume `TrackEvalResult` instead of bare tuple |
+| `content_checker.py` | Orchestrates all detection tiers | Modified — inject two new scanners, return `TrackEvalResult` |
+| `lyrics_service.py` | LRCLIB fetch + SQLite cache | None |
+| `profanity_scanner.py` | Profanity word-list scan with severity | None |
+| `drug_scanner.py` | Drug reference word-list scan | New file |
+| `sexual_content_scanner.py` | Sexual content word-list scan | New file |
+| `web_ui/main.py` | FastAPI dashboard, SSE, FSM toggle | None in v1.2 (toggle UI is v1.3) |
 
 ---
 
-## 1. Polling vs. Webhooks
+## Recommended Project Structure
 
-### Verdict: Polling only — no webhook alternative exists
+```
+spotify-sentiment/
+├── content_checker.py          # Modified — orchestrates all scanners
+├── daemon.py                   # Modified — consumes TrackEvalResult
+├── drug_scanner.py             # New — drug reference detection
+├── sexual_content_scanner.py   # New — sexual content detection
+├── profanity_scanner.py        # Unchanged
+├── lyrics_service.py           # Unchanged
+├── skip_client.py              # Unchanged
+├── web_ui/
+│   └── main.py                 # Unchanged in v1.2
+├── tests/
+│   ├── test_drug_scanner.py    # New
+│   ├── test_sexual_content_scanner.py  # New
+│   └── test_content_checker.py # New — covers full pipeline composition
+└── data/
+    └── skip_events.jsonl       # Extended with new boolean fields
+```
 
-Spotify has never offered native webhooks for playback events. There are open
-GitHub issues requesting this (issue #492, issue #538 on `spotify/web-api`)
-dating to 2016 that remain unresolved as of 2026.
+### Structure Rationale
 
-The internal WebSocket that the Spotify desktop client uses is not publicly
-accessible. Reverse-engineered access to it is unsupported, fragile, and risks
-account suspension.
+- **Separate scanner files:** Each scanner is independently testable, independently wordlist-maintained, and independently injectable into ContentChecker. Putting all three scanners in one file would make the wordlists collide and tests harder to scope.
+- **No scanner subdirectory:** The codebase is flat (profanity_scanner.py at root); stay consistent with the existing convention. A `scanners/` subdirectory would be correct at larger scale but is premature here.
+- **`content_checker.py` owns composition:** The ContentChecker is already the composition point. Adding DrugScanner and SexualContentScanner as constructor-injected dependencies (same pattern as ProfanityScanner) keeps daemon.py unchanged except for the return type.
 
-**The only supported approach is polling `GET /me/player/currently-playing`.**
+---
 
-### Polling Rate Limits
+## Architectural Patterns
 
-Spotify's rate limit is a rolling 30-second window. The exact number is not
-published. Empirical community reports (verified across multiple forum threads)
-suggest roughly 180 requests per 30 seconds (~6 req/s) before hitting 429.
+### Pattern 1: Named Dataclass Return (Replace Tuple)
 
-For a personal, single-account use case with one polling loop:
+**What:** Replace `tuple[str, str, int]` return from `ContentChecker.check()` with a named dataclass `TrackEvalResult` carrying independent boolean fields per signal.
 
-| Interval | Requests/30 s | Risk | Latency to detect change |
-|----------|---------------|------|--------------------------|
-| 1 s      | 30            | Low  | ~1 s (worst case)        |
-| 2 s      | 15            | Very low | ~2 s                 |
-| 3 s      | 10            | Minimal | ~3 s                  |
+**When to use:** Any time the return type carries more than two related values, or when consumers need to access individual signals rather than a positional result.
 
-**Recommendation: 1-second polling for a personal, single-user daemon.**
+**Trade-offs:** Slightly more upfront code; named fields are unambiguous at the call site and support future field addition without breaking callers.
 
-At 30 requests per 30-second window for one account, the rate limit (empirically
-observed at ~180 req/30 s) is not a concern. This gives worst-case detection
-latency of 1 second, meeting the "within 1-2 seconds" requirement.
+**Why now:** The current tuple `(action, reason, severity)` cannot express multiple independent signals cleanly. Adding drug_reference and sexual_content as additional tuple positions would produce `(action, reason, severity, drug_ref, sexual)` — positionally brittle and unreadable. A dataclass solves this definitively.
 
-### Adaptive Interval Strategy (optional optimization)
-
-The `currently-playing` response includes `progress_ms` and `duration_ms`. You
-can use these to tighten the polling window:
-
+**Example:**
 ```python
-time_remaining_ms = track.duration_ms - track.progress_ms
-if time_remaining_ms > 30_000:
-    sleep_interval = 1.0   # standard 1-second polling
-elif time_remaining_ms > 5_000:
-    sleep_interval = 0.5   # tighten near end of track
-else:
-    sleep_interval = 0.25  # very frequent near track boundary
+from dataclasses import dataclass
+
+@dataclass
+class TrackEvalResult:
+    should_skip: bool
+    skip_reason: str          # "explicit" | "profanity" | "drug_reference" |
+                              # "sexual_content" | "instrumental" |
+                              # "clean" | "lyrics_unavailable" | "no_lyrics_service"
+    explicit: bool
+    profanity: bool
+    drug_reference: bool
+    sexual_content: bool
+    profanity_severity: int   # 0-3, matches existing severity scale
 ```
 
-**Caveat:** `progress_ms` is reported to lag by 0.5–1.5 seconds and can be off
-by more. Manual skips also invalidate the timer. Treat this as an optimization
-layer, not a replacement for constant polling.
+The `skip_reason` field records the first-triggering reason (for display in the skip feed). The individual boolean fields record every signal independently, including signals that are true but not the primary skip reason.
 
-### 429 Handling
+### Pattern 2: Constructor-Injected Scanner (Existing Pattern, Extended)
 
+**What:** Pass DrugScanner and SexualContentScanner into ContentChecker via `__init__`, exactly as ProfanityScanner is injected today.
+
+**When to use:** Always — this is the existing pattern. Do not change it.
+
+**Trade-offs:** All wiring is in `daemon.py:main()`, which is the only place that constructs ContentChecker. Tests can pass mocks or real instances.
+
+**Example (daemon.py main(), additions only):**
 ```python
-async def poll_with_backoff(client, state):
-    retry_after = 1
-    while True:
-        try:
-            result = await client.currently_playing()
-            retry_after = 1   # reset on success
-            await process(result, state)
-        except SpotifyRateLimitError as e:
-            # Retry-After header is authoritative
-            wait = getattr(e, 'retry_after', retry_after)
-            await asyncio.sleep(wait)
-            retry_after = min(retry_after * 2, 60)
-        except SpotifyNetworkError:
-            await asyncio.sleep(5)
-```
+from drug_scanner import DrugScanner
+from sexual_content_scanner import SexualContentScanner
 
----
-
-## 2. Technology Stack Recommendation
-
-### Language: Python 3.11+
-
-**Why Python over Node.js or Go:**
-
-- `spotipy` (version 2.26.0, released March 2026, 42.9k dependents) is the most
-  maintained Spotify client library across all languages. It wraps the full Web
-  API and handles OAuth token refresh automatically.
-- `asyncio` standard library handles the polling loop without dependencies.
-- Easier to read/modify for a personal project than Go.
-- Node.js is viable but `spotify-web-api-node` is in maintenance mode (last
-  release 4.0.0 over a year ago). The official `@spotify/web-api-ts-sdk`
-  (v1.2.0) is last published 2 years ago. Neither is actively maintained.
-- Go has no first-class Spotify library; raw HTTP is straightforward but adds
-  boilerplate for a project of this scope.
-
-### Primary Library: spotipy 2.26+
-
-```bash
-pip install spotipy
-```
-
-Key capabilities used:
-- `sp.currently_playing()` — polls playback state
-- `sp.next_track()` — issues skip
-- `sp.queue()` — fetches upcoming tracks for pre-fetch
-- `SpotifyOAuth` with `CacheFileHandler` — handles token refresh for daemon use
-
-### Authentication Pattern for a Daemon
-
-The OAuth dance (browser redirect) must happen once, manually, during setup.
-After that, spotipy's `CacheFileHandler` stores and auto-refreshes the token.
-
-```python
-from spotipy.oauth2 import SpotifyOAuth, CacheFileHandler
-
-SCOPES = " ".join([
-    "user-read-currently-playing",
-    "user-read-playback-state",
-    "user-modify-playback-state",
-])
-
-cache = CacheFileHandler(cache_path="/home/user/.spotify_token_cache")
-auth = SpotifyOAuth(
-    client_id=CLIENT_ID,
-    client_secret=CLIENT_SECRET,
-    redirect_uri="http://localhost:8888/callback",
-    scope=SCOPES,
-    cache_handler=cache,
-    open_browser=False,   # safe for headless/daemon operation
+drug_scanner = DrugScanner()
+sexual_content_scanner = SexualContentScanner()
+content_checker = ContentChecker(
+    lyrics_service=lyrics_service,
+    profanity_scanner=profanity_scanner,
+    drug_scanner=drug_scanner,
+    sexual_content_scanner=sexual_content_scanner,
+    min_severity=PROFANITY_MIN_SEVERITY,
 )
-sp = spotipy.Spotify(auth_manager=auth)
 ```
 
-Run `python setup_auth.py` once interactively to complete the browser redirect.
-After that the daemon runs headlessly, refreshing the token automatically.
+ContentChecker's `__init__` signature grows two new optional parameters (`drug_scanner=None`, `sexual_content_scanner=None`), defaulting to None so that tests that only care about profanity do not need to change.
 
-**Note:** As of February 2026, the app owner must have an active Spotify Premium
-subscription for Development Mode apps. The skip endpoint (`POST /me/player/next`)
-requires Premium. This is non-negotiable.
+### Pattern 3: Wordlist Scanner (Mirrors ProfanityScanner)
+
+**What:** Drug and sexual content scanners follow the same structural pattern as ProfanityScanner — a module-level word dict, a class with a `scan(lyrics: str) -> tuple[bool, list[str]]` method, word normalization (lowercase, strip punctuation), word-boundary-aware matching.
+
+**When to use:** For all keyword-based content detection in this codebase.
+
+**Trade-offs:** Simple, fast, fully inspectable, no network dependency, no library dependency. Misses obfuscated variants and euphemistic coded language (e.g., "Mary Jane", "snow" for cocaine) — this is accepted scope for v1.2. Better-profanity fallback (leet-speak obfuscation) is already covering the profanity tier; drug and sexual scanners do not need it because the obfuscation patterns for those domains differ significantly and the false-positive cost is higher.
+
+**Return type:** `tuple[bool, list[str]]` (detected: bool, matched_words: list). Differs from ProfanityScanner which returns `tuple[int, list[str]]` (severity, matched). Drug and sexual detection are boolean in v1.2 — no severity tiers needed yet. This simplifies the scanner API.
+
+**Example (DrugScanner structure):**
+```python
+DRUG_TERMS: dict[str, int] = {
+    # common terms — key is lowercase canonical form
+    "cocaine": 1, "coke": 1, "crack": 1,
+    "heroin": 1, "smack": 1,
+    "meth": 1, "methamphetamine": 1, "crystal": 1,
+    "weed": 1, "marijuana": 1, "cannabis": 1, "blunt": 1,
+    "molly": 1, "ecstasy": 1, "mdma": 1,
+    "xanax": 1, "lean": 1, "codeine": 1, "syrup": 1,
+    "acid": 1, "lsd": 1, "shrooms": 1,
+    # ... extend as needed
+}
+
+class DrugScanner:
+    def scan(self, lyrics: str) -> tuple[bool, list[str]]:
+        ...
+```
+
+The severity integer in the dict is unused at v1.2 but preserved for forward compatibility if per-category severity is added later.
 
 ---
 
-## 3. Polling Loop and Skip Architecture
+## Data Flow
 
-### Core Pattern: Compare-and-Act
+### Full Detection Flow (v1.2)
 
-```python
-async def main_loop(sp: spotipy.Spotify, state: StateStore):
-    last_track_id = state.load().get("last_track_id")
+```
+Spotify track object
+    │
+    ▼ [Tier 1 — daemon.py poll_loop, before ContentChecker]
+track["explicit"] == True
+    → TrackEvalResult(should_skip=True, skip_reason="explicit", explicit=True, ...)
+    → skip immediately, log event
 
-    while True:
-        try:
-            playback = sp.currently_playing()
+    [Tier 2 — inside ContentChecker.check()]
+LyricsService.get_lyrics(track_id, track_name, artist_name)
+    → LyricsResult(instrumental=True)
+        → TrackEvalResult(should_skip=False, skip_reason="instrumental", ...)
+    → LyricsResult(lyrics=None)
+        → TrackEvalResult(should_skip=False, skip_reason="lyrics_unavailable", ...)
 
-            if playback is None or not playback["is_playing"]:
-                await asyncio.sleep(2)   # nothing playing, check less often
-                continue
-
-            item = playback.get("item")
-            if item is None:
-                await asyncio.sleep(1)
-                continue
-
-            track_id = item["id"]
-
-            if track_id != last_track_id:
-                # New track detected
-                last_track_id = track_id
-                decision = check_content(item, state)
-
-                if decision.should_skip:
-                    sp.next_track()   # fire immediately
-                    state.record_skip(item, decision.reason)
-                else:
-                    state.record_play(item)
-
-            await asyncio.sleep(compute_interval(playback))
-
-        except spotipy.SpotifyException as e:
-            if e.http_status == 429:
-                retry_after = int(e.headers.get("Retry-After", 5))
-                await asyncio.sleep(retry_after)
-            else:
-                await asyncio.sleep(5)
+    [Tier 3 — all three scanners run on same lyrics string]
+    lyrics text (plain string)
+        │
+        ├── ProfanityScanner.scan(lyrics)  → (severity: int, matched: list[str])
+        ├── DrugScanner.scan(lyrics)       → (detected: bool, matched: list[str])
+        └── SexualContentScanner.scan(lyrics) → (detected: bool, matched: list[str])
+        │
+        ▼
+    Compose TrackEvalResult:
+        explicit          = False (already past Tier 1)
+        profanity         = severity >= min_severity
+        drug_reference    = drug_detected
+        sexual_content    = sexual_detected
+        profanity_severity = severity
+        should_skip       = profanity OR drug_reference OR sexual_content
+        skip_reason       = first True signal ("profanity" | "drug_reference" | "sexual_content" | "clean")
+        │
+        ▼
+daemon.py poll_loop receives TrackEvalResult
+    │
+    ├── result.should_skip == False → consecutive_skips = 0, no action
+    │
+    └── result.should_skip == True
+            │
+            ├── skip via SocoSkipClient or SpotifySkipClient
+            │
+            └── _append_skip_event({
+                    "type": "skip",
+                    "track": ..., "artist": ..., "timestamp": ...,
+                    "reason": result.skip_reason,
+                    "explicit": result.explicit,
+                    "profanity": result.profanity,
+                    "drug_reference": result.drug_reference,
+                    "sexual_content": result.sexual_content,
+                })
+                → data/skip_events.jsonl (append)
+                → skip_event_queue.put_nowait (in-process)
 ```
 
-### Why synchronous spotipy inside asyncio is acceptable here
+### Key Data Flows
 
-The polling loop is I/O-bound and sequential (one request at a time). Running
-spotipy's synchronous HTTP calls inside `asyncio.run_in_executor` adds
-complexity for no benefit at this scale. The blocking call takes ~100–300ms on
-a home network — well within a 1-second polling budget.
+1. **Lyrics → detection:** A single `lyrics: str` string passes through all three Tier 3 scanners independently. Each scanner normalizes independently (lowercase, strip punctuation). They do not share state.
 
-For stricter async needs, the `async-spotify` library on PyPI exists but has
-low community adoption and limited documentation.
+2. **Detection → skip decision:** ContentChecker composes the three scan results into a single `TrackEvalResult`. The skip decision is `any([profanity, drug_reference, sexual_content])`. Each boolean is preserved independently in the result — not collapsed into a single flag.
 
-### Content Checking
+3. **TrackEvalResult → incident log:** daemon.py serialises all four signal booleans into the skip event JSON. This means the log records not just why a track was skipped but every signal that fired, including secondary signals. A track skipped for profanity that also contains drug references will show both flags in the log.
 
-The Spotify track object includes an `explicit` boolean field. This is the
-primary signal. The explicit field reflects Spotify's own labeling, which is
-imperfect (some tracks with mature content are not labeled explicit). Layer
-additional rules on top:
-
-```python
-def check_content(track: dict, state: StateStore) -> Decision:
-    config = state.load_config()
-
-    # Gate: Family Safe Mode must be on
-    if not config["family_safe_mode"]:
-        return Decision(should_skip=False)
-
-    # Rule 1: Spotify explicit label
-    if track.get("explicit", False):
-        return Decision(should_skip=True, reason="explicit_label")
-
-    # Rule 2: Artist blocklist
-    artist_names = [a["name"].lower() for a in track.get("artists", [])]
-    for artist in artist_names:
-        if artist in config.get("blocked_artists", []):
-            return Decision(should_skip=True, reason=f"blocked_artist:{artist}")
-
-    # Rule 3: Track name keyword filter (last resort, high false-positive risk)
-    track_name = track.get("name", "").lower()
-    for keyword in config.get("blocked_keywords", []):
-        if keyword in track_name:
-            return Decision(should_skip=True, reason=f"keyword:{keyword}")
-
-    return Decision(should_skip=False)
-```
-
-**Important limitation:** Spotify's `explicit` flag is creator/label-applied.
-Songs with explicit lyrics that were never labeled by their label will pass
-through. There is no lyric analysis API available via Spotify (audio features
-were restricted in November 2024 and do not include lyrics anyway). A secondary
-lyric-check service (e.g., Musixmatch, Genius API) would require a separate
-lookup, adding latency.
+4. **Incident log → web UI:** The web UI reads skip_events.jsonl via file-tail. The new boolean fields are present in each event; the dashboard can display them. The v1.2 dashboard does not need to change to function — new fields are additive to the JSON. The v1.3 milestone adds per-category toggle UI that will read these fields to show which signals are active per event.
 
 ---
 
-## 4. Pre-fetching the Queue
+## Toggle Readiness: Named Booleans Enable v1.3
 
-### Verdict: Pre-fetch is possible but provides minimal benefit for skip use case
+The v1.3 milestone (currently deferred) requires per-category toggle UI: the parent can disable drug detection, sexual detection, or profanity detection independently. The named-boolean architecture in v1.2 makes this straightforward:
 
-The `GET /me/player/queue` endpoint exists and returns the `currently_playing`
-object plus an array of upcoming `queue` items (up to 20 tracks when shuffle is
-on; fewer without shuffle).
+**v1.3 additions (no v1.2 changes required):**
 
-You can call this at the moment a new track starts to evaluate the next-up track:
+1. `state.json` gains three new keys: `filter_drug`, `filter_sexual`, `filter_profanity` — all `true` by default.
+2. ContentChecker reads these flags from the state and gates each scanner's contribution to `should_skip`:
+   ```
+   should_skip = (filter_profanity AND profanity) OR
+                 (filter_drug AND drug_reference) OR
+                 (filter_sexual AND sexual_content)
+   ```
+3. Web UI adds three toggle buttons. Each writes the corresponding state key via a new `/fsm/filters` POST endpoint.
 
-```python
-def prefetch_queue(sp: spotipy.Spotify) -> list[dict]:
-    result = sp.queue()
-    return result.get("queue", [])  # list of track objects
-```
+Because each detection signal is already a named boolean on `TrackEvalResult`, and because the incident log already stores all four booleans per event, the v1.3 toggle implementation requires no changes to the scanner layer or the incident log format. Only the skip decision logic in ContentChecker and the web UI need to change.
 
-**However, pre-fetch for skip does not eliminate the latency problem:**
-
-- Spotify does not offer a "skip queued item before it plays" API call. The only
-  skip mechanism is `POST /me/player/next`, which acts on the currently playing
-  track.
-- Even if you know the next track will be explicit, you cannot prevent it from
-  starting — only skip it once it has started playing.
-- The 1-second polling window already gives you ~1 second latency on detection.
-  Pre-fetch does not reduce this.
-
-**Where pre-fetch is useful:**
-
-- Logging / analytics: record what is about to play without waiting.
-- Warning UX: if building a companion app, you can warn a parent before the
-  track starts.
-- Future feature: building a replacement queue by injecting tracks via
-  `POST /me/player/queue` to route around violating tracks without the jarring
-  skip experience.
-
-**Known queue endpoint limitations:**
-- Returns only the first ~20 songs
-- Returns empty if no device is actively playing
-- Shuffle behaviour changes what is returned
-- No pagination
+If v1.2 instead stored a single `skip_reason` string and collapsed all signals into one, v1.3 would require retrofitting the detection and logging layers. The named-boolean pattern avoids that retrofit.
 
 ---
 
-## 5. macOS Daemon: launchd vs. pm2
+## Integration Points
 
-### Recommendation: Native launchd LaunchAgent
+### New vs. Modified Components
 
-For a personal home-server Mac, `launchd` is the correct tool. It is the macOS
-native init system, starts at login (LaunchAgent) or boot (LaunchDaemon), and
-requires no extra runtime.
+| Component | Status | Change |
+|-----------|--------|--------|
+| `drug_scanner.py` | New file | Drug term wordlist + `DrugScanner.scan()` returning `tuple[bool, list[str]]` |
+| `sexual_content_scanner.py` | New file | Sexual content wordlist + `SexualContentScanner.scan()` returning `tuple[bool, list[str]]` |
+| `content_checker.py` | Modified | Accept two new constructor args; run all three scanners; return `TrackEvalResult` instead of tuple |
+| `daemon.py` | Modified | Consume `TrackEvalResult` fields instead of tuple unpacking; extend `_append_skip_event()` with four boolean fields |
+| `tests/test_drug_scanner.py` | New file | Unit tests for drug wordlist matches and non-matches |
+| `tests/test_sexual_content_scanner.py` | New file | Unit tests for sexual content wordlist |
+| `tests/test_content_checker.py` | New file | Integration tests for full pipeline composition with all signals |
 
-**Do not use pm2** for a Python process. pm2 is a Node.js process manager; its
-Python support works but adds unnecessary Node.js dependency and has documented
-issues with launchd integration on macOS.
+### Internal Boundaries
 
-### Plist Location
-
-```
-~/Library/LaunchAgents/com.familysafe.spotify-monitor.plist
-```
-
-Use `LaunchAgents/` (not `LaunchDaemons/`) so the process runs as the user
-whose Spotify account is authorized and can access the user keychain/token cache.
-
-### Plist Template
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.familysafe.spotify-monitor</string>
-
-    <key>ProgramArguments</key>
-    <array>
-        <string>/usr/local/bin/python3</string>
-        <string>/Users/yourname/spotify-sentiment/daemon.py</string>
-    </array>
-
-    <!-- Restart on crash and at login -->
-    <key>KeepAlive</key>
-    <true/>
-
-    <key>RunAtLoad</key>
-    <true/>
-
-    <!-- 5-second throttle: launchd won't restart faster than this -->
-    <key>ThrottleInterval</key>
-    <integer>5</integer>
-
-    <key>WorkingDirectory</key>
-    <string>/Users/yourname/spotify-sentiment</string>
-
-    <!-- Capture logs for debugging -->
-    <key>StandardOutPath</key>
-    <string>/Users/yourname/spotify-sentiment/logs/daemon.log</string>
-
-    <key>StandardErrorPath</key>
-    <string>/Users/yourname/spotify-sentiment/logs/daemon-error.log</string>
-
-    <!-- Environment variables for credentials -->
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>SPOTIPY_CLIENT_ID</key>
-        <string>your_client_id_here</string>
-        <key>SPOTIPY_CLIENT_SECRET</key>
-        <string>your_client_secret_here</string>
-        <key>SPOTIPY_REDIRECT_URI</key>
-        <string>http://localhost:8888/callback</string>
-    </dict>
-</dict>
-</plist>
-```
-
-### Load / Unload Commands
-
-```bash
-# Install (load at login)
-launchctl load ~/Library/LaunchAgents/com.familysafe.spotify-monitor.plist
-
-# Start now
-launchctl start com.familysafe.spotify-monitor
-
-# Stop
-launchctl stop com.familysafe.spotify-monitor
-
-# Uninstall
-launchctl unload ~/Library/LaunchAgents/com.familysafe.spotify-monitor.plist
-
-# Check status
-launchctl list | grep spotify-monitor
-```
-
-### KeepAlive Behaviour
-
-With `KeepAlive = true` and `ThrottleInterval = 5`, launchd will:
-1. Restart the process immediately after any crash
-2. Wait 5 seconds before restarting (prevents CPU spin on immediate crash loops)
-3. Restart at every user login
-4. Log to the specified StandardOutPath/StandardErrorPath
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| `daemon.py` → `ContentChecker` | Direct method call: `await content_checker.check(track)` returns `TrackEvalResult` | Currently returns `tuple[str, str, int]`; this is the one breaking change in v1.2 |
+| `ContentChecker` → `DrugScanner` / `SexualContentScanner` | Direct synchronous call: `self.drug_scanner.scan(lyrics)` | Same call pattern as `self.profanity_scanner.scan(lyrics)`; no async needed (CPU-bound wordlist scan) |
+| `daemon.py` → `skip_events.jsonl` | File append via `_append_skip_event()` | JSON schema extended with four new boolean fields; additive change, backward-compatible with existing log entries |
+| `skip_events.jsonl` → `web_ui` | File-tail polling every 250ms | Web UI just forwards the JSON; new fields are transparent until the UI template renders them |
 
 ---
 
-## 6. State Management
+## Build Order
 
-### Pattern: Simple JSON File (not SQLite)
+The natural dependency order for implementation:
 
-For this use case — a handful of scalar values written once per track change —
-SQLite adds unnecessary complexity. A JSON file written atomically is sufficient,
-reliable, and trivially human-readable for debugging.
+1. **Define `TrackEvalResult` dataclass** (can live in `content_checker.py` or a new `models.py`) — all other changes depend on this type being finalized first.
 
-**Atomic write pattern** (prevents corruption on crash mid-write):
+2. **Implement `DrugScanner`** — no dependencies on other new code; straightforward wordlist scan matching `ProfanityScanner` structure.
 
-```python
-import json
-import os
-import tempfile
-from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from datetime import datetime
+3. **Implement `SexualContentScanner`** — same as above; can be done in parallel with step 2.
 
-STATE_FILE = Path("/Users/yourname/spotify-sentiment/state.json")
+4. **Write unit tests for both new scanners** — before wiring into ContentChecker; verifies wordlists behave correctly in isolation.
 
-@dataclass
-class SkipEvent:
-    track_id: str
-    track_name: str
-    artists: list[str]
-    reason: str
-    timestamp: str
+5. **Modify `ContentChecker`** — inject new scanners, run all three, compose `TrackEvalResult`. This is the integration step.
 
-@dataclass
-class DaemonState:
-    family_safe_mode: bool = True
-    last_track_id: str | None = None
-    last_track_name: str | None = None
-    consecutive_skips: int = 0
-    skip_log: list[SkipEvent] = field(default_factory=list)
-    last_updated: str = ""
+6. **Write integration tests for ContentChecker** — cover combinations of signals (e.g., both drug and profanity fire; only sexual fires; none fire).
 
-class StateStore:
-    def __init__(self, path: Path = STATE_FILE):
-        self.path = path
-        self._cache: DaemonState | None = None
+7. **Modify `daemon.py`** — update the two call sites that unpack the ContentChecker result: the `action/reason/severity = await content_checker.check(track)` unpacking and the `_append_skip_event()` call.
 
-    def load(self) -> DaemonState:
-        if self._cache:
-            return self._cache
-        try:
-            data = json.loads(self.path.read_text())
-            state = DaemonState(**data)
-        except (FileNotFoundError, json.JSONDecodeError, TypeError):
-            state = DaemonState()
-        self._cache = state
-        return state
+8. **Verify end-to-end** — run daemon locally or via tests to confirm skip_events.jsonl entries include the new boolean fields.
 
-    def save(self, state: DaemonState) -> None:
-        state.last_updated = datetime.utcnow().isoformat()
-        self._cache = state
-        tmp = self.path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(asdict(state), indent=2))
-        os.replace(tmp, self.path)  # atomic on POSIX
-
-    def toggle_family_safe(self) -> bool:
-        state = self.load()
-        state.family_safe_mode = not state.family_safe_mode
-        self.save(state)
-        return state.family_safe_mode
-```
-
-### Toggling Family Safe Mode at Runtime
-
-The daemon watches for the state file to change (via a periodic re-read on each
-loop iteration). An external script or companion CLI can flip the toggle without
-restarting the daemon:
-
-```bash
-# toggle_safe_mode.py (CLI companion)
-import json, os, sys
-from pathlib import Path
-
-p = Path("/Users/yourname/spotify-sentiment/state.json")
-data = json.loads(p.read_text())
-data["family_safe_mode"] = not data.get("family_safe_mode", True)
-p.write_text(json.dumps(data, indent=2))
-print(f"Family Safe Mode: {data['family_safe_mode']}")
-```
-
-### Consecutive Skip Guard
-
-To prevent an infinite skip loop (e.g., every track in the queue is blocked),
-cap consecutive skips and pause the monitor:
-
-```python
-MAX_CONSECUTIVE_SKIPS = 5
-
-if state.consecutive_skips >= MAX_CONSECUTIVE_SKIPS:
-    # Stop skipping, log alert, wait for human intervention
-    log.warning("Consecutive skip limit reached. Pausing content filter.")
-    state.family_safe_mode = False   # or enter a degraded mode
-    store.save(state)
-```
+Steps 2 and 3 have no mutual dependency and can be done in either order. Steps 1-4 should complete before step 5 to avoid changing ContentChecker twice.
 
 ---
 
-## Key API Endpoints and Required Scopes
+## Anti-Patterns
 
-| Action | Endpoint | Scope |
-|--------|----------|-------|
-| Check what is playing | `GET /me/player/currently-playing` | `user-read-currently-playing` |
-| Get full playback state | `GET /me/player` | `user-read-playback-state` |
-| Skip to next track | `POST /me/player/next` | `user-modify-playback-state` |
-| Look ahead at queue | `GET /me/player/queue` | `user-read-currently-playing` |
+### Anti-Pattern 1: Extending the Tuple Return
 
-**Note:** `POST /me/player/next` (skip) requires an active Spotify Premium
-subscription. This cannot be worked around.
+**What people do:** Add `drug_ref` and `sexual_content` as two more positions on the existing `tuple[str, str, int]` return.
 
-**February 2026 API changes:** All four endpoints above remain available in
-Development Mode. The November 2024 restrictions affected recommendation,
-audio-features, and related-artist endpoints — none of which are needed here.
+**Why it's wrong:** Produces `tuple[str, str, int, bool, bool]` — callers must unpack by position, which is fragile and unreadable. Adding a sixth signal in v1.3 requires touching every call site again.
 
----
+**Do this instead:** `TrackEvalResult` dataclass. Named fields, additive extension, explicit types. The refactor from tuple to dataclass is a one-time cost that pays off across v1.2, v1.3, and beyond.
 
-## Patterns to Follow
+### Anti-Pattern 2: One Combined Scanner Class
 
-### Pattern 1: Track-ID-based Change Detection
+**What people do:** Add `scan_drug()` and `scan_sexual()` as methods on `ProfanityScanner` or on `ContentChecker`.
 
-Never use track name or progress to detect changes. Use the track `id` field.
-Track IDs are stable, unique, and unambiguous.
+**Why it's wrong:** A scanner class with three domains of wordlists becomes a kitchen-sink module. Tests for drug detection cannot be run without instantiating profanity infrastructure. Wordlists from different domains clutter the same namespace. If one scanner needs a different normalization strategy (e.g., multi-word phrase matching for "Mary Jane"), it cannot be changed without affecting the others.
 
-```python
-# Correct
-if current_track["id"] != state.last_track_id:
-    handle_new_track(current_track)
+**Do this instead:** Three separate scanner classes with identical method signatures. ContentChecker owns composition. Each scanner is independently testable, independently replaceable.
 
-# Wrong — can cause false positives
-if current_track["progress_ms"] < 2000:
-    handle_new_track(current_track)
-```
+### Anti-Pattern 3: Collapsing Signals Into a Single Skip Reason
 
-### Pattern 2: Immediate Skip, Then Update State
+**What people do:** Compute `should_skip` and record only the triggering reason in the event log (e.g., `"reason": "drug_reference"` with no record of the profanity that also fired).
 
-Fire the skip call before updating state. If the skip call fails, the state
-remains at the previous track, and the next poll will re-evaluate.
+**Why it's wrong:** The incident log becomes ambiguous. If a track has both drug references and profanity, only one signal is recorded. The v1.3 per-category toggle cannot retroactively know which signals would have fired under different filter settings.
 
-```python
-if decision.should_skip:
-    try:
-        sp.next_track()
-        state.last_track_id = track_id   # only update after successful skip
-        state.consecutive_skips += 1
-    except spotipy.SpotifyException as e:
-        log.error(f"Skip failed: {e}")
-        # Don't update state — retry on next poll
-```
+**Do this instead:** Log all four signal booleans in every skip event, regardless of which one drove the skip decision. The `skip_reason` field records the first-triggering reason for display; the boolean fields record the full picture.
 
-### Pattern 3: Graceful Shutdown via Signal Handler
+### Anti-Pattern 4: Running Scanners Before Lyrics Are Available
 
-```python
-import signal, asyncio
+**What people do:** Run all scanners in sequence without short-circuiting on instrumental or missing lyrics.
 
-shutdown_event = asyncio.Event()
+**Why it's wrong:** Wastes CPU on wordlist scans against a None lyrics string, requires null guards in every scanner, and produces misleading results (no drug references detected because there were no lyrics).
 
-def _handle_signal(sig, frame):
-    shutdown_event.set()
-
-signal.signal(signal.SIGTERM, _handle_signal)
-signal.signal(signal.SIGINT, _handle_signal)
-
-async def main_loop():
-    while not shutdown_event.is_set():
-        await poll_once()
-        await asyncio.sleep(1)
-    store.save(state)   # flush state on clean exit
-```
-
----
-
-## Anti-Patterns to Avoid
-
-### Anti-Pattern 1: Polling Faster Than 1 Second Without Back-off
-
-**What:** `while True: check(); sleep(0.1)`
-**Why bad:** 300 requests per 30 seconds for a single account is far beyond what
-is needed. It provides no latency benefit beyond 1-second polling (the track has
-already started; one second is the minimum perceptible window).
-
-**Instead:** 1-second intervals with adaptive tightening near track boundaries.
-
-### Anti-Pattern 2: Re-checking Explicit Status on Every Poll
-
-**What:** Calling `GET /tracks/{id}` for explicit flag on every loop iteration.
-**Why bad:** The `currently-playing` response already includes the `explicit`
-field in the `item` object. No additional call is needed.
-
-**Instead:** Read `playback["item"]["explicit"]` directly from the poll response.
-
-### Anti-Pattern 3: LaunchDaemon Instead of LaunchAgent
-
-**What:** Placing the plist in `/Library/LaunchDaemons/` to run at system boot.
-**Why bad:** The daemon needs access to the user's Spotify OAuth token (stored in
-`~/.spotify_token_cache`). LaunchDaemons run as root before user login; they
-cannot access user home directories reliably.
-
-**Instead:** Use `~/Library/LaunchAgents/` — runs at user login as the
-authenticated user.
-
-### Anti-Pattern 4: Hardcoding Credentials in the Plist
-
-**What:** Putting `client_secret` directly in the plist XML.
-**Why bad:** Plist files in `~/Library/LaunchAgents/` are world-readable by
-default on macOS.
-
-**Instead:** Store credentials in environment variables sourced from a
-`chmod 600` dotenv file, or use the macOS Keychain:
-
-```bash
-security add-generic-password -a spotify-monitor -s SPOTIPY_CLIENT_SECRET -w "your_secret"
-# Retrieve at runtime:
-security find-generic-password -a spotify-monitor -s SPOTIPY_CLIENT_SECRET -w
-```
-
-### Anti-Pattern 5: Using the spotify-web-api-node or @spotify/web-api-ts-sdk
-
-**What:** Choosing the Node.js SDK for this service.
-**Why bad:** `spotify-web-api-node` is in maintenance mode. `@spotify/web-api-ts-sdk`
-(v1.2.0) was last published 2 years ago by the official Spotify org. Neither is
-actively maintained as of 2026.
-
-**Instead:** Use `spotipy` (v2.26.0, March 2026 release), which is the only
-actively maintained Spotify API client library across all languages.
+**Do this instead:** Maintain the existing early-return structure in ContentChecker — instrumental and lyrics_unavailable return before reaching Tier 3. All three scanners only run when `lyrics: str` is a non-None, non-empty string.
 
 ---
 
 ## Scalability Considerations
 
-This is a personal home server application. Scalability is not a concern. The
-design is deliberately single-user, single-process, single-account.
+This is a single-user, single-process application. Scalability is not a concern for v1.2. Notes for completeness:
 
-| Concern | At 1 user (this use case) | Notes |
+| Concern | At current scale (1 user) | Notes |
 |---------|--------------------------|-------|
-| API rate limits | Negligible (30 req/30 s) | Well within personal limits |
-| Token refresh | Automatic via CacheFileHandler | No manual intervention needed |
-| Crash recovery | launchd KeepAlive, 5s ThrottleInterval | State survives via state.json |
-| Disk usage | Negligible (JSON state file, text logs) | Rotate logs if needed |
+| Scanner latency | Negligible (<1ms for wordlist scan) | Three wordlist scans on a ~2KB lyrics string are fast |
+| Wordlist maintenance | Low — manual updates | No automated refresh needed; wordlists are static |
+| False positive rate | Medium — wordlist-only | "Crystal" matches crystal meth references but also "crystal clear"; context-free matching is the known tradeoff |
+| Signal coverage | Low for coded language | "Mary Jane", "snow", "lean" coverage depends on wordlist completeness; LLM-based detection (deferred v2+) would close this gap |
 
 ---
 
 ## Sources
 
-- [Spotify Web API Rate Limits](https://developer.spotify.com/documentation/web-api/concepts/rate-limits) — HIGH confidence
-- [Get Currently Playing Track Reference](https://developer.spotify.com/documentation/web-api/reference/get-the-users-currently-playing-track) — HIGH confidence
-- [Skip to Next Track Reference](https://developer.spotify.com/documentation/web-api/reference/skip-users-playback-to-next-track) — HIGH confidence
-- [Get User's Queue Reference](https://developer.spotify.com/documentation/web-api/reference/get-queue) — HIGH confidence
-- [Spotify Web API February 2026 Changelog](https://developer.spotify.com/documentation/web-api/references/changes/february-2026) — HIGH confidence
-- [February 2026 Migration Guide](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide) — HIGH confidence
-- [Spotify Web API November 2024 Changes](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api) — HIGH confidence
-- [spotipy on GitHub](https://github.com/spotipy-dev/spotipy) — HIGH confidence (v2.26.0, March 2026)
-- [spotify-web-api-ts-sdk (official)](https://github.com/spotify/spotify-web-api-ts-sdk) — HIGH confidence (stale, last release 2+ years ago)
-- [spotify-web-api-node (community)](https://github.com/thelinmichael/spotify-web-api-node) — HIGH confidence (maintenance mode)
-- [Realtime player state updates — GitHub issue #492](https://github.com/spotify/web-api/issues/492) — MEDIUM confidence (community discussion)
-- [macOS launchd plist KeepAlive guide](https://andypi.co.uk/2023/02/14/how-to-run-a-python-script-as-a-service-on-mac-os/) — MEDIUM confidence
-- [PM2 startup launchd docs](https://pm2.keymetrics.io/docs/usage/startup/) — HIGH confidence (documentation, not recommended)
-- [Best practice to monitor current playback — Spotify Community](https://community.spotify.com/t5/Spotify-for-Developers/Best-practice-to-monitor-current-playback/td-p/6105046) — MEDIUM confidence (community)
-- [Mastering Spotify API: Graceful Rate Limiting](https://tossthecoin.tcl.com/blog/mastering-spotify-api-graceful-rate) — MEDIUM confidence
+- Direct code inspection: `content_checker.py`, `daemon.py`, `profanity_scanner.py`, `lyrics_service.py`, `web_ui/main.py` — HIGH confidence
+- Existing signal structure in `data/skip_events.jsonl` — HIGH confidence
+- Project requirements in `.planning/PROJECT.md` — HIGH confidence
+- Prior architecture research in `.planning/research/LYRICS_FILTERING.md` (section 7 on sentiment analysis) — MEDIUM confidence (deferred path, not v1.2 path)
+
+---
+*Architecture research for: Drug and sexual content detection integration — v1.2 milestone*
+*Researched: 2026-04-02*
