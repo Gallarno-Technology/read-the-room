@@ -55,7 +55,12 @@ See `.planning/milestones/v1.1-ROADMAP.md` for full phase details.
   2. An `eval_result` event appears in `skip_events.jsonl` after ContentChecker completes for every track — including tracks that pass — with `track_id` and final `eval_state`
   3. `data/now_playing.json` is written on track detection (evaluating state) and overwritten with the final state after evaluation
   4. Existing skip and warning events are unaffected — all prior event types still appear correctly in the feed
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 06-01-PLAN.md — Failing test scaffold (9 xfail stubs for DAEM-01, DAEM-02, DAEM-03)
+- [ ] 06-02-PLAN.md — Env var + function rename: SKIP_EVENTS_PATH → EVENTS_PATH, _append_skip_event → _append_event
+- [ ] 06-03-PLAN.md — Event emission in poll_loop: track_change (DAEM-01) + eval_result all branches (DAEM-02)
+- [ ] 06-04-PLAN.md — now_playing.json writer: _write_now_playing helper + call sites (DAEM-03)
 
 ### Phase 7: Web UI Backend
 **Goal**: The web UI container can serve current track state for page-load hydration and execute a manual skip directly against the Spotify API
@@ -90,6 +95,6 @@ See `.planning/milestones/v1.1-ROADMAP.md` for full phase details.
 | 3. Web UI Dashboard | v1.0 | 5/5 | Complete | 2026-04-02 |
 | 4. Sonos Discovery Hardening | v1.1 | 2/2 | Complete | 2026-04-02 |
 | 5. Deployment & Documentation | v1.1 | 2/2 | Complete | 2026-04-02 |
-| 6. Daemon SSE Extensions | v1.2 | 0/? | Not started | - |
+| 6. Daemon SSE Extensions | v1.2 | 0/4 | Not started | - |
 | 7. Web UI Backend | v1.2 | 0/? | Not started | - |
 | 8. Dashboard Frontend | v1.2 | 0/? | Not started | - |
