@@ -65,22 +65,22 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PIPE-01 | — | Pending |
-| DRUG-01 | — | Pending |
-| DRUG-02 | — | Pending |
-| DRUG-03 | — | Pending |
-| SEXL-01 | — | Pending |
-| SEXL-02 | — | Pending |
-| SEXL-03 | — | Pending |
-| SEXL-04 | — | Pending |
-| LOG-01 | — | Pending |
-| UI-01 | — | Pending |
+| PIPE-01 | Phase 6 | Pending |
+| DRUG-01 | Phase 7 | Pending |
+| DRUG-02 | Phase 7 | Pending |
+| DRUG-03 | Phase 9 | Pending |
+| SEXL-01 | Phase 8 | Pending |
+| SEXL-02 | Phase 8 | Pending |
+| SEXL-03 | Phase 8 | Pending |
+| SEXL-04 | Phase 9 | Pending |
+| LOG-01 | Phase 9 | Pending |
+| UI-01 | Phase 10 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 10 total
-- Mapped to phases: 0
-- Unmapped: 10 ⚠️
+- Mapped to phases: 10
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-04-02 after initial definition*
+*Last updated: 2026-04-02 after roadmap creation — all 10 requirements mapped*
