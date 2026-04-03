@@ -1,506 +1,442 @@
 # Architecture Research
 
-**Domain:** Now-playing card and manual skip integration into existing FastAPI/SSE dashboard (v1.2)
-**Researched:** 2026-04-02
-**Confidence:** HIGH — based on direct code inspection of the v1.1 codebase
-
----
+**Domain:** Adding drug/sexual content detection signals to existing Python content filter pipeline (v1.3)
+**Researched:** 2026-04-03
+**Confidence:** HIGH — based on direct codebase inspection of all production files and test suite
 
 ## Standard Architecture
 
-### System Overview (Current v1.1)
+### System Overview
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│  daemon (daemon.py) — Docker container                            │
-│                                                                   │
-│  poll_loop() every 1s                                             │
-│      │                                                            │
-│      ├── track_id unchanged → silent (no event emitted)          │
-│      │                                                            │
-│      └── track_id changed                                         │
-│              │                                                    │
-│              ├── save_state({"last_track_id": ...})               │
-│              │                                                    │
-│              └── if FSM on → ContentChecker.check(track)         │
-│                      │                                            │
-│                      └── if skip → _append_skip_event(...)       │
-│                                    writes data/skip_events.jsonl │
-└──────────────────────────────────────────────────────────────────┘
-          │ ./data bind mount (shared volume)
-          ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  web_ui (web_ui/main.py) — Docker container                       │
-│                                                                   │
-│  _file_tail() polls skip_events.jsonl every 250ms                │
-│      │                                                            │
-│      └── new line → push to _subscribers queues → SSE /events    │
-│                                                                   │
-│  GET /events  → SSE stream (skip + five_skip_warning events)     │
-│  GET/POST /fsm → read/write state.json                           │
-└──────────────────────────────────────────────────────────────────┘
-          │ SSE connection
-          ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  Browser (vanilla JS)                                             │
-│                                                                   │
-│  EventSource('/events')                                           │
-│      → "skip" event → prepend to #skip-feed list                 │
-│      → "five_skip_warning" event → show banner                   │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                      daemon.py (asyncio poll loop)                   │
+│                                                                      │
+│  sp.current_playback() → track_id change detected                   │
+│      │                                                               │
+│      ├─ emit track_change event + write now_playing (evaluating)     │
+│      │                                                               │
+│      └─ ContentChecker.check(track) → TrackEvalResult               │
+│              │                                                       │
+│              ├─ .action: str ('skip' | 'allow')                      │
+│              ├─ .reason: str ('explicit' | 'profanity' |             │
+│              │           'drug_reference' | 'sexual_content' |       │
+│              │           'instrumental' | 'clean' | ...)             │
+│              ├─ .severity: int (0-3)                                 │
+│              ├─ .drug_reference: bool       ← NEW v1.3              │
+│              ├─ .drug_terms: list[str]      ← NEW v1.3              │
+│              ├─ .sexual_content: bool       ← NEW v1.3              │
+│              └─ .sexual_terms: list[str]    ← NEW v1.3              │
+│                                                                      │
+│  result → eval_result event (events.jsonl) with new bool fields      │
+│  result → now_playing.json updated with new bool fields              │
+└──────────────────────────────────────────────────────────────────────┘
+          │ file-based IPC (data/events.jsonl + data/now_playing.json)
+┌─────────▼────────────────────────────────────────────────────────────┐
+│                    web_ui/main.py (FastAPI)                           │
+│                                                                      │
+│  _file_tail() tails events.jsonl → SSE broadcast verbatim            │
+│  GET /now-playing → reads now_playing.json verbatim                  │
+│  (no code changes needed — new fields pass through automatically)    │
+└──────────────────────────────────────────────────────────────────────┘
+          │ SSE events + /now-playing JSON hydration
+┌─────────▼────────────────────────────────────────────────────────────┐
+│                  index.html (vanilla JS dashboard)                   │
+│                                                                      │
+│  eval_result handler → setEvalBadge() extended for drug/sexual       │
+│  skip feed handler → setBadgeClass() / badgeLabel() extended         │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-### System Overview (Target v1.2)
+### ContentChecker Filter Pipeline (after v1.3)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│  daemon (daemon.py) — MODIFIED                                    │
-│                                                                   │
-│  poll_loop() every 1s                                             │
-│      │                                                            │
-│      ├── track_id unchanged → silent                             │
-│      │                                                            │
-│      └── track_id changed                                         │
-│              │                                                    │
-│              ├── save_state({"last_track_id": ...})               │
-│              │                                                    │
-│              ├── emit "track_change" event immediately            │  ← NEW
-│              │   {type: "track_change", track, artist, album_art,│
-│              │    track_id, eval_state: "evaluating"}             │
-│              │   writes data/now_playing.json [atomic-ish write]  │
-│              │   writes data/skip_events.jsonl (new event type)   │
-│              │                                                    │
-│              └── if FSM on → ContentChecker.check(track)         │
-│                      │                                            │
-│                      ├── emit "eval_result" event                 │  ← NEW
-│                      │   {type: "eval_result", track_id,         │
-│                      │    eval_state: "passed"|"skipped"|        │
-│                      │    "no_lyrics"|"explicit"}                 │
-│                      │   writes data/skip_events.jsonl            │
-│                      │                                            │
-│                      └── if skip → existing skip logic            │
-│                                    (skip event unchanged)         │
-└──────────────────────────────────────────────────────────────────┘
-          │ ./data bind mount (shared volume)
-          ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  web_ui (web_ui/main.py) — MODIFIED                               │
-│                                                                   │
-│  GET /now-playing → reads data/now_playing.json                   │  ← NEW
-│      returns current track + eval_state for on-load hydration    │
-│                                                                   │
-│  POST /skip → calls daemon's skip logic via SkipClient            │  ← NEW
-│      (SpotifySkipClient only — web_ui owns a Spotify auth inst.)  │
-│                                                                   │
-│  _file_tail() — EXTENDED to pass through all event types         │
-│      including "track_change" and "eval_result"                   │
-└──────────────────────────────────────────────────────────────────┘
-          │ SSE + fetch
-          ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  Browser (vanilla JS) — MODIFIED                                  │
-│                                                                   │
-│  On load: fetch('/now-playing') → render now-playing card         │
-│                                                                   │
-│  EventSource('/events') — EXTENDED:                              │
-│      → "track_change" event → update card, set badge=evaluating  │
-│      → "eval_result" event → update badge to final state          │
-│      → "skip" event → existing feed logic (unchanged)             │
-│                                                                   │
-│  Manual skip button → POST /skip                                  │
-└──────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## IPC Mechanism: Extend skip_events.jsonl With New Event Types
-
-### Decision
-
-Extend `skip_events.jsonl` with two new event types (`track_change` and `eval_result`). Also write `data/now_playing.json` as a simple state snapshot for on-load hydration.
-
-### Why This Approach
-
-**Option A — Extend skip_events.jsonl:** Reuses the exact IPC path already working in production. `_file_tail()` already reads every new line and fans out to all SSE subscribers. Adding new event types is additive — the existing browser handler ignores unknown types. The web_ui tailing loop requires zero changes to propagate the new events.
-
-**Option B — Separate now_playing.json state file (polling):** UI polls an endpoint every N seconds. Requires the browser to have its own poll timer. Adds 1-5s latency depending on poll interval. Does not compose cleanly with the existing SSE connection the browser already holds open.
-
-**Option C — New SSE channel (e.g., /now-playing/events):** Browser manages two concurrent EventSource connections. Two separate tailing coroutines in web_ui. More code, more browser connections, no architectural benefit over extending the existing channel.
-
-**Option D — In-process asyncio.Queue bridge:** Already rejected in v1.0 because daemon and web_ui run in separate Docker containers. The Queue is not shared across process boundaries (Gap-2 fix in v1.1 explains this decision).
-
-**Verdict:** Option A is the right choice. The file-tail pattern is proven, the fan-out infrastructure is in place, and adding event types is the minimal change. Option B (now_playing.json) is needed as a companion for page load hydration only — it is not a polling IPC mechanism, just a state snapshot.
-
-### now_playing.json Role
-
-A single-record JSON file at `data/now_playing.json` holds the most recent track plus its last known eval_state. The web_ui reads this once on GET /now-playing to hydrate the card when a browser opens the dashboard mid-session. Without it, a browser opened after a track started would see an empty card until the next track change.
-
-Write pattern: overwrite in place (same reasoning as `state.json` — `os.replace()` raises EBUSY on bind-mounted files on Linux). The daemon writes this file immediately on track change, before starting ContentChecker evaluation.
-
----
-
-## Evaluation State Transitions
-
-The badge cycles through these states for every track:
-
-```
-track detected by daemon
+ContentChecker.check(track)
     │
-    ▼
-"evaluating"          ← emitted immediately with track_change event
-                         browser renders spinner or "Checking..." badge
+    Tier 1: track.get("explicit") == True?
+        └─ YES → return TrackEvalResult(action='skip', reason='explicit', severity=3)
     │
-    ├── FSM is OFF → "passed"    (no content check performed)
+    Tier 2: lyrics_service.get_lyrics()
+        ├─ instrumental=True → return TrackEvalResult(action='allow', reason='instrumental', severity=0)
+        └─ lyrics=None       → return TrackEvalResult(action='allow', reason='lyrics_unavailable', severity=0)
     │
-    └── FSM is ON → ContentChecker.check(track)
-            │
-            ├── action=="allow", reason=="instrumental" → "no_lyrics"
-            ├── action=="allow", reason=="lyrics_unavailable" → "no_lyrics"
-            ├── action=="allow", reason=="clean" → "passed"
-            ├── action=="skip", reason=="explicit" → "skipped"
-            └── action=="skip", reason=="profanity" → "skipped"
+    Tier 3: profanity_scanner.scan(lyrics) → (severity, matched_words)
+    Tier 4: drug_scanner.scan(lyrics)      → (drug_ref: bool, drug_terms: list[str])   ← NEW
+    Tier 5: sexual_content_scanner.scan(lyrics) → (sexual: bool, sexual_terms: list[str])  ← NEW
+    │
+    (all three scans run before deciding action)
+    │
+    Aggregate:
+        action = 'skip'  if severity >= min_severity OR drug_ref OR sexual
+        action = 'allow' otherwise
+        reason = 'profanity'       if severity >= min_severity
+               | 'drug_reference'  elif drug_ref
+               | 'sexual_content'  elif sexual
+               | 'clean'           otherwise
+    │
+    return TrackEvalResult(
+        action=action, reason=reason, severity=severity,
+        drug_reference=drug_ref, drug_terms=drug_terms,
+        sexual_content=sexual, sexual_terms=sexual_terms
+    )
 ```
 
-The eval_result event carries `track_id` so the browser can confirm it applies to the currently displayed track. If a very fast skip causes the daemon to detect a second track before the first eval completes, the browser ignores eval_result events whose `track_id` does not match the currently displayed track.
+### Component Responsibilities
 
-**State mapping:**
-
-| ContentChecker result | eval_state value | Badge display |
-|----------------------|------------------|---------------|
-| (initial, pre-check) | `"evaluating"` | "Checking..." |
-| FSM off | `"passed"` | "OK" |
-| allow, instrumental | `"no_lyrics"` | "Instrumental" |
-| allow, lyrics_unavailable | `"no_lyrics"` | "No lyrics" |
-| allow, clean | `"passed"` | "Clean" |
-| skip, explicit | `"skipped"` | "Skipped" |
-| skip, profanity | `"skipped"` | "Skipped" |
-
----
-
-## Event Schema
-
-### track_change event (new)
-
-Written to `skip_events.jsonl` and now_playing.json when daemon detects a new track:
-
-```json
-{
-  "type": "track_change",
-  "track_id": "276zciJ7Fg7Jk6Ta6QuLkp",
-  "track": "Song Title",
-  "artist": "Artist Name",
-  "album_art_url": "https://i.scdn.co/image/...",
-  "timestamp": "14:23:01",
-  "eval_state": "evaluating"
-}
-```
-
-`album_art_url` sourced from `track["album"]["images"][0]["url"]` in the Spotify track object. Nullable — set to null if not present.
-
-### eval_result event (new)
-
-Written to `skip_events.jsonl` after ContentChecker completes (or when FSM is off):
-
-```json
-{
-  "type": "eval_result",
-  "track_id": "276zciJ7Fg7Jk6Ta6QuLkp",
-  "eval_state": "passed",
-  "timestamp": "14:23:02"
-}
-```
-
-### now_playing.json snapshot
-
-Written to `data/now_playing.json` by the daemon on every track change. Updated again after eval completes:
-
-```json
-{
-  "track_id": "276zciJ7Fg7Jk6Ta6QuLkp",
-  "track": "Song Title",
-  "artist": "Artist Name",
-  "album_art_url": "https://i.scdn.co/image/...",
-  "eval_state": "passed",
-  "timestamp": "14:23:01"
-}
-```
-
----
-
-## Manual Skip Endpoint Design
-
-### How It Works
-
-The web_ui needs to trigger a skip from the browser without reimplementing Spotify OAuth. The daemon already holds an authenticated `spotipy.Spotify` instance (`sp`) and both skip clients (`SocoSkipClient`, `SpotifySkipClient`). The web_ui does not have access to these — it is a separate process.
-
-**The simplest correct design:** The web_ui's `POST /skip` endpoint calls the Spotify Web API directly using its own spotipy instance, identical to how the daemon's `SpotifySkipClient` works.
-
-Both containers share the same OAuth credentials (via `.env`) and the same token cache file (via the `./token_cache:/app/token_cache` bind mount in docker-compose). The token is refreshed by whichever process uses it. Since the token cache is a shared file, both processes can refresh independently without conflict — spotipy's `CacheFileHandler` does a file-write on refresh, and the 60-second token expiry window makes a concurrent write race unlikely in practice.
-
-**This is not reimplementing auth** — it reuses the same credentials and token file. It is instantiating spotipy once in web_ui at startup, exactly as the daemon does. The web_ui already reads the same `.env` for FSM state operations.
-
-```python
-# web_ui/main.py additions (startup block)
-cache_handler = CacheFileHandler(cache_path=os.environ["SPOTIFY_CACHE_PATH"])
-auth_manager = SpotifyOAuth(
-    client_id=os.environ["SPOTIFY_CLIENT_ID"],
-    client_secret=os.environ["SPOTIFY_CLIENT_SECRET"],
-    redirect_uri=os.environ["SPOTIFY_REDIRECT_URI"],
-    scope="user-read-currently-playing user-modify-playback-state",
-    open_browser=False,
-    cache_handler=cache_handler,
-)
-_sp = spotipy.Spotify(auth_manager=auth_manager)
-_spotify_skip = SpotifySkipClient(_sp)
-```
-
-### POST /skip endpoint
-
-```
-POST /skip
-Body: {"device_id": "<optional>"}
-Response: {"ok": true} or {"ok": false, "error": "..."}
-```
-
-The endpoint calls `_spotify_skip.skip(device_name, device_id)`. The `device_id` can be omitted — Spotify's `next_track()` without a device_id targets the currently active device. If the browser does not have the device_id (it may not), passing `device_id=None` is sufficient.
-
-The web_ui does not need to know whether playback is on Sonos or a regular device. Manual skip from the UI always uses `SpotifySkipClient` because:
-1. Sonos in Spotify Connect mode already uses `SpotifySkipClient` as a fallback in the daemon (error 701 issue documented in PROJECT.md).
-2. The web_ui does not have SoCo discovery state (no `_ip_cache`).
-3. Manual skip is a user-initiated action — the slight additional latency of the Spotify API vs. UPnP is acceptable.
-
-### Why Not HTTP Call From web_ui to Daemon
-
-An alternative is exposing a `POST /internal-skip` on the daemon and having web_ui call it. This requires the daemon to run an HTTP server (it does not — it is a pure asyncio poll loop), doubles the failure modes, and creates a dependency on container networking. The shared spotipy approach is simpler and already proven by the daemon's own skip path.
-
----
-
-## Data Flow: Daemon Track Detection to Browser Badge Update
-
-```
-1. daemon poll_loop detects track_id != state["last_track_id"]
-       │
-       ▼
-2. daemon writes track_change event to skip_events.jsonl
-   daemon writes now_playing.json (eval_state: "evaluating")
-       │
-       ▼ (within 250ms — _file_tail poll interval)
-3. web_ui _file_tail reads new line, parses JSON
-   event.type == "track_change" → push to all _subscribers queues
-       │
-       ▼
-4. browser SSE onmessage fires
-   evt.type == "track_change"
-       → update now-playing card (track name, artist, art)
-       → set badge to "Checking..." (eval_state: "evaluating")
-       → store currentTrackId = evt.track_id
-       │
-       ▼
-5. daemon ContentChecker.check(track) completes
-   (duration: ~0ms for explicit flag, ~100-500ms for lyrics fetch,
-    ~1-50ms for profanity scan)
-       │
-       ▼
-6. daemon writes eval_result event to skip_events.jsonl
-   daemon updates now_playing.json (eval_state: final)
-       │
-       ▼ (within 250ms)
-7. web_ui _file_tail reads eval_result line
-   push to all _subscribers queues
-       │
-       ▼
-8. browser SSE onmessage fires
-   evt.type == "eval_result" AND evt.track_id == currentTrackId
-       → update badge to final state
-       (if track_id mismatch: discard — stale eval for previous track)
-       │
-       ▼ (only if action == "skip")
-9. daemon also writes existing "skip" event to skip_events.jsonl
-   browser receives "skip" event → prepends to #skip-feed (unchanged behavior)
-```
-
-**Total end-to-end latency budget:**
-
-- Daemon detects track: up to 1s (poll interval)
-- Daemon writes track_change: <1ms
-- _file_tail picks up new line: up to 250ms
-- Browser SSE delivery: <50ms on LAN
-- "evaluating" badge appears: ~300ms after actual track change at median
-
-- ContentChecker runs (explicit only): <5ms after track_change
-- ContentChecker runs (lyrics path): 100-2000ms (LRCLIB cache hit vs. miss)
-- eval_result badge update: 300ms after ContentChecker completes
-
----
+| Component | Responsibility | v1.3 Change |
+|-----------|----------------|-------------|
+| `content_checker.py` | Orchestrates all filter tiers; owns `TrackEvalResult` dataclass | Define `TrackEvalResult`; change `check()` return type; inject and call `DrugScanner` + `SexualContentScanner` |
+| `profanity_scanner.py` | Scan lyrics for profanity; return `(severity, matched_words)` | No change |
+| `drug_scanner.py` | NEW — scan lyrics for drug references; return `(bool, list[str])` | New file |
+| `sexual_content_scanner.py` | NEW — scan lyrics for sexual content; return `(bool, list[str])` | New file |
+| `daemon.py` | Poll loop; unpack `TrackEvalResult`; emit events; write `now_playing.json` | Replace 3-tuple destructuring with attribute access; propagate new fields into event payloads |
+| `web_ui/main.py` | FastAPI server; file-tail IPC bridge; SSE broadcast; `/now-playing` | No code change — new fields pass through verbatim via `json.loads()` / `json.dumps()` |
+| `web_ui/templates/index.html` | Dashboard; badge rendering; skip feed | Add `badge--drug` + `badge--sexual` CSS; extend `setBadgeClass()`, `badgeLabel()`, `setEvalBadge()` |
+| `tests/test_daemon_events.py` | Integration tests for event emission | Update 8+ mock `check()` return values from tuple to `TrackEvalResult` |
+| `tests/test_content_checker.py` | Unit tests for ContentChecker | New or extended: assert new fields on `TrackEvalResult` |
+| `tests/test_drug_scanner.py` | NEW — unit tests for `DrugScanner` | New file |
+| `tests/test_sexual_content_scanner.py` | NEW — unit tests for `SexualContentScanner` | New file |
 
 ## Recommended Project Structure
 
 ```
 spotify-sentiment/
-├── daemon.py                   # Modified — emit track_change and eval_result events
-├── content_checker.py          # Unchanged in v1.2
-├── skip_client.py              # Unchanged
-├── lyrics_service.py           # Unchanged
-├── profanity_scanner.py        # Unchanged
+├── content_checker.py              # Modified: TrackEvalResult dataclass; new scanner injection
+├── daemon.py                       # Modified: attribute access on TrackEvalResult; new event fields
+├── profanity_scanner.py            # Unchanged
+├── drug_scanner.py                 # NEW: keyword list + scan() method
+├── sexual_content_scanner.py       # NEW: keyword list + scan() method
+├── lyrics_service.py               # Unchanged
+├── skip_client.py                  # Unchanged
 ├── web_ui/
-│   ├── main.py                 # Modified — add /now-playing, /skip endpoints
-│   │                           #            add spotipy init at startup
+│   ├── main.py                     # Unchanged
 │   └── templates/
-│       └── index.html          # Modified — add now-playing card, manual skip button
-├── data/
-│   ├── skip_events.jsonl       # Extended with track_change and eval_result event types
-│   └── now_playing.json        # New — snapshot for on-load hydration
+│       └── index.html              # Modified: new badge CSS + JS label/class extensions
 └── tests/
-    └── test_web_ui.py          # New or extended — cover /now-playing and /skip endpoints
+    ├── conftest.py                 # Unchanged
+    ├── test_drug_scanner.py        # NEW
+    ├── test_sexual_content_scanner.py  # NEW
+    ├── test_content_checker.py     # NEW or extended
+    ├── test_daemon_events.py       # Modified: mock return values
+    ├── test_web_ui_endpoints.py    # Unchanged
+    ├── test_skip_client.py         # Unchanged
+    ├── test_sonos_probe.py         # Unchanged
+    └── test_healthcheck.py         # Unchanged
 ```
 
----
+### Structure Rationale
+
+- **`drug_scanner.py` / `sexual_content_scanner.py` as separate top-level files:** Mirrors the existing `profanity_scanner.py` pattern. Each scanner is independently testable and configurable. The `SEVERITY_MAP` pattern in `profanity_scanner.py` maps cleanly to a per-category term `frozenset`.
+- **`TrackEvalResult` defined in `content_checker.py`:** It is the contract between `ContentChecker.check()` and `daemon.py`. Co-locating the dataclass with the class that produces it keeps the module self-contained. No separate `models.py` needed at this codebase scale.
 
 ## Architectural Patterns
 
-### Pattern 1: Additive Event Types on Existing JSONL Channel
+### Pattern 1: TrackEvalResult Dataclass (replaces 3-tuple)
 
-**What:** Write new event objects with new `type` values to the existing `skip_events.jsonl` file. The `_file_tail()` loop fans them out unchanged; existing browser code ignores types it does not handle.
+**What:** A `@dataclass` with named fields and sensible defaults, replacing the `(action, reason, severity)` positional return tuple from `ContentChecker.check()`.
 
-**When to use:** Any time a new signal from daemon to browser is needed. The pattern absorbs new event types at zero infrastructure cost.
+**When to use:** Any time a function returns more than 2-3 values that callers must destructure by position. Named fields prevent positional errors. New fields with defaults are backward-compatible — existing test mocks that construct `TrackEvalResult(action=..., reason=..., severity=...)` do not break when `drug_reference` and `sexual_content` are added later.
 
-**Trade-offs:** The JSONL file accumulates all event types; tooling that reads skip history must now filter for `type=="skip"` to get the incident log. This is a minor grep-filter, not a structural problem. The alternative of per-event-type files would fragment the IPC into multiple tailing loops.
+**Trade-offs:** Slightly more boilerplate than a tuple. The benefit is that `result.action` is unambiguous, while `t[0]` is not.
 
-### Pattern 2: now_playing.json as Hydration State Only
+**Dataclass definition (in `content_checker.py`):**
+```python
+from dataclasses import dataclass, field
 
-**What:** Write a single-record JSON file (`now_playing.json`) that the web_ui reads once per browser page load via GET /now-playing. This is a state snapshot, not a poll target.
+@dataclass
+class TrackEvalResult:
+    action: str           # 'skip' | 'allow'
+    reason: str           # 'explicit' | 'profanity' | 'drug_reference' |
+                          # 'sexual_content' | 'instrumental' | 'clean' |
+                          # 'lyrics_unavailable' | 'no_lyrics_service'
+    severity: int         # 0-3 (profanity severity; 0 for non-profanity paths)
+    drug_reference: bool = field(default=False)
+    drug_terms: list[str] = field(default_factory=list)
+    sexual_content: bool = field(default=False)
+    sexual_terms: list[str] = field(default_factory=list)
+```
 
-**When to use:** Any time the browser needs to know the current state without waiting for the next event. The SSE stream only delivers events that happen after the browser connects; a browser opened mid-track would otherwise show no current track until the next track change.
+**Existing test mock migration:** Each `AsyncMock(return_value=("allow", "clean", 0))` becomes `AsyncMock(return_value=TrackEvalResult(action="allow", reason="clean", severity=0))`. The `drug_reference` and `sexual_content` fields default to `False` and `[]` so no test needs to specify them unless testing those specific paths.
 
-**Trade-offs:** Requires two writes per track change (JSONL append and now_playing.json overwrite). Both writes are cheap. The now_playing.json is a cache of the last event — always derivable from the JSONL tail — but faster to read on connection.
+### Pattern 2: Scanner Injection into ContentChecker
 
-### Pattern 3: Manual Skip Uses web_ui's Own Spotipy Instance
+**What:** `DrugScanner` and `SexualContentScanner` are injected via `ContentChecker.__init__()` as optional keyword arguments (defaulting to `None`), identical to the existing `profanity_scanner` injection pattern.
 
-**What:** web_ui instantiates its own `spotipy.Spotify` using the same credentials and shared token cache file as the daemon. `POST /skip` calls `sp.next_track()` directly.
+**When to use:** When scanners need to be replaced with mocks in tests, or swapped without changing `ContentChecker`'s interface.
 
-**When to use:** When a web tier needs to call the same external API as the daemon. Shared token file avoids duplicating auth setup.
+**`ContentChecker.__init__` signature (after v1.3):**
+```python
+def __init__(
+    self,
+    lyrics_service=None,
+    profanity_scanner=None,
+    drug_scanner=None,              # NEW
+    sexual_content_scanner=None,    # NEW
+    min_severity: int = 2,
+) -> None:
+```
 
-**Trade-offs:** Two processes share a token cache file. Concurrent token refresh writes are possible but unlikely (tokens are valid for 60 minutes and only refreshed when near expiry). If the daemon is actively refreshing and the web_ui simultaneously triggers a skip, one write may overwrite the other's refreshed token — but spotipy will simply re-refresh on the next call. This is the same risk that already exists between the daemon and the existing `POST /fsm` state.json write, and has not caused issues in production.
+**Wiring in `daemon.py` `main()`:**
+```python
+from drug_scanner import DrugScanner
+from sexual_content_scanner import SexualContentScanner
 
----
+drug_scanner = DrugScanner()
+sexual_content_scanner = SexualContentScanner()
+content_checker = ContentChecker(
+    lyrics_service=lyrics_service,
+    profanity_scanner=profanity_scanner,
+    drug_scanner=drug_scanner,
+    sexual_content_scanner=sexual_content_scanner,
+    min_severity=PROFANITY_MIN_SEVERITY,
+)
+```
 
-## Integration Points
+**Guard in `check()` (mirrors existing profanity_scanner guard):**
+The new scans should run only when the scanner is not `None`. This preserves the existing pattern where the lyrics tier is only active when both `self.lyrics_service` and `self.profanity_scanner` are not `None`. For v1.3, where all three scanners are always injected together, this guard prevents `AttributeError` in test scenarios that pass `drug_scanner=None`.
 
-### Modified Components
+### Pattern 3: Keyword List Scan (mirrors SEVERITY_MAP in profanity_scanner.py)
 
-| Component | Status | Change |
-|-----------|--------|--------|
-| `daemon.py` | Modified | Emit `track_change` event at track detection; emit `eval_result` event after ContentChecker; write `now_playing.json` |
-| `web_ui/main.py` | Modified | Add spotipy init at startup; add `GET /now-playing` endpoint; add `POST /skip` endpoint |
-| `web_ui/templates/index.html` | Modified | Add now-playing card HTML; badge state machine in JS; manual skip button; handle new SSE event types |
-| `data/now_playing.json` | New file | Created by daemon on first track change; bind-mounted via existing `./data` volume |
-| `data/skip_events.jsonl` | Extended | New `track_change` and `eval_result` event types appended alongside existing `skip` events |
+**What:** Each new scanner holds a module-level `frozenset` of lowercase terms. The `scan()` method normalizes lyrics (lowercase, strip punctuation), splits on whitespace, and checks set membership — identical to Pass 1 of `ProfanityScanner.scan()`.
 
-### Unchanged Components
+**When to use:** Boolean signal detection where exact-match keywords are sufficient. Correct for v1.3 — the goal is "errs on the side of caution" for a 3- and 7-year-old audience without NLP complexity.
 
-| Component | Reason |
-|-----------|--------|
-| `content_checker.py` | No interface change needed — daemon wraps it with the new event emissions |
-| `skip_client.py` | `SpotifySkipClient` is imported by web_ui; no changes to the class itself |
-| `docker-compose.yml` | No new volumes or services; `./data` mount already shared |
-| `_file_tail()` in web_ui | Requires no change — it already passes all JSON lines to subscribers regardless of type |
+**Return type for new scanners:**
+```python
+def scan(self, lyrics: str) -> tuple[bool, list[str]]:
+    # Returns (detected: bool, matched_terms: list[str])
+```
 
-### Internal Boundaries
+Intentionally simpler than `ProfanityScanner.scan()` which returns a severity int. Drug and sexual detection are boolean signals in v1.3; per-category severity is explicitly deferred to v2+ (PROJECT.md Deferred section).
 
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| `daemon.py` → `skip_events.jsonl` | File append via `_append_skip_event()` | Add `track_change` and `eval_result` call sites; existing skip/five_skip_warning calls unchanged |
-| `daemon.py` → `now_playing.json` | File overwrite (in-place write, same EBUSY reasoning as state.json) | Single-record JSON; daemon owns writes; web_ui reads only |
-| `skip_events.jsonl` → `web_ui` | File-tail polling every 250ms (unchanged) | New event types flow through transparently |
-| `web_ui /now-playing` → `now_playing.json` | File read on request | Serves snapshot to browser on page load; no caching needed |
-| `web_ui /skip` → Spotify API | spotipy `sp.next_track()` via shared token cache | Same pattern as daemon's SpotifySkipClient |
-| Browser → `web_ui /skip` | `fetch('POST /skip')` | Triggered by skip button click; 204/200 response acknowledged |
+## Data Flow
 
----
+### Filter Pipeline Execution Order — Rationale
 
-## Build Order
+All three scans (profanity, drug, sexual) run after the lyrics are fetched and before `action` is determined. **Do not short-circuit on the first skip trigger.** A track that fires profanity AND a drug reference should log both signals — the incident log needs complete signal data for future per-category UI toggles (v2+).
 
-Dependency-ordered implementation sequence:
+The Spotify explicit flag remains a short-circuit (Tier 1) because it skips the lyrics fetch entirely. On explicit-flag skips, `drug_reference` and `sexual_content` default to `False` and `[]` — which is correct: the track is skipped regardless, and no lyrics were available to scan.
 
-1. **Extend `_append_skip_event()` in `daemon.py`** — add `track_change` call site immediately after track change is detected. Add `eval_result` call site after ContentChecker returns. Write `now_playing.json` at both points (evaluating state first, final state after ContentChecker). This is the data-producing end.
+**Priority for `reason` field** (determines badge label in the skip feed): profanity takes precedence over `drug_reference`, which takes precedence over `sexual_content`. This matches the existing tiered model where a higher-severity finding is surfaced as the primary reason.
 
-2. **Add `GET /now-playing` in `web_ui/main.py`** — reads `now_playing.json`, returns current track and eval_state. No auth needed. Handle missing file gracefully (return `null` or `{}`). This enables the browser hydration path.
+### Event Propagation — Fields Added to Existing Payloads
 
-3. **Add spotipy init and `POST /skip` in `web_ui/main.py`** — init at startup (same pattern as daemon's `main()`). Endpoint calls `_spotify_skip.skip(None, None)` — no device_id required, Spotify targets active device. Return `{"ok": true/false}`.
+**`eval_result` event (already exists — two new fields added):**
+```json
+{
+  "type": "eval_result",
+  "track_id": "...",
+  "eval_state": "passed",
+  "severity": 0,
+  "drug_reference": false,
+  "sexual_content": false,
+  "timestamp": "14:23:02"
+}
+```
 
-4. **Update `index.html`** — add now-playing card HTML structure; hydrate from `GET /now-playing` on page load; handle `track_change` SSE event (update card, set badge to evaluating); handle `eval_result` SSE event (update badge, guard on track_id match); add skip button that calls `POST /skip`.
+**`skip` event (already exists — two new fields added):**
+```json
+{
+  "type": "skip",
+  "track": "...",
+  "artist": "...",
+  "reason": "drug_reference",
+  "drug_reference": true,
+  "sexual_content": false,
+  "timestamp": "14:23:02"
+}
+```
 
-5. **Verify end-to-end** — run daemon + web_ui locally; open dashboard; observe card updates and badge transitions as tracks change; test skip button.
+**`now_playing.json` (already exists — two new fields added):**
+```json
+{
+  "track_id": "...",
+  "track": "...",
+  "artist": "...",
+  "album_art_url": "...",
+  "eval_state": "skipped",
+  "severity": 0,
+  "drug_reference": true,
+  "sexual_content": false,
+  "timestamp": "2026-04-03T14:23:02Z"
+}
+```
 
-Steps 1-3 have no ordering dependency on each other (daemon changes and web_ui backend changes are independent). Step 4 depends on steps 2 and 3 being defined so the JS endpoints are known. Step 5 requires all prior steps.
+**`web_ui/main.py`:** The `_file_tail()` loop reads each line with `json.loads()` and broadcasts with `json.dumps()`. New fields in the JSON lines pass through to SSE subscribers without any code change.
 
----
+**Dashboard JS:** The only changes are in `setEvalBadge()` (reads `drug_reference` and `sexual_content` booleans from `eval_result` SSE event and `/now-playing` hydration to render additional badges), `setBadgeClass()` (handles `"drug_reference"` and `"sexual_content"` reason strings in the skip feed), and `badgeLabel()` (same extension).
+
+### Key Data Flows
+
+1. **Track with drug reference, no profanity:** ContentChecker completes profanity scan (severity=0, matched=[]), drug scan (drug_ref=True, drug_terms=["..."]). `action='skip'`, `reason='drug_reference'`. eval_result event carries `drug_reference: true`. Dashboard renders "Skipped" badge + drug reference indicator badge.
+
+2. **Track with both profanity and sexual content:** Both scans run. `reason='profanity'` (profanity takes priority in reason field). `sexual_content: true` is still logged in the event. Both boolean flags are available for the dashboard to render a multi-badge display.
+
+3. **Track with no violations:** All scans run. `action='allow'`, `reason='clean'`, all booleans `False`. eval_result carries `drug_reference: false, sexual_content: false`. Dashboard renders "Passed" badge.
+
+4. **Explicit-flag skip:** Short-circuit in Tier 1 returns immediately. `drug_reference=False, sexual_content=False` (dataclass defaults). No lyrics were fetched; nothing to scan.
+
+## Integration Points — All 3-Tuple Call Sites
+
+This section exhaustively identifies every location that must change when replacing the `(action, reason, severity)` 3-tuple with `TrackEvalResult`.
+
+### Production Code — Required Changes
+
+| File | Line(s) | Current code | Required change |
+|------|---------|--------------|-----------------|
+| `content_checker.py` | 39 | `async def check(self, track: dict) -> tuple[str, str, int]:` | Change to `-> TrackEvalResult:` |
+| `content_checker.py` | 47-51 | Docstring listing `(action, reason, severity)` | Update docstring |
+| `content_checker.py` | 64 | `return ("skip", "explicit", 3)` | `return TrackEvalResult(action="skip", reason="explicit", severity=3)` |
+| `content_checker.py` | 81 | `return ("allow", "instrumental", 0)` | `return TrackEvalResult(action="allow", reason="instrumental", severity=0)` |
+| `content_checker.py` | 91 | `return ("allow", "lyrics_unavailable", 0)` | `return TrackEvalResult(action="allow", reason="lyrics_unavailable", severity=0)` |
+| `content_checker.py` | 110 | `return (action, reason, severity)` | `return TrackEvalResult(action=action, reason=reason, severity=severity, ...)` |
+| `content_checker.py` | 119 | `return ("allow", "no_lyrics_service", 0)` | `return TrackEvalResult(action="allow", reason="no_lyrics_service", severity=0)` |
+| `daemon.py` | 248 | `action, reason, severity = await content_checker.check(track)` | `result = await content_checker.check(track)` |
+| `daemon.py` | 253 | `if action == "allow":` | `if result.action == "allow":` |
+| `daemon.py` | 257 | `"eval_state": _eval_state_from_result(action, reason),` | `_eval_state_from_result(result.action, result.reason)` |
+| `daemon.py` | 258 | `"severity": severity,` | `"severity": result.severity,` |
+| `daemon.py` | 259-271 (allow branch) | Event dict and `_write_now_playing` call | Add `"drug_reference": result.drug_reference, "sexual_content": result.sexual_content` to both dicts |
+| `daemon.py` | 273 | `if action == "skip":` | `if result.action == "skip":` |
+| `daemon.py` | 327 | `"reason": reason,` (in skip event) | `"reason": result.reason,` |
+| `daemon.py` | 332-345 (skip branch) | Skip event dict and eval_result dict | Add `"drug_reference": result.drug_reference, "sexual_content": result.sexual_content` to both dicts |
+| `daemon.py` | 354-363 (skip eval_result) | `_write_now_playing` call | Add new fields |
+| `daemon.py` | 147 | `_eval_state_from_result(action: str, reason: str)` | Signature unchanged; call sites updated to use `result.action`, `result.reason` |
+
+### Test Code — Required Changes
+
+| File | Location | Current code | Required change |
+|------|---------|--------------|-----------------|
+| `tests/test_daemon_events.py` | Line 102 (spy return) | `return ("allow", "clean", 0)` | `return TrackEvalResult(action="allow", reason="clean", severity=0)` |
+| `tests/test_daemon_events.py` | Line 121 | `AsyncMock(return_value=("allow", "clean", 0))` | `AsyncMock(return_value=TrackEvalResult(action="allow", reason="clean", severity=0))` |
+| `tests/test_daemon_events.py` | Line 149 | same | same |
+| `tests/test_daemon_events.py` | Line 169 | `AsyncMock(return_value=("skip", "explicit", 3))` | `AsyncMock(return_value=TrackEvalResult(action="skip", reason="explicit", severity=3))` |
+| `tests/test_daemon_events.py` | Line 211 | `("allow", "clean", 0)` | `TrackEvalResult(action="allow", reason="clean", severity=0)` |
+| `tests/test_daemon_events.py` | Line 231 | `("skip", "explicit", 3)` | `TrackEvalResult(action="skip", reason="explicit", severity=3)` |
+| `tests/test_daemon_events.py` | Line 275 (spy return) | `return ("allow", "clean", 0)` | `return TrackEvalResult(action="allow", reason="clean", severity=0)` |
+| `tests/test_daemon_events.py` | Line 300 | `("allow", "clean", 0)` | `TrackEvalResult(action="allow", reason="clean", severity=0)` |
+| `tests/test_daemon_events.py` | Line 320 | `("skip", "explicit", 3)` | `TrackEvalResult(action="skip", reason="explicit", severity=3)` |
+| `tests/test_daemon_events.py` | Line 361 | `("allow", "mild_language", 1)` | `TrackEvalResult(action="allow", reason="mild_language", severity=1)` |
+
+**Import required in `test_daemon_events.py`:** Add `from content_checker import TrackEvalResult` after the existing `import daemon` line.
+
+### No Change Required
+
+| File | Reason |
+|------|--------|
+| `web_ui/main.py` | `_file_tail()` uses `json.loads()` / `json.dumps()` — new fields pass through verbatim |
+| `profanity_scanner.py` | Called internally by `ContentChecker`; interface unchanged |
+| `lyrics_service.py` | Not involved in return type |
+| `skip_client.py` | Receives `device_name` and `device_id` only; no eval result involved |
+| `tests/test_web_ui_endpoints.py` | Tests JSON passthrough verbatim; new fields in `now_playing.json` do not break assertions |
+| `tests/test_skip_client.py` | Not related to content evaluation |
+| `tests/test_sonos_probe.py` | Not related to content evaluation |
+| `tests/test_healthcheck.py` | Not related to content evaluation |
+
+## Scaling Considerations
+
+Single-user home service. The keyword scan approach runs in microseconds per track against roughly 5-15KB of lyrics text. Scaling is not a concern.
+
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| Single household (current) | Module-level `frozenset` — no database needed |
+| Multi-family (hypothetical) | Term lists move to config file; per-user scanner configuration |
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Polling /now-playing From the Browser
+### Anti-Pattern 1: Extending ProfanityScanner with drug/sexual terms
 
-**What people do:** Implement now_playing.json as a file the web_ui endpoint reads, and have the browser poll it every 1-2 seconds for updates.
+**What people do:** Add drug and sexual terms to `SEVERITY_MAP` using a new "category" dimension alongside the existing severity tiers.
 
-**Why it's wrong:** The browser already has an open SSE connection to `/events`. A second poll timer is redundant infrastructure. Polling at 1s would double the request rate on a LAN server that already has the SSE push mechanism in place. Any latency goal achievable by polling at 500ms is better achieved by letting SSE push the update within 300ms.
+**Why it's wrong:** `ProfanityScanner.scan()` returns `(severity, matched_words)` — a severity int does not represent drug/sexual category. Conflating the two axes prevents independent per-category UI toggles (a v2+ requirement explicitly listed in PROJECT.md). Changing `ProfanityScanner`'s return type would break `ContentChecker` and every test that calls it.
 
-**Do this instead:** Use `now_playing.json` only for the initial page load (GET /now-playing called once). All subsequent updates flow through the SSE channel via the extended skip_events.jsonl.
+**Do this instead:** Independent `DrugScanner` and `SexualContentScanner` classes with `scan(lyrics) -> tuple[bool, list[str]]` interfaces, injected separately into `ContentChecker`.
 
-### Anti-Pattern 2: Adding a New SSE Channel for Now-Playing Events
+### Anti-Pattern 2: Short-circuiting drug/sexual scans when profanity fires
 
-**What people do:** Create a second SSE endpoint (e.g., `/now-playing/events`) with its own tailing coroutine reading a separate `now_playing_events.jsonl`.
+**What people do:** Gate the drug/sexual scans with `if severity < self.min_severity:` to skip them when profanity already triggers a skip, reasoning that the track will be skipped anyway.
 
-**Why it's wrong:** Browser manages two EventSource connections. web_ui runs two tailing coroutines. Event ordering between the two channels is not guaranteed from the browser's perspective. All of this complexity exists to avoid adding two event types to an existing JSONL file that is already read by a loop that fans out to all subscribers.
+**Why it's wrong:** The boolean signals must be populated for all tracks that reach lyric scanning, including those skipped for profanity. A track that fires both profanity AND a drug reference should log both. The incident log and v2+ per-category toggle UI depend on complete signal data. Skipping the scan also means the dashboard cannot render a drug badge alongside a profanity skip.
 
-**Do this instead:** Extend skip_events.jsonl with `track_change` and `eval_result` types. They flow through the existing pipeline without any infrastructure changes.
+**Do this instead:** Run all three scans (profanity, drug, sexual) unconditionally once lyrics are available. Determine `action` only after all scans complete.
 
-### Anti-Pattern 3: Triggering Daemon Skip via HTTP Call from web_ui
+### Anti-Pattern 3: Logging drug_terms / sexual_terms in events.jsonl
 
-**What people do:** Expose a `POST /internal-skip` or similar endpoint on the daemon service, have web_ui call it via HTTP.
+**What people do:** Include the full `drug_terms` and `sexual_terms` lists in every `skip` event and `eval_result` event payload.
 
-**Why it's wrong:** The daemon has no HTTP server — it is a pure asyncio poll loop. Adding one introduces a listener port, error handling for HTTP, and a service dependency in docker-compose. The manual skip does not need daemon involvement because the Spotify API call is stateless — any caller with valid credentials can call `next_track()`.
+**Why it's wrong:** The PROJECT.md milestone spec requires only boolean signals in the log. The matched term lists add no value in the browser dashboard — the parent sees "Flagged: drug reference" not a list of words. They inflate the events file and appear in every SSE payload delivered to the browser.
 
-**Do this instead:** web_ui calls the Spotify API directly via its own spotipy instance sharing the same token cache as the daemon. The daemon detects the track change on its next poll and handles any content evaluation as normal.
+**Do this instead:** Log only `drug_reference: bool` and `sexual_content: bool` in events. The term lists remain available on `TrackEvalResult` for internal `[SCAN]` log lines in `content_checker.py`, following the existing pattern where `matched` words appear in debug logs but not in the JSONL incident log.
 
-### Anti-Pattern 4: Emitting eval_result Only When Action is Skip
+### Anti-Pattern 4: Expanding the 3-tuple to a 7-tuple
 
-**What people do:** Only write an eval_result event to the JSONL when ContentChecker returns `action=="skip"` (because that's the interesting case for the skip feed).
+**What people do:** Add the four new fields by extending the existing tuple: `(action, reason, severity, drug_ref, drug_terms, sexual, sexual_terms)`.
 
-**Why it's wrong:** The browser badge stays stuck at "evaluating" forever for clean tracks. The parent sees "Checking..." indefinitely for safe songs, which is worse UX than seeing "Clean" or "Instrumental".
+**Why it's wrong:** Every test with `return_value=("allow", "clean", 0)` breaks immediately unless all 7 positions are provided. Any future field addition causes another mass-update across all test mocks. The v1.3 tests already have 10 mock call sites that would all need to be widened positionally.
 
-**Do this instead:** Always emit eval_result after ContentChecker completes, regardless of action. The eval_state value distinguishes the outcome: `"passed"`, `"no_lyrics"`, or `"skipped"`.
+**Do this instead:** `TrackEvalResult` dataclass with `field(default=False)` and `field(default_factory=list)` on new signals. Existing test mocks constructing `TrackEvalResult(action="allow", reason="clean", severity=0)` continue to work without modification when a new field is added in v1.4.
 
-### Anti-Pattern 5: Storing track_id in Browser State Across Page Reloads
+### Anti-Pattern 5: Putting TrackEvalResult in a separate models.py
 
-**What people do:** Use localStorage to persist currentTrackId so the browser can resume badge state after reload.
+**What people do:** Create a `models.py` file to hold shared data classes.
 
-**Why it's wrong:** The page already calls `GET /now-playing` on load to hydrate the card. The server is the authoritative source for current state. localStorage-based resume adds stale-state risk and complicates the mental model with no benefit — the hydration endpoint already handles this case cleanly.
+**Why it's wrong:** `TrackEvalResult` is produced exclusively by `ContentChecker.check()` and consumed exclusively by `daemon.py`. It does not need to be shared across multiple unrelated modules. At this codebase size (5 Python files in the root), a `models.py` adds an import indirection that gains nothing. If `TrackEvalResult` ever needs sharing beyond these two modules, move it at that time.
 
-**Do this instead:** On page load, call `GET /now-playing` once, set currentTrackId from the response. All subsequent badge updates come from SSE.
+**Do this instead:** Define `TrackEvalResult` at the top of `content_checker.py`, alongside the class that produces it.
 
----
+## Suggested Build Order
 
-## Scalability Considerations
+The dataclass refactor is a hard prerequisite for new signal work — it must be done before adding fields to it.
 
-Single-user, single-process application. Not a scalability concern. Notes only:
+**Phase 1 — TrackEvalResult dataclass + 3-tuple migration (pure refactor, no behavior change)**
+- Define `TrackEvalResult` dataclass at the top of `content_checker.py`
+- Change all 5 `return (...)` statements in `check()` to `return TrackEvalResult(...)`
+- Update `check()` return type annotation
+- Update `daemon.py` line 248 from tuple destructuring to `result = ...`
+- Update all `action`, `reason`, `severity` variable references in `daemon.py` poll loop to `result.action`, `result.reason`, `result.severity`
+- Update all 10 mock return values in `test_daemon_events.py` (add `from content_checker import TrackEvalResult` import)
+- Run full test suite — all tests must pass before Phase 2 begins
+- Rationale: zero behavior change; isolated refactor; every subsequent phase writes and reads named attributes only
 
-| Concern | At current scale | Notes |
-|---------|-----------------|-------|
-| SSE subscriber list | 1-2 open browser tabs | `_subscribers` list grows with open tabs; full queues are already dropped by `_file_tail()` |
-| now_playing.json write contention | None (daemon only writes) | web_ui reads; no concurrent writers |
-| Token cache contention | Low — daemon skips continuously; manual skip is rare | If both processes refresh simultaneously, the second write wins; next API call re-refreshes silently |
-| JSONL file size | ~1KB per day of active listening | No rotation needed for this use case; file is read from end on startup |
+**Phase 2 — DrugScanner + SexualContentScanner modules**
+- Create `drug_scanner.py` with term `frozenset` and `scan(lyrics) -> tuple[bool, list[str]]`
+- Create `sexual_content_scanner.py` same structure
+- Write isolated unit tests in `test_drug_scanner.py` and `test_sexual_content_scanner.py`
+- Rationale: pure functions with no dependencies on the rest of the pipeline; test independently before wiring into `ContentChecker`
 
----
+**Phase 3 — ContentChecker pipeline integration**
+- Add `drug_scanner=None` and `sexual_content_scanner=None` parameters to `ContentChecker.__init__()`
+- Store both on `self`
+- In `check()`, after profanity scan, call both new scanners (guard: `if self.drug_scanner is not None`)
+- Aggregate results; populate all `TrackEvalResult` fields
+- Wire both scanners into `daemon.py` `main()` instantiation block
+- Write/extend `test_content_checker.py` for all new pipeline paths
+- Rationale: depends on Phase 1 (`TrackEvalResult` exists) and Phase 2 (scanner classes exist)
+
+**Phase 4 — Event propagation + incident log**
+- Add `"drug_reference": result.drug_reference` and `"sexual_content": result.sexual_content` to:
+  - `eval_result` event dict in `daemon.py` (allow branch)
+  - `skip` event dict in `daemon.py`
+  - `eval_result` event dict after successful skip
+  - All `_write_now_playing()` calls in the FSM-on branch
+  - The paused-branch eval_result and now_playing calls (use `result.drug_reference` etc — or `False`/`False` since pause path does not re-evaluate)
+- Verify `test_daemon_events.py` still passes; add assertions for new fields where relevant
+- Rationale: depends on Phase 3 (`ContentChecker` now populates these fields on `TrackEvalResult`)
+
+**Phase 5 — Dashboard badge variants**
+- Add `badge--drug` and `badge--sexual` CSS classes to `index.html` (following the existing badge color pattern)
+- Extend `setBadgeClass(reason)` to return `'badge--drug'` for `reason.includes('drug')` and `'badge--sexual'` for `reason.includes('sexual')`
+- Extend `badgeLabel(reason)` to return `'Flagged: drug reference'` and `'Flagged: sexual content'`
+- Extend `setEvalBadge(evalState, severity, drugRef, sexualContent)` — or read new fields off the event object — to render additional `badge--drug` / `badge--sexual` badges in the now-playing card badge-group div
+- Update `es.onmessage` eval_result handler to pass `evt.drug_reference` and `evt.sexual_content` through to `setEvalBadge()`
+- Update `hydrateNowPlaying()` / `renderTrack()` to pass `data.drug_reference` and `data.sexual_content` through to `setEvalBadge()`
+- Rationale: depends on Phase 4 (SSE events and `/now-playing` response now carry boolean fields)
 
 ## Sources
 
-- Direct code inspection: `daemon.py`, `web_ui/main.py`, `skip_client.py`, `content_checker.py`, `web_ui/templates/index.html`, `docker-compose.yml` — HIGH confidence
-- Current `data/skip_events.jsonl` event schema — HIGH confidence
-- `state.json` read/write pattern and EBUSY rationale (PROJECT.md key decisions) — HIGH confidence
-- Existing token cache sharing (`./token_cache:/app/token_cache` volume in docker-compose.yml) — HIGH confidence
-- Error 701 / Sonos UPnP constraint documented in PROJECT.md and skip_client.py — HIGH confidence
+- Direct inspection: `content_checker.py`, `daemon.py`, `profanity_scanner.py`, `lyrics_service.py`, `web_ui/main.py`, `web_ui/templates/index.html`, `tests/test_daemon_events.py`, `tests/test_web_ui_endpoints.py`, `tests/conftest.py`
+- `.planning/PROJECT.md` v1.3 milestone context and deferred features list
+- Confidence: HIGH — all findings derived from the current v1.2 codebase; no external sources required for this integration architecture
 
 ---
-*Architecture research for: v1.2 Now Playing Status card + manual skip integration*
-*Researched: 2026-04-02*
+*Architecture research for: Spotify Family Safe Mode v1.3 — Drug & Sexual Reference Detection*
+*Researched: 2026-04-03*

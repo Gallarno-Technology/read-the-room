@@ -1,177 +1,171 @@
 # Project Research Summary
 
-**Project:** Spotify Family Safe Mode — Now-Playing Card and Manual Skip
-**Domain:** Real-time dashboard extension for an existing FastAPI/SSE filter daemon
-**Researched:** 2026-04-02
+**Project:** Spotify Family Safe Mode — v1.3 Drug & Sexual Content Detection
+**Domain:** Keyword-based content signal detection — Python content filter extension
+**Researched:** 2026-04-03
 **Confidence:** HIGH
 
 ## Executive Summary
 
-This milestone adds two features to an already-working parental filter dashboard: a now-playing card showing current track, artist, and real-time evaluation state badge, and a manual skip button the parent can use without opening Spotify. Both features extend existing FastAPI/SSE infrastructure rather than introducing new technology. The stack is fully locked — no new PyPI dependencies are needed in either container. The core implementation pattern is additive: two new SSE event types (`track_change` and `eval_result`) written to the existing `skip_events.jsonl` file, a `now_playing.json` snapshot file for page-load hydration, and a `POST /skip` endpoint in the web UI.
+v1.3 is a well-bounded extension to an already-working content filter pipeline. The existing daemon has `ContentChecker`, `ProfanityScanner`, `LyricsService`, and a badge-group dashboard that were deliberately designed as an extensibility foundation. Adding drug reference and sexual content detection means wiring two new scanner modules into an established pattern — the architecture is already correct; the work is execution, not design.
 
-The recommended architecture keeps the daemon as the primary Spotify/SoCo actor. For the manual skip, the web UI should call the Spotify API directly using a shared token cache file (already bind-mounted between containers) via a web_ui-side spotipy instance. This avoids inter-container HTTP, requires no new IPC file, and mirrors how the daemon's `SpotifySkipClient` works. The trade-off is that the daemon's in-memory `consecutive_skips` counter will not see manual skips — this must be an explicit design decision. The alternative (file-IPC where web_ui writes a skip request for the daemon to execute) preserves counter accuracy at the cost of 1s poll latency on every manual skip response.
+The recommended approach is entirely Python stdlib: `re.compile` with `\b` word-boundary anchors for keyword matching, `@dataclass(frozen=True)` for the new named return type, and project-owned `frozenset` keyword lists. No new PyPI dependencies are required. The `TrackEvalResult` dataclass refactor (replacing the current `(action, reason, severity)` 3-tuple) is the hard prerequisite for everything else and must ship as a single atomic commit. Both new scanners are then independent pure functions that plug into `ContentChecker` via the same injection pattern already used for `ProfanityScanner`.
 
-The highest-risk pitfalls are well-understood and all preventable at design time. The three that must be built in from the start — not retrofitted — are: (1) emit `eval_result` for ALL ContentChecker outcomes (not just skips), or the badge stays "Evaluating" forever for safe tracks; (2) include `track_id` in all events and guard on it in the browser, or rapid track changes produce wrong badges on wrong tracks; (3) implement `GET /now-playing` reading `now_playing.json` at the same time as the card, not later, or the card is blank on every page load and SSE reconnect.
-
----
+The principal risk is not technical — it is false positives destroying parent trust. Drug vocabulary heavily overlaps with everyday English ("high", "smoke", "grass", "roll", "blow"). A high-recall keyword list that flags family-friendly songs will cause parents to disable Family Safe Mode entirely. The correct v1.3 posture is a short, high-precision list of unambiguous terms, with the expectation that some drug references will be missed. The same conservative approach applies to sexual content: `SEXUAL_TERMS` must not duplicate words already in `SEVERITY_MAP`, and the initial list should focus only on unambiguous terms absent from the profanity scanner.
 
 ## Key Findings
 
 ### Recommended Stack
 
-No new dependencies are introduced. The existing stack — Python 3.12, FastAPI 0.115.12, spotipy 2.26.0, vanilla JS EventSource, asyncio file-tail IPC — is sufficient for every new requirement. The `skip_events.jsonl` file-tail pattern used for skip and warning events handles the new `track_change` and `eval_result` event types transparently: `_file_tail()` in web_ui already fans out all JSON lines to all SSE subscribers regardless of event type.
+No new dependencies. All capabilities are available in Python 3.12 stdlib. The three technical choices are: `re.compile` (word-boundary matching), `@dataclass` (named return type), and `frozenset` (keyword backing store). This is the entire stack delta for v1.3.
 
-The only new data artifact is `data/now_playing.json`, a single-record snapshot written by the daemon on track change and read by the web UI on `GET /now-playing`. No new Docker volumes are needed; the `./data` bind mount is already shared between both containers in `docker-compose.yml`.
+The `re.compile` approach is preferred over the profanity scanner's word-split + dict lookup pattern because it handles punctuation boundaries natively via `\b` and is composable for potential multi-word phrase additions. Patterns must be compiled once at module load — not inside `scan()` on every call.
 
 **Core technologies:**
-- `asyncio` (stdlib, Python 3.12): Coordinate new `_skip_command_tail()` coroutine alongside existing poll loop, if file-IPC skip approach is chosen — zero additional cost, same pattern as `_file_tail()`
-- `spotipy` 2.26.0 (existing in daemon): Daemon owns all `current_playback()` calls; no new API calls or scopes required; `user-modify-playback-state` scope already present
-- FastAPI 0.115.12 (existing in web_ui): `POST /skip` and `GET /now-playing` are ~10 lines each, mirroring the existing `POST /fsm` pattern
-- Vanilla JS `EventSource` (browser native): Extend existing `onmessage` handler with `track_change` and `eval_result` case branches; no framework changes
+- `re` (stdlib): Word-boundary keyword matching — `\b` anchors prevent substring false positives; `re.IGNORECASE` avoids allocation overhead of `.lower()`; `re.search` short-circuits on first match for boolean detection
+- `dataclasses` (stdlib): `TrackEvalResult` named return type — `frozen=True` enforces immutability; `slots=True` reduces per-instance memory; default field values mean existing test mocks constructing `TrackEvalResult(action=..., reason=..., severity=...)` continue to work when new fields are added
+- `frozenset` (builtin): Keyword list backing store — O(1) membership testing; immutable; communicates intent that these are fixed canonical sets
 
 ### Expected Features
 
+v1.3 delivers two new boolean detection signals and one structural refactor. Industry content advisory systems (ESRB, RIAA, IMDB) consistently treat drug reference and sexual content as discrete boolean categories, not severity tiers. For children ages 3 and 7, any drug reference or sexual content warrants a skip — the severity distinction has no actionable effect.
+
 **Must have (table stakes):**
-- Track name and artist on the now-playing card — daemon already has this data on every poll cycle via `current_playback()`
-- Evaluation state badge cycling through: Evaluating → Passed / No lyrics / Skipped — the badge is the core value of this milestone
-- "Evaluating" shown immediately on track change before ContentChecker runs — prevents false "Passed" display during LRCLIB fetch (100ms–2s latency)
-- Badge updates to final state after ContentChecker completes — requires emitting `eval_result` for ALL outcomes (allow and skip), not only skips
-- Manual skip button disabled while no track is playing, FSM is off, or a skip is in flight — prevents accidental double-skip
-- `POST /skip` endpoint in web_ui — delegates to skip mechanism without duplicating Spotify OAuth
-- Card hidden when playback is idle — requires an explicit idle state transition emitted by the daemon when `current_playback()` returns None
-- Page-load hydration showing current track without waiting for next track change — requires `GET /now-playing` REST endpoint reading `now_playing.json`
+- `TrackEvalResult` dataclass replacing positional 3-tuple — hard prerequisite; unlocks all other work
+- `DrugScanner` in `drug_scanner.py` with high-confidence `DRUG_TERMS` frozenset — unambiguous drug names and slang only; omit ambiguous terms like "high", "smoke", "grass"
+- `SexualContentScanner` in `sexual_content_scanner.py` with conservative `SEXUAL_TERMS` frozenset — disjoint from `SEVERITY_MAP`; focus on terms the profanity scanner misses
+- Both signals trigger `action='skip'` when FSM is active
+- Both signals logged in `skip_events.jsonl` with new reason strings (`"drug_reference"`, `"sexual_content"`)
+- Dashboard badge variants for drug-reference and sexual-content in the skip feed
 
 **Should have (differentiators):**
-- "No lyrics" badge distinct from "Passed" — communicates honest uncertainty vs. confirmed clean; amber vs. green badge colour
-- Skip reason in the Skipped badge label ("Skipped: explicit tag" vs. "Skipped: strong language") — mirrors existing skip feed badge pattern
-- Skip button disabled when FSM is off — coherent interface; manual skip only makes sense in filtering context
-- `track_id` guard on `eval_result` application — prevents badge cross-contamination during rapid track changes; discard events whose `track_id` does not match the currently displayed track
+- Matched terms included in internal debug logs (not in JSONL events — see Pitfall 7 on security)
+- `SEXUAL_TERMS` disjoint-from-`SEVERITY_MAP` unit test — prevents future regression
+- `isinstance(result, TrackEvalResult)` smoke test — catches missed migration sites
 
 **Defer (v2+):**
-- Album artwork — data is already in the Spotify response (`track["album"]["images"]`), no new API call needed, but adds `<img>` load complexity; not required per PROJECT.md
-- Playback progress bar — requires `progress_ms` polling or client-side timer; out of scope
-- Queue / next-track display — requires separate Spotify queue API call; out of scope
+- Severity tiers for drug or sexual signals — no actionable effect on skip behavior for ages 3 and 7
+- Per-category enable/disable toggles — requires UI changes beyond v1.3 scope
+- Phrase matching for sexual content ("making love", "netflix and chill")
+- Alcohol/tobacco as a separate configurable signal
+- LLM/NLP contextual detection to reduce false positives
 
 ### Architecture Approach
 
-The v1.2 architecture extends the existing two-container (daemon + web_ui) system without adding services or volumes. The daemon emits two new event types to the existing `skip_events.jsonl`: `track_change` immediately on detection (with `eval_state: "evaluating"`), and `eval_result` after ContentChecker completes for all outcomes. It also writes/overwrites `data/now_playing.json` at both points as a snapshot for page-load hydration. The web_ui adds `GET /now-playing` (reads `now_playing.json`) and `POST /skip` (calls Spotify API directly or writes a skip request file for the daemon). The browser receives all real-time updates through the existing `/events` SSE channel with two new event type handlers added to `onmessage`.
+v1.3 adds two new scanner modules that mirror `profanity_scanner.py` exactly, extends `ContentChecker` with scanner injection, replaces the 3-tuple return type with a named dataclass, and propagates two new boolean fields through the existing file-based IPC chain. The `web_ui/main.py` FastAPI server requires zero changes — new JSON fields pass through its `json.loads/json.dumps` SSE bridge verbatim. Only `daemon.py` call sites and `index.html` badge logic require updates beyond the new modules.
 
 **Major components:**
-1. `daemon.py` (modified) — emits `track_change` and `eval_result` events; writes `now_playing.json` at both points; optionally handles `skip_commands.jsonl` if file-IPC skip approach is chosen
-2. `web_ui/main.py` (modified) — adds `GET /now-playing` and `POST /skip` endpoints; optionally initializes a spotipy instance for direct Spotify skip calls
-3. `web_ui/templates/index.html` (modified) — now-playing card HTML; badge state machine in JS; manual skip button; `track_change` and `eval_result` SSE handlers; `track_id` guard
-4. `data/now_playing.json` (new file) — single-record snapshot for page-load hydration and SSE reconnect recovery; written only by daemon via `os.replace()`-safe pattern
-5. `data/skip_events.jsonl` (extended) — existing file; new event types are additive; `_file_tail()` requires no change to pass them through
+1. `drug_scanner.py` (new) — `DrugScanner` with module-level compiled regex; `scan(lyrics) -> tuple[bool, list[str]]`
+2. `sexual_content_scanner.py` (new) — `SexualContentScanner`, same structure; `SEXUAL_TERMS` must be disjoint from `SEVERITY_MAP`
+3. `content_checker.py` (modified) — `TrackEvalResult` dataclass defined here; `check()` return type updated; both new scanners injected via `__init__` kwargs with `None` defaults; all three scans run unconditionally once lyrics are available (no short-circuit on profanity)
+4. `daemon.py` (modified) — 10 mock call sites in tests updated; all 4 `_append_event` / `_write_now_playing` call sites updated with new boolean fields; a `_emit_eval_result` helper should be extracted to avoid the 4-site update problem
+5. `web_ui/templates/index.html` (modified) — `badge--drug` and `badge--sexual` CSS classes; `setBadgeClass()`, `badgeLabel()`, `setEvalBadge()` extended
 
 ### Critical Pitfalls
 
-1. **"Evaluating forever" for allowed tracks** — `_append_skip_event()` is currently called only in the `action == "skip"` branch. Emitting `eval_result` for allowed tracks is not optional — without it, the badge never resolves to "Passed" or "No lyrics" for the majority of songs that pass the filter.
+1. **Substring matching on common words** — Never use `term in lyrics` or bare `re.search(term, lyrics)`. Always compile with `r'\b(?:term1|term2)\b'` word-boundary anchors. Test against a known-clean song corpus before merging. "High Hopes", "Here Comes the Sun", and "Puff the Magic Dragon" must produce zero false positives.
 
-2. **Stale card on page load and SSE reconnect** — `state.json` does not carry track metadata or eval state. Without a `GET /now-playing` endpoint reading `now_playing.json`, the card is blank on fresh load and after SSE reconnection. This endpoint must be designed with the card, not added later.
+2. **`SEXUAL_TERMS` duplicating `SEVERITY_MAP` words** — `dick`, `cock`, `pussy`, `whore`, `slut`, `tits`, `wank`, `twat` are already in `SEVERITY_MAP` at severity 2. Adding them to `SEXUAL_TERMS` creates double-flagging with no behavior change. Enforce with a `isdisjoint` assertion unit test that must pass before any other scanner test.
 
-3. **Double skip from concurrent manual and auto-skip** — Manual skip via web UI and an auto-skip from ContentChecker can both fire within the same 1s poll window. Mitigate with a 2-second button debounce and a cooldown timestamp in `state.json` (daemon checks `last_manual_skip_at` before executing an auto-skip for the same track). File-IPC approach eliminates this by design: only the daemon executes skip calls.
+3. **3-tuple to `TrackEvalResult` migration breaking call sites silently** — Python will not raise at import time; it raises `TypeError` only when the unpack executes. All 10 mock return values in `test_daemon_events.py` and all `return (...)` statements in `content_checker.py` must be updated in a single atomic commit. Add `from content_checker import TrackEvalResult` to the test file. Verify with grep for zero remaining bare-tuple unpack patterns.
 
-4. **Badge cross-contamination on rapid track changes** — An `eval_result` for Song A can arrive while the card displays Song B (LRCLIB fetch takes 200ms–2s). Include `track_id` in all `track_change` and `eval_result` events; browser discards updates where `evt.track_id !== currentTrackId`.
+4. **New boolean fields absent from some `eval_result` code paths** — `daemon.py` emits `eval_result` events from 4 separate inline dict-construction call sites. Missing one means inconsistent events: some carry `drug_reference` and `sexual_content`, others do not. Extract a `_emit_eval_result` helper before adding the new fields, so all 4 paths are covered in one change.
 
-5. **Manual skip auth gap: web_ui has no Spotify token by default** — The daemon owns the authenticated `spotipy.Spotify` instance. Resolution: web_ui instantiates its own spotipy using the same `.env` credentials and shared token cache bind-mount (`./token_cache:/app/token_cache` already in `docker-compose.yml`). Alternative: file-IPC skip request written to `data/skip_commands.jsonl`; daemon reads and executes it. File-IPC preferred if `consecutive_skips` counter accuracy is required.
-
----
+5. **`now_playing.json` not updated in sync with `eval_result` events** — The SSE stream and the JSON hydration endpoint are written from separate call sites. Drug/sexual badges visible in the live feed will disappear on page reload if `_write_now_playing` is not updated with the same new fields. The `_emit_eval_result` helper from pitfall 4 should call both `_append_event` and `_write_now_playing` to keep them in sync automatically.
 
 ## Implications for Roadmap
 
-This milestone maps to a single cohesive delivery with two natural implementation phases ordered by data flow: daemon-side event emission first, then web UI consumption. Both phases are small. The critical pre-implementation step is resolving the manual skip architecture decision before any code is written.
+Based on research, the build order is driven by a single hard prerequisite (the dataclass refactor) followed by parallel independent work (scanner modules), followed by wiring, propagation, and UI in that order.
 
-### Phase 0: Architecture Decision — Manual Skip IPC
+### Phase 1: TrackEvalResult Dataclass Refactor
 
-**Rationale:** This is not an implementation phase but a required decision point. The manual skip IPC approach (direct spotipy in web_ui vs. file-IPC through daemon) affects both the daemon code (Phase 1 adds `_skip_command_tail()` if file-IPC) and the web_ui code (Phase 2 adds spotipy init if direct call). Coding either container before this decision wastes rework.
+**Rationale:** The dataclass migration is a pure refactor with zero behavior change and zero new features, but it is the hard prerequisite for Phases 2-5. Every subsequent phase writes to and reads from named attributes on `TrackEvalResult`. Doing this first as an isolated commit means the test suite can be confirmed green before any new detection logic is added. If done last or interleaved, a failing migration will be difficult to isolate from failing detection logic.
+**Delivers:** `TrackEvalResult` dataclass in `content_checker.py`; all 5 `return (...)` statements in `check()` replaced; `daemon.py` attribute access updated; all 10 test mocks updated; test suite green with no behavior change.
+**Addresses:** Table-stakes feature — `TrackEvalResult` named dataclass (P1 from FEATURES.md)
+**Avoids:** Pitfall 3 (tuple migration silently breaking call sites) — atomic commit, grep verification, smoke test
 
-**Delivers:** A recorded decision in PROJECT.md: direct spotipy (simpler, <1s response, counter diverges) or file-IPC (1s poll latency, counter stays accurate). Recommendation is direct spotipy unless consecutive-skip accuracy is a stated requirement.
+### Phase 2: Scanner Modules
 
-**Avoids:** Pitfall 6 (missing auth), Pitfall 9 (consecutive skip counter divergence).
+**Rationale:** `DrugScanner` and `SexualContentScanner` are pure functions with no dependencies on each other and no dependency on the rest of the pipeline. They receive a lyrics string and return a `(bool, list[str])` tuple. Both can be written and unit-tested in complete isolation before any wiring occurs. Developing them before Phase 3 means ContentChecker integration can be tested against real scanner classes rather than mocks.
+**Delivers:** `drug_scanner.py` with curated high-confidence `DRUG_TERMS` frozenset and compiled regex; `sexual_content_scanner.py` with conservative `SEXUAL_TERMS` frozenset (disjoint from `SEVERITY_MAP`); unit tests in `test_drug_scanner.py` and `test_sexual_content_scanner.py`; disjoint-from-`SEVERITY_MAP` assertion test passing.
+**Uses:** `re` stdlib, `frozenset` builtin — zero new dependencies
+**Avoids:** Pitfall 1 (substring matching); Pitfall 2 (SEVERITY_MAP overlap); Pitfall 6 (ambiguous drug terms)
 
-### Phase 1: Daemon IPC Extensions
+### Phase 3: ContentChecker Pipeline Integration
 
-**Rationale:** The daemon is the data-producing end. Every UI feature depends on the events it emits and the `now_playing.json` snapshot it writes. Nothing in the browser or web_ui backend can be tested end-to-end without this phase complete.
+**Rationale:** Depends on Phase 1 (`TrackEvalResult` exists) and Phase 2 (scanner classes exist). Wires both scanners into `ContentChecker.__init__` as optional injection parameters (default `None`), adds them to the `check()` pipeline after the profanity scan, and aggregates results into `TrackEvalResult` fields. All three scans must run unconditionally — do not short-circuit on profanity.
+**Delivers:** `ContentChecker` wired with `DrugScanner` and `SexualContentScanner`; `TrackEvalResult` fields `drug_reference`, `drug_terms`, `sexual_content`, `sexual_terms` populated; `daemon.py` instantiation updated; `test_content_checker.py` extended for all new pipeline paths.
+**Implements:** ContentChecker filter pipeline (Architecture section)
+**Avoids:** Short-circuiting drug/sexual scans when profanity fires
 
-**Delivers:**
-- `track_change` event emitted immediately on track detection (before ContentChecker), with `track_id`, track name, artist, and `eval_state: "evaluating"`
-- `eval_result` event emitted after ContentChecker for ALL outcomes (allow and skip), with `track_id` and final `eval_state`
-- `now_playing.json` written at both points (evaluating state on detection, final state after check)
-- Idle event emitted when `current_playback()` returns None
-- `_skip_command_tail()` coroutine (only if file-IPC approach is chosen in Phase 0)
+### Phase 4: Event Propagation and Incident Log
 
-**Addresses features:** Evaluation state badge, track display, idle card clearing, badge cross-contamination guard
-**Avoids:** Pitfall 3 (evaluating forever), Pitfall 5 (badge cross-contamination), Pitfall 8 (card not cleared on stop)
+**Rationale:** Depends on Phase 3 (ContentChecker now populates the new fields). The recommended approach is to extract a `_emit_eval_result` helper in `daemon.py` first, then add the two new boolean fields in that single helper rather than updating 4 inline dict-construction call sites. Both `_append_event` and `_write_now_playing` should be called from this helper to guarantee `events.jsonl` and `now_playing.json` stay in sync.
+**Delivers:** `drug_reference` and `sexual_content` booleans in all `eval_result` and `skip` events; same fields in `now_playing.json`; `test_daemon_events.py` updated with field assertions.
+**Avoids:** Pitfall 4 (missing fields on some code paths); Pitfall 5 (now_playing.json not updated)
 
-### Phase 2: Web UI Backend and Frontend
+### Phase 5: Dashboard Badge Variants
 
-**Rationale:** Depends on Phase 1 event schemas being locked. Can be designed in parallel with Phase 1 but requires Phase 1 running for end-to-end testing. All changes in this phase are consumers of Phase 1 outputs.
-
-**Delivers:**
-- `GET /now-playing` endpoint reading `now_playing.json` — solves page-load hydration and SSE reconnect blanking
-- `POST /skip` endpoint (direct spotipy call or file-IPC write, per Phase 0 decision)
-- Now-playing card HTML skeleton with evaluation state badge
-- Badge state machine in JS: handles `track_change` (show card, set badge to Evaluating), `eval_result` (update badge if `track_id` matches), idle event (hide card)
-- `track_id` guard in JS discarding stale eval results
-- Manual skip button: 2-second debounce, disabled when FSM is off or no track playing, error feedback on failure, pending state during request
-- On-load hydration via `GET /now-playing`; re-hydrate on SSE `onopen` (reconnect recovery)
-
-**Uses:** FastAPI `StreamingResponse` SSE pattern (existing), `SpotifySkipClient` or file-IPC (per Phase 0), `.card` and `.badge` CSS classes (existing)
-**Avoids:** Pitfall 1 (stale page load), Pitfall 2 (double skip), Pitfall 4 (SSE reconnect blank), Pitfall 7 (rate limit), Pitfall 12 (silent unhandled event types)
+**Rationale:** Depends on Phase 4 (SSE events and `/now-playing` now carry the boolean fields). CSS badge classes must be defined before JS tries to assign them. Extend `setBadgeClass()`, `badgeLabel()`, and `setEvalBadge()` independently — do not overload `severity` to signal drug/sexual content. Guard all JS reads with `?? false` for backward compatibility with pre-v1.3 events in the log.
+**Delivers:** `badge--drug` and `badge--sexual` CSS classes; extended badge JS; visual skip feed showing distinct badge types for drug-reference and sexual-content skips.
+**Avoids:** Pitfall 7 (sexual-content / profanity badge collision); UX pitfall (no visual distinction in incident log)
 
 ### Phase Ordering Rationale
 
-- Phase 0 is a decision, not code, but it gates both subsequent phases. Document it first.
-- Phase 1 before Phase 2 because the browser cannot display what the daemon has not emitted. Event field names and `track_id` inclusion must be locked before Phase 2 builds consumers.
-- Both phases are small enough to implement in a single session each. No intermediate releases are required between them.
-- Steps within Phase 1 (daemon changes) and within Phase 2 (web_ui backend vs. frontend) are independent of each other and can be built in either order within the phase.
+- Phase 1 before all others: the dataclass is a hard structural prerequisite; isolating it as a no-behavior-change refactor lets CI confirm green before new logic is added
+- Phase 2 before Phase 3: scanner modules are pure functions that can be unit-tested in isolation; wiring them into ContentChecker after they are tested independently reduces debugging surface
+- Phase 3 before Phase 4: ContentChecker must populate `TrackEvalResult` fields before daemon can propagate them to events
+- Phase 4 before Phase 5: dashboard needs the boolean fields to arrive in SSE events before JS can render badges
+- The `_emit_eval_result` helper extraction in Phase 4 is a prerequisite within that phase, not its own numbered phase
 
 ### Research Flags
 
-Needs deeper research during planning:
-- **Phase 0 (skip IPC decision):** Review PROJECT.md decision log for any prior ruling on `consecutive_skips` accuracy requirements. The research identifies two valid options with a clear tradeoff; the decision depends on whether the 5-skip pause guard is a hard behavioral contract or a best-effort heuristic.
-
 Phases with standard patterns (skip research-phase):
-- **Phase 1 (daemon event emission):** Fully documented. `_append_skip_event()` pattern already in production; extending it with new event types and `now_playing.json` writes is mechanical.
-- **Phase 2 (web UI endpoints + frontend):** Both new endpoints mirror existing patterns (`POST /fsm`, `_file_tail`). Badge state machine is fully specified in FEATURES.md state diagram. No novel architecture.
+- **Phase 1 (Dataclass Refactor):** Well-documented stdlib `@dataclass` pattern; exhaustive call-site inventory already compiled in ARCHITECTURE.md
+- **Phase 2 (Scanner Modules):** Standard `re.compile` + `frozenset` pattern; keyword list content is domain judgment, not a research question
+- **Phase 3 (ContentChecker Integration):** Mirrors existing `ProfanityScanner` injection pattern exactly; no novel architecture
+- **Phase 4 (Event Propagation):** JSON field addition through existing JSONL pipeline; no novel architecture
+- **Phase 5 (Dashboard Badges):** Extends existing `badge-group` CSS/JS pattern from v1.2
 
----
+No phases require `/gsd:research-phase` during planning. All patterns are well-documented and the existing codebase provides direct precedent for every change required.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All research grounded in direct codebase inspection; no new dependencies means zero version or compatibility risk |
-| Features | HIGH | Feature set derived from code inspection and PROJECT.md v1.2 requirements; evaluation state machine fully specified with all transition cases |
-| Architecture | HIGH | IPC patterns confirmed from running production code; token cache sharing confirmed from docker-compose.yml; EBUSY write constraint documented in PROJECT.md decision log |
-| Pitfalls | HIGH | All pitfalls traced to specific existing code paths with line-level analysis; rate limit behavior sourced from official Spotify docs |
+| Stack | HIGH | All findings based on official Python docs and direct codebase inspection; zero external dependencies reduce uncertainty |
+| Features | HIGH | Based on direct code inspection of v1.2, ESRB/RIAA official documentation, and explicit PROJECT.md v1.3 milestone requirements |
+| Architecture | HIGH | All findings based on direct inspection of every production and test file in the codebase; exhaustive call-site inventory compiled |
+| Pitfalls | HIGH | All pitfalls identified from direct codebase inspection of real production code; not inferred from external sources |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Manual skip architecture decision (Phase 0):** Research presents two valid options with clear tradeoffs. The choice between direct spotipy in web_ui (simpler, no poll latency) and file-IPC through daemon (counter-accurate, 1s latency) must be recorded in PROJECT.md before implementation begins. This is the only unresolved design question.
+- **Drug keyword list completeness:** The research provides a high-confidence seed list but the final term selection is a domain judgment call for the implementation team. Terms like "dope", "bars", "plug", and "trap" are noted as medium-confidence with real false-positive risk. Plan for a manual review pass against a clean-song corpus before merging the keyword list. This is an implementation quality gate, not a design question.
 
-- **`now_playing.json` vs. `state.json` schema extension:** PITFALLS.md suggests extending `state.json` for hydration; ARCHITECTURE.md recommends a separate `now_playing.json`. Both carry the same data. The separate file approach is cleaner (avoids polluting the FSM state file with transient track metadata) and is the recommended choice — but it must be consistent across Phase 1 and Phase 2.
+- **Sexual content keyword list size:** The safe, high-confidence core set for sexual content is intentionally small because most sexual slang either appears in `SEVERITY_MAP` already or is too context-dependent for keyword-only detection. The v1.3 list (`naked`, `nude`, `nudes`, `porn`, `pornography`, `orgasm`, `masturbate`, `masturbation`) is conservative by design — the profanity scanner covers the primary detection vector. Accept this gap.
 
-- **Token cache concurrent write race (informational):** Two processes sharing the token cache file creates a narrow race on concurrent token refresh. Research assesses this as low risk (60-minute token validity, infrequent refresh). No mitigation needed, but the `SPOTIFY_CACHE_PATH` env var must be set correctly in the web_ui container before deployment. Verify this in `docker-compose.yml` before Phase 2 testing.
-
----
+- **`_eval_state_from_result` helper in `daemon.py` (line 147):** ARCHITECTURE.md identifies this as a migration target. Whether it should accept a `TrackEvalResult` or remain taking positional `action`/`reason` strings is a minor implementation decision to confirm during Phase 1.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Direct codebase inspection: `daemon.py`, `web_ui/main.py`, `skip_client.py`, `content_checker.py`, `web_ui/templates/index.html`, `docker-compose.yml`, `state.json` — all research grounded in actual code; no inference from documentation alone
-- `.planning/PROJECT.md` — v1.2 milestone requirements, Gap-2 fix rationale, architectural decision log, EBUSY write constraint
-- [FastAPI StreamingResponse docs](https://fastapi.tiangolo.com/advanced/custom-response/#streamingresponse) — SSE via StreamingResponse pattern
-- [spotipy current_playback docs](https://spotipy.readthedocs.io/en/2.26.0/#spotipy.client.Spotify.current_playback) — response structure including `album.images`
-- [MDN EventSource](https://developer.mozilla.org/en-US/docs/Web/API/EventSource) — browser SSE API, `onopen` reconnect behavior, `Last-Event-ID` header
+- Direct codebase inspection: `content_checker.py`, `daemon.py`, `profanity_scanner.py`, `lyrics_service.py`, `web_ui/main.py`, `web_ui/templates/index.html`, `tests/test_daemon_events.py` — all architecture and pitfall findings
+- Python official docs: `re` module, `dataclasses` module — stack technology rationale
+- `.planning/PROJECT.md` v1.3 milestone section — feature scope, deferred items
+- ESRB content descriptors (https://www.esrb.org/ratings-guide/) — boolean category model for drug/sexual signals
+- RIAA Parental Advisory evolution — boolean three-category model confirmation
 
 ### Secondary (MEDIUM confidence)
-- Spotify Web API rate limits — practical limit assessed at ~180 requests/30s for user endpoints; official documentation confirms existence of limits without publishing exact values
-- LRCLIB and SoCo latency values (100ms–2s lyrics fetch, 200ms–1.5s SoCo skip) — from project retrospective notes, not measured in current v1.2 context
+- PMC study on drug-related lyrics (190-keyword corpus) — drug keyword taxonomy seed list
+- LYDIA alcohol detection algorithm (PMC) — word-based detection; false-positive analysis for ambiguous terms
+- arxiv.org sexual content detection study — confirms 61% F1 for dictionary-based approach; supports conservative list strategy
+
+### Tertiary (LOW confidence)
+- BurntRouter/filtered-word-lists (GitHub) — reviewed as candidate keyword source; not recommended (no drug category, no maintenance signal)
+- Drug slang lists from recovery resource sites — consulted for slang term awareness only; evolve rapidly; used for initial term selection only
 
 ---
-
-*Research completed: 2026-04-02*
+*Research completed: 2026-04-03*
 *Ready for roadmap: yes*
