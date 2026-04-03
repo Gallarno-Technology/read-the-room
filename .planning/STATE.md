@@ -1,6 +1,6 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
+milestone: v1.3
 milestone_name: Drug & Sexual Reference Detection
 status: ready to plan
 stopped_at: ""
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 Phase: 6 of 10 (v1.2 starts at Phase 6)
 Plan: — (not yet planned)
 Status: Ready to plan
-Last activity: 2026-04-02 — v1.2 roadmap created; 5 phases (06-10), 10 requirements mapped
+Last activity: 2026-04-02 — v1.3 roadmap created; 5 phases (06-10), 10 requirements mapped
 
 Progress: [░░░░░░░░░░] 0% (v1.2)
 

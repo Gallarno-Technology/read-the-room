@@ -4,7 +4,8 @@
 
 - ✅ **v1.0 MVP** — Phases 1-3 (shipped 2026-04-02)
 - ✅ **v1.1 Deployment** — Phases 4-5 (shipped 2026-04-02)
-- 🚧 **v1.2 Drug & Sexual Reference Detection** — Phases 6-10 (in progress)
+- 📋 **v1.2 Now Playing Status** — Phases TBD (planned)
+- 🚧 **v1.3 Drug & Sexual Reference Detection** — Phases 6-10 (in progress)
 
 ## Phases
 
@@ -29,7 +30,13 @@ See `.planning/milestones/v1.1-ROADMAP.md` for full phase details.
 
 </details>
 
-### 🚧 v1.2 Drug & Sexual Reference Detection (In Progress)
+### 📋 v1.2 Now Playing Status (Planned)
+
+**Milestone Goal:** Dashboard shows the current track with its real-time filter evaluation state and a manual skip button, so parents can see what's playing and act on it without opening Spotify.
+
+*Phases not yet defined — run `/gsd:new-milestone` to plan this milestone.*
+
+### 🚧 v1.3 Drug & Sexual Reference Detection (In Progress)
 
 **Milestone Goal:** Extend the filter pipeline with drug reference and sexual content detection signals, both derived from existing LRCLIB lyrics with no new dependencies, logged to the incident file, and visible in the dashboard.
 
@@ -105,8 +112,8 @@ See `.planning/milestones/v1.1-ROADMAP.md` for full phase details.
 | 3. Web UI Dashboard | v1.0 | 5/5 | Complete | 2026-04-02 |
 | 4. Sonos Discovery Hardening | v1.1 | 2/2 | Complete | 2026-04-02 |
 | 5. Deployment & Documentation | v1.1 | 2/2 | Complete | 2026-04-02 |
-| 6. Return Type Refactor | v1.2 | 0/? | Not started | - |
-| 7. Drug Scanner | v1.2 | 0/? | Not started | - |
-| 8. Sexual Content Scanner | v1.2 | 0/? | Not started | - |
-| 9. ContentChecker Integration + Incident Log | v1.2 | 0/? | Not started | - |
-| 10. Dashboard + End-to-End Validation | v1.2 | 0/? | Not started | - |
+| 6. Return Type Refactor | v1.3 | 0/? | Not started | - |
+| 7. Drug Scanner | v1.3 | 0/? | Not started | - |
+| 8. Sexual Content Scanner | v1.3 | 0/? | Not started | - |
+| 9. ContentChecker Integration + Incident Log | v1.3 | 0/? | Not started | - |
+| 10. Dashboard + End-to-End Validation | v1.3 | 0/? | Not started | - |

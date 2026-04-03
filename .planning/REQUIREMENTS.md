@@ -3,9 +3,9 @@
 **Defined:** 2026-04-02
 **Core Value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
 
-## v1.2 Requirements
+## v1.3 Requirements
 
-Requirements for milestone v1.2: Drug & Sexual Reference Detection.
+Requirements for milestone v1.3: Drug & Sexual Reference Detection.
 
 ### Pipeline
 
@@ -83,4 +83,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-04-02 after roadmap creation — all 10 requirements mapped*
+*Last updated: 2026-04-02 after roadmap creation — all 10 requirements mapped; renumbered v1.2 → v1.3*
