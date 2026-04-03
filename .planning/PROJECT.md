@@ -30,6 +30,8 @@ Songs that violate family-safe rules are skipped automatically before children h
 ### Active
 
 - [ ] Support for multiple Sonos rooms without env var mapping
+- [ ] Dashboard shows current track with real-time filter evaluation state
+- [ ] Parent can manually skip current track from dashboard without opening Spotify
 
 ### Deferred (v2+)
 
@@ -69,6 +71,17 @@ Songs that violate family-safe rules are skipped automatically before children h
 | PROXMOX.md as separate file | Keeps README minimal; LXC multicast edge case is niche enough to warrant dedicated doc | ✓ Good |
 | 3-section README (Quick Start / Prerequisites / Updating) | Minimal surface area; no troubleshooting section forces good defaults over workarounds | ✓ Good |
 
+## Current Milestone: v1.2 Now Playing Status
+
+**Goal:** Dashboard shows the current track with its real-time filter evaluation state and a manual skip button, so parents can see what's playing and act on it without opening Spotify.
+
+**Target features:**
+- Now-playing card: track name, artist, evaluation state badge (evaluating → passed / no-lyrics / skipped)
+- "Evaluating" is always the initial state on every new track — Spotify/Sonos API latency means no instant result is reliable
+- Album artwork: nice-to-have, not a requirement
+- Manual skip button — triggers skip from web UI without duplicating Spotify auth
+- Current track only — existing skip feed history unchanged
+
 ## Evolution
 
 **After each milestone** (via `/gsd:complete-milestone`):
@@ -78,4 +91,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-02 after v1.1 milestone — Deployment complete*
+*Last updated: 2026-04-02 — v1.2 Now Playing Status milestone started*
