@@ -3,72 +3,84 @@
 **Defined:** 2026-04-02
 **Core Value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
 
-## v1.1 Requirements
+## v1.2 Requirements
 
-### DISC — Sonos Discovery
+Requirements for milestone v1.2: Drug & Sexual Reference Detection.
 
-- [x] **DISC-01**: Sonos speakers are discovered automatically via SSDP on a properly configured network — no `SONOS_SPEAKER_IPS` required
-- [x] **DISC-02**: `SONOS_SPEAKER_IPS` remains as an explicit override fallback, documented as an escape hatch for restricted networks
-- [x] **DISC-03**: Service logs a clear, actionable message when SSDP discovery fails (includes firewall/multicast hint)
+### Pipeline
 
-### DEPL — Deployment
+- [ ] **PIPE-01**: `ContentChecker.check()` returns a named `TrackEvalResult` dataclass instead of a positional 3-tuple
 
-- [x] **DEPL-01**: README covers complete first-time setup: prerequisites, clone, `.env` config, Spotify OAuth, and `docker compose up -d`
-- [x] **DEPL-02**: README documents Sonos network requirements (multicast UDP port 1900, firewall rules, Proxmox LXC bridge config)
-- [x] **DEPL-03**: Service survives host reboots without manual intervention — Docker daemon auto-start documented and verified
-- [x] **DEPL-04**: `docker-compose.yml` includes a healthcheck that detects a silently hung daemon and triggers automatic restart
-- [x] **DEPL-05**: Updating to a new version requires only `git pull && docker compose up -d --build` — no manual migration steps, data safe across updates
+### Drug Detection
 
-## v2 Requirements
+- [ ] **DRUG-01**: System detects drug references in song lyrics using word-boundary keyword matching
+- [ ] **DRUG-02**: Drug detection returns list of matched terms alongside the boolean signal
+- [ ] **DRUG-03**: Skip is triggered when drug reference is detected and Family Safe Mode is active
 
-### Sentiment Analysis
+### Sexual Content
 
-- **SENT-01**: Lyrics are analyzed for adult themes: depression, suicide, drug use, and suggestive/sexual content
-- **SENT-02**: Theme detection uses an LLM API with structured output (handles euphemism and implicit references)
-- **SENT-03**: Theme sensitivity levels are configurable per category
+- [ ] **SEXL-01**: System detects sexual content in song lyrics using word-boundary keyword matching
+- [ ] **SEXL-02**: Sexual content detection returns list of matched terms alongside the boolean signal
+- [ ] **SEXL-03**: Sexual content keyword list has no overlap with terms already in the profanity `SEVERITY_MAP`
+- [ ] **SEXL-04**: Skip is triggered when sexual content is detected and Family Safe Mode is active
 
-### Sonos Automation
+### Incident Log
 
-- **SONO-01**: Family Safe Mode automatically activates when Spotify playback switches to a Sonos speaker
-- **SONO-02**: Family Safe Mode automatically deactivates when playback moves to phone/headphones
-- **SONO-03**: Support for multiple Sonos rooms without env var mapping
+- [ ] **LOG-01**: Skip events in `skip_events.jsonl` include boolean fields for all four signals: `explicit`, `profanity`, `drug_reference`, `sexual_content`
 
-### Apple Music Support
+### Dashboard
 
-- **AMUS-01**: Service supports Apple Music playback monitoring alongside Spotify
-- **AMUS-02**: Skip and filtering logic is abstracted behind a common playback interface
+- [ ] **UI-01**: Skip feed in dashboard displays distinct badges for drug reference and sexual content skip reasons
 
-### Profiles
+## Future Requirements
 
-- **PROF-01**: Per-child profiles or age-based filtering tiers
+Requirements deferred to future milestones.
+
+### v1.3 — Category Toggles
+
+- **TOGL-01**: Parent can enable/disable drug reference detection independently via dashboard toggle
+- **TOGL-02**: Parent can enable/disable sexual content detection independently via dashboard toggle
+- **TOGL-03**: Toggle state persists across service restarts
+
+### v2+
+
+- **SENS-01**: Severity scoring within drug detection category (none / mild / explicit)
+- **SENS-02**: Severity scoring within sexual content category
+- **PROF-01**: Per-child profiles with age-based filtering tiers
+- **ALC-01**: Alcohol reference detection category
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Signal bot notifications | Replaced by web dashboard |
-| iOS native app | Web dashboard covers the use case |
-| Cloud deployment | Home server is free, private, and sufficient; cloud adds cost and complexity |
-| Helm chart / Kubernetes | Overkill for a single-household home server service |
+| LLM/semantic detection | Explicitly excluded — implementation within existing pipeline; no LLM integration |
+| Configurable per-category UI toggles | Deferred to v1.3 — detection ships first, controls come next milestone |
+| Alcohol/violence detection | Separate categories requiring their own planning; not in this milestone |
+| Now-playing dashboard card | Deferred — separate milestone focus |
+| Manual skip button in dashboard | Deferred — separate milestone focus |
 
 ## Traceability
 
+Which phases cover which requirements. Updated during roadmap creation.
+
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DISC-01 | Phase 4 | Complete |
-| DISC-02 | Phase 4 | Complete |
-| DISC-03 | Phase 4 | Complete |
-| DEPL-01 | Phase 5 | Complete |
-| DEPL-02 | Phase 5 | Complete |
-| DEPL-03 | Phase 5 | Complete |
-| DEPL-04 | Phase 5 | Complete |
-| DEPL-05 | Phase 5 | Complete |
+| PIPE-01 | — | Pending |
+| DRUG-01 | — | Pending |
+| DRUG-02 | — | Pending |
+| DRUG-03 | — | Pending |
+| SEXL-01 | — | Pending |
+| SEXL-02 | — | Pending |
+| SEXL-03 | — | Pending |
+| SEXL-04 | — | Pending |
+| LOG-01 | — | Pending |
+| UI-01 | — | Pending |
 
 **Coverage:**
-- v1.1 requirements: 8 total
-- Mapped to phases: 8
-- Unmapped: 0
+- v1.2 requirements: 10 total
+- Mapped to phases: 0
+- Unmapped: 10 ⚠️
 
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-04-02 after v1.1 roadmap creation*
+*Last updated: 2026-04-02 after initial definition*
