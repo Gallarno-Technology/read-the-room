@@ -97,6 +97,15 @@ None - no external service configuration required.
 - All NOW-01 through NOW-07 and SKIP-01/SKIP-04 requirements fulfilled
 - Ready for v1.3 drug and sexual reference detection (Phase 09+)
 
+## Self-Check: PASSED
+
+- FOUND: web_ui/templates/index.html
+- FOUND: .planning/phases/08-dashboard-frontend/08-01-SUMMARY.md
+- FOUND: commit abcfc9c (feat(08-01): insert now-playing card HTML and skip-btn disabled CSS)
+- FOUND: commit 53b1c48 (feat(08-01): add six eval-state badge CSS modifier classes)
+- FOUND: commit a4ceebe (feat(08-01): add JS hydration, SSE routing, eval badge state machine, skip handler)
+- FOUND: commit 72f8edf (docs(08-01): complete now-playing card plan)
+
 ---
 *Phase: 08-dashboard-frontend*
 *Completed: 2026-04-03*
