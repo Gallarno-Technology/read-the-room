@@ -79,7 +79,8 @@ async def _run_one_cycle(sp, checker, state_override=None):
     with patch("daemon.load_state", side_effect=[state, state]):
         with patch("daemon.save_state"):
             with patch("asyncio.sleep", side_effect=_one_shot_sleep):
-                await daemon.poll_loop(sp, checker, soco_skip, spotify_skip)
+                with patch("pathlib.Path.touch"):
+                    await daemon.poll_loop(sp, checker, soco_skip, spotify_skip)
 
 
 # ---------------------------------------------------------------------------
@@ -189,7 +190,8 @@ async def test_eval_result_skipped(data_dir):
     with patch("daemon.load_state", side_effect=[state, state]):
         with patch("daemon.save_state"):
             with patch("asyncio.sleep", side_effect=_one_shot_sleep):
-                await daemon.poll_loop(sp, checker, soco_skip, spotify_skip)
+                with patch("pathlib.Path.touch"):
+                    await daemon.poll_loop(sp, checker, soco_skip, spotify_skip)
 
     events_file = data_dir / "events.jsonl"
     assert events_file.exists()
@@ -248,7 +250,8 @@ async def test_eval_result_not_emitted_on_skip_failure(data_dir):
     with patch("daemon.load_state", side_effect=[state, state]):
         with patch("daemon.save_state"):
             with patch("asyncio.sleep", side_effect=_one_shot_sleep):
-                await daemon.poll_loop(sp, checker, soco_skip, spotify_skip)
+                with patch("pathlib.Path.touch"):
+                    await daemon.poll_loop(sp, checker, soco_skip, spotify_skip)
 
     events_file = data_dir / "events.jsonl"
     if not events_file.exists():
@@ -336,7 +339,8 @@ async def test_existing_events_unaffected(data_dir):
     with patch("daemon.load_state", side_effect=[state, state]):
         with patch("daemon.save_state"):
             with patch("asyncio.sleep", side_effect=_one_shot_sleep):
-                await daemon.poll_loop(sp, checker, soco_skip, spotify_skip)
+                with patch("pathlib.Path.touch"):
+                    await daemon.poll_loop(sp, checker, soco_skip, spotify_skip)
 
     events_file = data_dir / "events.jsonl"
     assert events_file.exists(), "events.jsonl must be created"
