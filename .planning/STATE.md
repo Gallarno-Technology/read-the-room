@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Now Playing Status
-status: planning
-stopped_at: Phase 6 context gathered (discuss mode)
-last_updated: "2026-04-03T02:03:07.727Z"
-last_activity: 2026-04-02 — Roadmap created for v1.2, ready to plan Phase 6
+status: executing
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-04-03T10:23:33.410Z"
+last_activity: 2026-04-03
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 14
-  completed_plans: 14
+  total_plans: 18
+  completed_plans: 15
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** v1.2 Now Playing Status — Phase 6: Daemon SSE Extensions
+**Current focus:** Phase 06 — daemon-sse-extensions
 
 ## Current Position
 
-Phase: 6 of 8 (Daemon SSE Extensions)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-04-02 — Roadmap created for v1.2, ready to plan Phase 6
+Phase: 06 (daemon-sse-extensions) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-04-03
 
 Progress: [░░░░░░░░░░] 0% (v1.2)
 
@@ -51,6 +51,7 @@ Progress: [░░░░░░░░░░] 0% (v1.2)
 | v1.1 Phase 05 | 2 | ~4 min | ~2 min |
 
 *Updated after each plan completion*
+| Phase 06-daemon-sse-extensions P01 | 5 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -62,6 +63,8 @@ Recent decisions affecting current work:
 - v1.2 manual skip: web_ui calls Spotify directly via shared token cache — no file-IPC, no consecutive-skip counter increment
 - v1.2 hydration: separate `now_playing.json` file (not `state.json` extension) — cleaner separation of FSM state from transient track metadata
 - v1.2 badge guard: `track_id` included in all `track_change` and `eval_result` events; browser discards mismatched events
+- [Phase 06-01]: Tests reference post-rename names (EVENTS_PATH, NOW_PLAYING_PATH) before rename exists — xfail catches AttributeError until Plan 02 lands
+- [Phase 06-01]: eval_result not emitted on skip failure — test_eval_result_not_emitted_on_skip_failure enforces actual outcome wins over intended action
 
 ### Pending Todos
 
@@ -73,6 +76,6 @@ None at roadmap creation.
 
 ## Session Continuity
 
-Last session: 2026-04-03T02:03:07.725Z
-Stopped at: Phase 6 context gathered (discuss mode)
-Resume file: .planning/phases/06-daemon-sse-extensions/06-CONTEXT.md
+Last session: 2026-04-03T10:23:33.408Z
+Stopped at: Completed 06-01-PLAN.md
+Resume file: None

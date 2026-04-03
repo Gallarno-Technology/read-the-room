@@ -57,7 +57,7 @@ See `.planning/milestones/v1.1-ROADMAP.md` for full phase details.
   4. Existing skip and warning events are unaffected — all prior event types still appear correctly in the feed
 **Plans**: 4 plans
 Plans:
-- [ ] 06-01-PLAN.md — Failing test scaffold (9 xfail stubs for DAEM-01, DAEM-02, DAEM-03)
+- [x] 06-01-PLAN.md — Failing test scaffold (9 xfail stubs for DAEM-01, DAEM-02, DAEM-03)
 - [ ] 06-02-PLAN.md — Env var + function rename: SKIP_EVENTS_PATH → EVENTS_PATH, _append_skip_event → _append_event
 - [ ] 06-03-PLAN.md — Event emission in poll_loop: track_change (DAEM-01) + eval_result all branches (DAEM-02)
 - [ ] 06-04-PLAN.md — now_playing.json writer: _write_now_playing helper + call sites (DAEM-03)
@@ -95,6 +95,6 @@ Plans:
 | 3. Web UI Dashboard | v1.0 | 5/5 | Complete | 2026-04-02 |
 | 4. Sonos Discovery Hardening | v1.1 | 2/2 | Complete | 2026-04-02 |
 | 5. Deployment & Documentation | v1.1 | 2/2 | Complete | 2026-04-02 |
-| 6. Daemon SSE Extensions | v1.2 | 0/4 | Not started | - |
+| 6. Daemon SSE Extensions | v1.2 | 1/4 | In Progress|  |
 | 7. Web UI Backend | v1.2 | 0/? | Not started | - |
 | 8. Dashboard Frontend | v1.2 | 0/? | Not started | - |

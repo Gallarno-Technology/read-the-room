@@ -9,9 +9,9 @@ Requirements for milestone v1.2: Now Playing Status.
 
 ### Daemon Extensions
 
-- [ ] **DAEM-01**: Daemon emits a `track_change` event on the SSE channel immediately when a new track is detected, before evaluation runs
-- [ ] **DAEM-02**: Daemon emits an `eval_result` event for every track after evaluation completes, regardless of outcome (passed, no-lyrics, or skipped)
-- [ ] **DAEM-03**: Daemon writes current track metadata and evaluation state to `now_playing.json` after each evaluation
+- [x] **DAEM-01**: Daemon emits a `track_change` event on the SSE channel immediately when a new track is detected, before evaluation runs
+- [x] **DAEM-02**: Daemon emits an `eval_result` event for every track after evaluation completes, regardless of outcome (passed, no-lyrics, or skipped)
+- [x] **DAEM-03**: Daemon writes current track metadata and evaluation state to `now_playing.json` after each evaluation
 
 ### Now Playing Display
 
@@ -66,9 +66,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DAEM-01 | Phase 6 | Pending |
-| DAEM-02 | Phase 6 | Pending |
-| DAEM-03 | Phase 6 | Pending |
+| DAEM-01 | Phase 6 | Complete |
+| DAEM-02 | Phase 6 | Complete |
+| DAEM-03 | Phase 6 | Complete |
 | NOW-01 | Phase 8 | Pending |
 | NOW-02 | Phase 8 | Pending |
 | NOW-03 | Phase 8 | Pending |
