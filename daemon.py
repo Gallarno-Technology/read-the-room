@@ -128,6 +128,16 @@ async def probe_sonos_speakers(soco_client: SocoSkipClient) -> None:
         )
 
 
+def _eval_state_from_result(action: str, reason: str) -> str:
+    """Map ContentChecker (action, reason) tuple to canonical eval_state string (D-02)."""
+    if action == "allow":
+        if reason in ("lyrics_unavailable", "no_lyrics_service"):
+            return "no-lyrics"
+        return "passed"
+    # action == "skip" — caller handles "paused" and "skipped" separately
+    return "skipped"
+
+
 # ---------------------------------------------------------------------------
 # Poll loop
 # ---------------------------------------------------------------------------
@@ -218,6 +228,13 @@ async def poll_loop(
 
                         if action == "allow":
                             consecutive_skips = 0
+                            # DAEM-02: emit eval_result for every allowed track
+                            _append_event({
+                                "type": "eval_result",
+                                "track_id": track_id,
+                                "eval_state": _eval_state_from_result(action, reason),
+                                "timestamp": time.strftime("%H:%M:%S"),
+                            })
 
                         if action == "skip":
                             # SKIP-03: Select skip client based on is_restricted (D-01).
@@ -246,6 +263,13 @@ async def poll_loop(
                                     "timestamp": time.strftime("%H:%M:%S"),
                                 })
                                 consecutive_skips = 0
+                                # DAEM-02: eval_result for 5th-skip pause
+                                _append_event({
+                                    "type": "eval_result",
+                                    "track_id": track_id,
+                                    "eval_state": "paused",
+                                    "timestamp": time.strftime("%H:%M:%S"),
+                                })
                             else:
                                 success = await client.skip(device_name, device.get("id"))
                                 if not success and is_restricted:
@@ -276,6 +300,13 @@ async def poll_loop(
                                         "timestamp": time.strftime("%H:%M:%S"),
                                     })
                                     consecutive_skips += 1
+                                    # DAEM-02: eval_result for successful auto-skip
+                                    _append_event({
+                                        "type": "eval_result",
+                                        "track_id": track_id,
+                                        "eval_state": "skipped",
+                                        "timestamp": time.strftime("%H:%M:%S"),
+                                    })
                                 else:
                                     log.warning(
                                         "[SKIP_FAILED] reason=%s track=%r artist=%r",
@@ -283,6 +314,14 @@ async def poll_loop(
                                         track["name"],
                                         track["artists"][0]["name"],
                                     )
+                    else:
+                        # FSM off — D-03: still emit eval_result with fsm-off
+                        _append_event({
+                            "type": "eval_result",
+                            "track_id": track_id,
+                            "eval_state": "fsm-off",
+                            "timestamp": time.strftime("%H:%M:%S"),
+                        })
 
         except SpotifyException as exc:
             if exc.http_status == 429:
