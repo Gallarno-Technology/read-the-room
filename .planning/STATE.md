@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Now Playing Status
 status: executing
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-04-03T10:23:33.410Z"
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-04-03T10:27:28.821Z"
 last_activity: 2026-04-03
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 18
-  completed_plans: 15
+  completed_plans: 16
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-02)
 ## Current Position
 
 Phase: 06 (daemon-sse-extensions) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-04-03
 
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0% (v1.2)
 
 *Updated after each plan completion*
 | Phase 06-daemon-sse-extensions P01 | 5 | 1 tasks | 1 files |
+| Phase 06-daemon-sse-extensions P02 | 5 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,8 @@ Recent decisions affecting current work:
 - v1.2 badge guard: `track_id` included in all `track_change` and `eval_result` events; browser discards mismatched events
 - [Phase 06-01]: Tests reference post-rename names (EVENTS_PATH, NOW_PLAYING_PATH) before rename exists — xfail catches AttributeError until Plan 02 lands
 - [Phase 06-01]: eval_result not emitted on skip failure — test_eval_result_not_emitted_on_skip_failure enforces actual outcome wins over intended action
+- [Phase 06-02]: Hard rename SKIP_EVENTS_PATH to EVENTS_PATH per D-01 — no backwards-compat alias
+- [Phase 06-02]: NOW_PLAYING_PATH derived from dirname(EVENTS_PATH) so both paths share the same data/ bind-mount directory
 
 ### Pending Todos
 
@@ -76,6 +79,6 @@ None at roadmap creation.
 
 ## Session Continuity
 
-Last session: 2026-04-03T10:23:33.408Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-04-03T10:27:28.819Z
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None
