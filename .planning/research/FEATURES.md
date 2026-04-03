@@ -1,86 +1,197 @@
-# Feature Research
+# Feature Research: Now-Playing Card and Manual Skip (v1.2)
 
-**Domain:** Drug reference and sexual content detection in lyric-based family filter (v1.2 milestone)
+**Domain:** Real-time now-playing dashboard card with evaluation state badge and manual skip control in a family-filter parental dashboard
 **Researched:** 2026-04-02
-**Confidence:** MEDIUM (keyword approach characteristics HIGH; edge case frequencies LOW; false positive rates at this specific word list size MEDIUM)
+**Confidence:** HIGH — based on direct code inspection of the v1.1 codebase combined with first-principles UI analysis. No external libraries required; patterns derived from existing SSE infrastructure.
 
 ---
 
 ## Scope
 
-This file is narrowly scoped to the two new detection signals for v1.2:
+This file is narrowly scoped to the two new features for v1.2:
 
-1. **Drug reference detection** — lyrics contain references to illicit drug use
-2. **Sexual content detection** — lyrics contain references to sexual acts or explicit sexual language
+1. **Now-playing card** — current track name, artist, and real-time evaluation state badge (evaluating → passed / no-lyrics / skipped)
+2. **Manual skip button** — triggers a skip from the web UI without opening Spotify
 
-The existing pipeline (explicit flag, profanity scan, LRCLIB fetch, SQLite cache) is already built. These two signals slot in as additional scanners alongside `ProfanityScanner`, consuming the same `lyrics_result.lyrics` string already produced by `LyricsService`.
+The existing skip feed, FSM toggle, warning banner, and five-consecutive-skip pause logic are already built and remain unchanged.
 
 ---
 
-## Feature Landscape
+## Evaluation State Machine
 
-### Table Stakes (Users Expect These)
+The evaluation state is the conceptual heart of this milestone. Getting the state machine right before writing any code is critical.
+
+### States
+
+| State | Display Label | When It Applies |
+|-------|---------------|-----------------|
+| `evaluating` | Evaluating... | Track has changed; ContentChecker.check() is in progress (lyrics fetching or profanity scanning) |
+| `passed` | Passed | ContentChecker returned action="allow" with reason="clean" |
+| `no_lyrics` | No lyrics | ContentChecker returned action="allow" with reason="lyrics_unavailable" or reason="instrumental" |
+| `skipped` | Skipped | ContentChecker returned action="skip" (any reason) and the track was actually skipped |
+| `fsm_off` | (no badge) | Family Safe Mode is off; evaluation does not run; no badge shown |
+| `idle` | (no card) | No track currently playing; nothing to display |
+
+### State Transition Diagram (UI perspective)
+
+```
+[idle: no playback]
+    │  Spotify reports a playing track
+    ▼
+[evaluating: new track detected]
+    │  FSM is OFF
+    ├──────────────────────────────────→ [no_badge: FSM off — show track, no evaluation badge]
+    │
+    │  FSM is ON
+    │  ContentChecker.check() completes
+    ├── action="allow", reason="clean"        → [passed]
+    ├── action="allow", reason="instrumental" → [no_lyrics]
+    ├── action="allow", reason="lyrics_unavailable" → [no_lyrics]
+    └── action="skip"                         → [skipped]
+         │
+         │  Next track starts (daemon detects track_id change)
+         └──────────────────────────────────→ [evaluating: new track]
+```
+
+### Key Constraint: "Evaluating" is Always Initial
+
+PROJECT.md states explicitly: "Evaluating is always the initial state on every new track — Spotify/Sonos API latency means no instant result is reliable."
+
+This has concrete implications:
+- The now-playing card must not show "Passed" before evaluation completes. Even if the previous track passed, the new track starts at "Evaluating".
+- LRCLIB fetch + profanity scan takes 100ms-2s depending on cache state. The badge must reflect this gap honestly rather than jumping to an optimistic result.
+- On an explicit track, the daemon skips immediately (Tier 1, no lyrics fetch). The "Evaluating" state may only flash briefly before transitioning to "Skipped". This is correct behaviour, not a bug.
+
+### What Drives State Transitions
+
+The daemon currently emits two SSE event types: `skip` and `five_skip_warning`. A third event type is needed:
+
+```
+"now_playing" event (NEW):
+{
+    "type": "now_playing",
+    "track": "Song Title",
+    "artist": "Artist Name",
+    "track_id": "spotify:track:...",
+    "state": "evaluating" | "passed" | "no_lyrics" | "skipped",
+    "reason": "clean" | "instrumental" | "lyrics_unavailable" | "explicit" | "profanity" | null,
+    "timestamp": "14:32:07"
+}
+```
+
+This event is emitted by the daemon at two moments per track:
+1. **On track change detected:** `state="evaluating"` (before ContentChecker runs)
+2. **On evaluation complete:** `state="passed"` | `state="no_lyrics"` | `state="skipped"` (after ContentChecker.check() returns)
+
+Emitting two events per track change means the UI correctly shows "Evaluating..." while the daemon fetches lyrics, then snaps to the final state. This is the minimal change to the existing IPC contract.
+
+---
+
+## Table Stakes
+
+Features users expect. Missing = product feels incomplete.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Drug reference boolean signal on track evaluation | PROJECT.md explicitly names this as v1.2 target; parent audience of children ages 3 and 7 expects drug glorification to be filtered | LOW | Single-pass keyword scan against known drug terms and slang, analogous to ProfanityScanner pattern |
-| Sexual content boolean signal on track evaluation | Same parent audience; "sexual content" is a universally recognized filter category alongside profanity | LOW | Single-pass keyword scan; separate from profanity_scanner.py which already handles some sexual terms (slut, whore, cock, pussy) as tier-2/3 profanity |
-| Both signals present in skip_events.jsonl incident log | Parent needs to understand why a track was skipped; existing incident log already records reason field | LOW | Extend existing `reason` field or add named boolean fields alongside it; PROJECT.md specifies "both signals logged in incident log alongside existing flags" |
-| Independent named booleans per category on evaluation result | PROJECT.md explicitly requires this for forward compatibility with per-category UI toggles | LOW | `has_drug_refs: bool` and `has_sexual_content: bool` on whatever result structure ContentChecker returns or on the skip event payload |
-| Detection runs on already-fetched lyrics, no new API calls | System already fetches lyrics via LRCLIB; users and developers expect new detection not to add latency from new network calls | LOW | All new scanners consume `lyrics_result.lyrics` already in hand — this is purely in-process |
-| Skip triggered on detection (when Family Safe Mode is on) | If you add detection, the obvious behavior is to skip; not skipping on a detected signal would confuse the parent | LOW | ContentChecker.check() already returns (action, reason, severity) tuple; needs to return on drug or sexual signal just as it returns on profanity |
+| Track name and artist on now-playing card | Parents need to know what is playing without opening Spotify | LOW | Daemon already has track["name"] and track["artists"][0]["name"] on every poll cycle |
+| Evaluation state badge | Core value of the milestone per PROJECT.md; without it the card is just a track name | LOW | New "now_playing" SSE event type; badge updated in JS on event receipt |
+| "Evaluating" shown while evaluation is in progress | PROJECT.md mandates this as always-initial; it prevents the UI from showing a false "Passed" while lyrics are fetching | LOW | Emit now_playing(state="evaluating") on track change before awaiting content_checker.check() |
+| Badge updates when evaluation completes | Evaluation result must be reflected in the card | LOW | Emit now_playing(state=final_state) after ContentChecker returns |
+| Card clears / shows idle state when nothing is playing | Otherwise the card shows stale track info after playback ends | LOW | Poll `/status` endpoint on load OR emit a "playback_stopped" event when Spotify returns 204 |
+| Manual skip button | PROJECT.md v1.2 target; parent can skip without opening Spotify | MEDIUM | New POST /skip endpoint in web_ui; endpoint delegates to daemon via shared state mechanism |
+| Skip button disabled while no track is playing | Clicking skip with nothing playing is an error; button should reflect system state | LOW | JS disables button when card is in idle state |
+| Skip button disabled or shows pending state while skip in flight | Prevent double-submit; skip takes 200-800ms via SoCo SSDP | LOW | Disable button during fetch; re-enable after response |
 
-### Differentiators (Competitive Advantage)
+---
+
+## Differentiators
+
+Features that set this product apart. Not expected, but valued.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Matched-term logging alongside boolean signal | Parent can see *what* was detected (e.g., "blunt, weed") not just "drug reference detected" — builds trust and allows word list calibration | LOW | ProfanityScanner already does this via `matched` return value; replicate the pattern |
-| Prioritized word lists that exclude ambiguous single-word terms | Most off-the-shelf drug keyword lists include "snow", "white", "ice", "blow", "herb", "grass", "speed", "high", "dope" as bare words — all extremely high false-positive risk. Curating a list that requires the word in context OR starts with unambiguous multi-word phrases ("purple drank", "xan bar") produces a much more trustworthy signal | MEDIUM | Requires editorial judgment, not library work. The research shows this is the critical differentiator between "unusable" and "reliable enough for family use" |
-| Sexual content word list separate from existing profanity tier-2/3 words | Some sexual terms already covered by ProfanityScanner (cock, slut, pussy, whore) but a sexual content scanner should cover explicit act descriptions, body part combinations, and sexual slang that aren't profanity in isolation | MEDIUM | Requires carefully deduplicating against SEVERITY_MAP in profanity_scanner.py to avoid double-counting |
-| `allow_on_unavailable` behavior preserved for new signals | When lyrics are unavailable (LRCLIB miss), the system already does not skip. New signals must honor the same non-skip-on-uncertainty contract. Children are ages 3 and 7; over-skipping is irritating but under-filtering on missing lyrics is already an accepted v1 tradeoff | LOW | No change to existing FILT-05 logic needed; new scanners only run when `lyrics_result.lyrics is not None` |
+| "No lyrics" badge distinct from "Passed" | Parent understands that LRCLIB couldn't find lyrics and the track was allowed by policy (FILT-05), not because it was clean | LOW | Two separate badge styles: green for "Passed", amber/grey for "No lyrics" — communicates honest uncertainty |
+| Skip button disabled when FSM is off | Makes the parent mode / filtering state visually coherent — manual skip only makes sense in the context of family filtering | LOW | Read FSM state on card render; disable skip button when fsm_off |
+| Card persists after skip with "Skipped" state briefly | After a skip, the card shows the skipped track's name and "Skipped" badge for 1-2 seconds before updating to the next track. This confirms to the parent that the skip fired. | LOW | "Skipped" state displayed until next now_playing(state="evaluating") event arrives |
+| Reason visible in skipped badge tooltip or secondary line | When state="skipped", showing reason="explicit" vs reason="profanity" helps parent understand filter behaviour | LOW | Badge text can include reason: "Skipped: explicit tag" vs "Skipped: strong language" — mirrors existing skip feed badge pattern |
+| Album artwork (nice-to-have) | Visual polish; confirms parent is looking at the right track | MEDIUM | Spotify track object already contains `album.images[0].url` (640px), `[1].url` (300px), `[2].url` (64px). The 64px or 300px thumbnail fits a card layout. Requires no new API call — artwork URL is in the already-fetched track object. Not required per PROJECT.md but trivially achievable if desired. |
 
-### Anti-Features (Commonly Requested, Often Problematic)
+---
 
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| NLP/ML-based semantic detection of drug themes and sexual metaphors | Promises to catch euphemisms that keyword lists miss ("I lean on you", "garden of love", "rolling in the deep") | Adds a model dependency (ONNX, spaCy, or remote API call), increases scan latency by 100-500ms per track, requires training data curation, and will still produce false positives on lyrical metaphors. PROJECT.md explicitly defers "Sentiment NLP" to v2+ as "too complex for v1" | Accept known miss rate on euphemisms; log all misses; review them manually over time to inform word list expansion |
-| Severity scoring within drug / sexual categories | Intuitive — "smoking weed once" vs "glorifying heroin use" feels like it should produce different scores | PROJECT.md explicitly defers "Severity scoring within content categories" to v2+. Boolean is sufficient to drive skip/allow decisions. Severity adds implementation complexity and requires editorial judgment about relative harm | Boolean signal in v1.2; severity is a named v2+ deferred item |
-| Per-category toggle UI in this milestone | Would let parent turn off drug detection but keep sexual detection | Deferred to v1.3 per PROJECT.md ("Active" backlog). The boolean fields on the result struct must be named independently *now* to make this possible later, but no toggle UI yet | Name the booleans correctly now so the toggle wires in cleanly next milestone |
-| LLM API call per track for detection | Would handle euphemism, context, and multilingual content elegantly | Requires OpenAI/Anthropic API key, per-call cost, internet dependency, 200-800ms additional latency per track, and breaks the offline/Docker design ethos | Stick to in-process keyword scan; revisit LLM approach in v2+ as already documented in LYRICS_FILTERING.md section 7 |
-| Exhaustive drug slang list (200+ terms) from DEA or law enforcement glossaries | Maximizes recall — catches every possible drug reference | Research shows high-recall word lists produce unacceptable false positive rates. "Weed" flags "tweed". "Snow" flags "snowfall". "Ice" flags "ice cream". "Blow" flags "blow a kiss". "High" flags "fly so high". "Speed" flags "the speed of light". "Lean" flags "lean on me". A 200-term list on music lyrics generates noise that undermines parent trust in the filter | Curate a conservative list of unambiguous high-confidence terms (~40-60 terms); explicitly document which common slang was excluded and why |
-| Blocking songs with themes of alcohol | Might seem in scope alongside drugs | Alcohol references are pervasive in mainstream music at a level that would skip enormous fractions of popular catalog, including many songs the parent explicitly wants to hear. Alcohol detection would need its own toggle to be useful, and that toggle is v1.3. Not in scope for v1.2 | Leave alcohol as an out-of-scope stub note |
+## Anti-Features
+
+Features to explicitly NOT build for this milestone.
+
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| Playback progress bar | A progress bar requires either Spotify polling for `progress_ms` on every cycle (adds complexity to daemon) or a client-side timer synchronized to a start timestamp (brittle when paused). The now-playing card does not need to behave like a Spotify client. | Show track name and state; no progress. If progress is desired later, add progress_ms to the now_playing event and animate client-side |
+| Queue / next-track display | Requires Spotify's queue endpoint which is a separate API call not currently made; adds polling load and surface area | Stick to current track only; PROJECT.md explicitly says "Current track only — existing skip feed history unchanged" |
+| Playback controls (play/pause/previous) | Adds significant surface area and auth concerns; transforms a monitoring dashboard into a playback remote | Keep the manual skip as the single action. Play/pause already available in Spotify or on Sonos app. |
+| Optimistic UI state (show "Passed" before evaluation) | Tempting to use the previous track's result to pre-populate the new track's badge. Always wrong — a new track may be explicit even if the last one was clean. | Always start at "Evaluating" per PROJECT.md |
+| Instant skip without debounce | Parent could accidentally double-tap. A skip that fires twice moves the track forward twice. | Disable the button during the skip request (see table stakes). 1-2s disable window is sufficient. |
+| Auto-refresh polling as alternative to SSE for now-playing state | Page-level polling (setInterval fetch /status) is less real-time than SSE and adds unnecessary server load | Use the existing SSE connection for all now-playing events; SSE is already established and connected |
+| Storing current track in state.json for web_ui to read | state.json is a write-heavy file read by both daemon and web_ui; adding current track info creates read/write contention and inconsistency | Daemon emits now_playing events via skip_events.jsonl (same IPC path); web_ui reads via existing file-tail |
 
 ---
 
 ## Feature Dependencies
 
 ```
-Drug reference detection (new)
-    └──requires──> LyricsService (already exists)
-    └──requires──> ContentChecker pipeline hook (already exists, needs extension)
-    └──produces──> has_drug_refs: bool on evaluation result
+Now-playing card (new)
+    └──requires──> "now_playing" SSE event type from daemon (new)
+    └──requires──> daemon emits evaluating event before await content_checker.check()
+    └──requires──> daemon emits final state event after content_checker.check() returns
+    └──requires──> web_ui SSE handler updated to process "now_playing" event type
+    └──uses──> existing SSE infrastructure (/events endpoint, _file_tail, _subscribers)
+    └──uses──> existing skip_events.jsonl file-based IPC
 
-Sexual content detection (new)
-    └──requires──> LyricsService (already exists)
-    └──requires──> ContentChecker pipeline hook (already exists, needs extension)
-    └──produces──> has_sexual_content: bool on evaluation result
+Evaluation state badge (new — part of now-playing card)
+    └──requires──> "now_playing" event carries state field
+    └──requires──> now_playing event with state="evaluating" fired on track change
+    └──requires──> now_playing event with state=final_state fired after check()
+    └──reads──> reason field for badge label differentiation (explicit vs profanity)
 
-Incident log extension (new)
-    └──requires──> has_drug_refs signal
-    └──requires──> has_sexual_content signal
-    └──enhances──> skip_events.jsonl (already exists)
+Manual skip button (new)
+    └──requires──> POST /skip endpoint in web_ui/main.py (new)
+    └──requires──> daemon exposes a skip mechanism the web_ui can invoke
+    └──CONSTRAINT──> web_ui cannot call Spotify API directly (no auth token in web_ui)
+    └──CONSTRAINT──> web_ui cannot call SoCo directly (no device context in web_ui)
+    └──uses──> state.json as IPC: web_ui writes {"manual_skip_requested": true, "manual_skip_device_id": "..."}
+    └──requires──> daemon's poll_loop checks for manual_skip_requested flag each cycle
+    └──OR alternative──> dedicated skip_request.json file as cleaner IPC channel
 
-Per-category toggle UI (future v1.3)
-    └──requires──> independent named booleans on result (v1.2 must deliver this)
-    └──requires──> dashboard UI work (separate milestone)
+Manual skip IPC options (choose one):
+    Option A — state.json flag: simplest; reuses existing read/write pattern;
+               daemon clears flag after acting; web_ui sets flag; no new files
+    Option B — skip_request.json: separate concern; cleaner; avoids polluting
+               state.json with transient request state; easy to tell if a request
+               is stale (check timestamp vs current time); preferred for clarity
+    Option C — in-process HTTP (web_ui calls daemon on localhost): requires daemon
+               to expose its own HTTP server; significant new surface area; NOT
+               recommended (violates current architecture — two Docker services)
+
+Note on device context for manual skip:
+    The daemon knows which device is active (from Spotify API `result["device"]` in
+    poll_loop). The web_ui does not have device info. The IPC message for manual skip
+    need only say "skip now" — the daemon reads current device from its own poll_loop
+    context. The web_ui does NOT need to specify a device_id in the skip request.
+    The daemon acts on the most recently known active device when it processes the request.
+
+Idle state handling (new)
+    └──requires──> daemon emits "playback_stopped" event type when Spotify returns
+                   result=None (no active playback)
+    └──OR alternative──> web_ui treats absence of now_playing events for N seconds as idle
+    └──recommendation──> emit explicit "playback_stopped" event; avoids false idle on
+                         temporary network hiccup vs actual stop
 ```
 
 ### Dependency Notes
 
-- **Drug/sexual detection requires LyricsService:** Scanners receive `lyrics_result.lyrics` already in hand. No new service dependency.
-- **ContentChecker must be extended, not replaced:** The existing three-tier pipeline (explicit → lyrics → profanity) needs to grow a tier 3b/3c for new signals. The `check()` return signature likely needs revision — either a new named tuple, a dataclass, or additional fields. This is the central implementation question for the milestone.
-- **Independent named booleans are a hard dependency for the v1.3 toggle UI:** If both signals are collapsed into a single `reason="drug_or_sexual"` string, the toggle UI becomes impossible to wire without another refactor. v1.2 must deliver named fields.
-- **Profanity scanner deduplication:** The existing SEVERITY_MAP in profanity_scanner.py covers several terms that also appear in sexual content word lists (cock, pussy, slut, whore, tits, dick). The new sexual content scanner should be aware of this to avoid the appearance of double-flagging the same word, though in practice the result is the same (track is skipped either way).
+- **No new Spotify API calls required:** The track name, artist, and album artwork URL are all present in the existing `sp.current_playback()` response. No new scopes or endpoints needed.
+- **SSE infrastructure is the right channel for now-playing events:** The file-tail + subscriber broadcast pattern already in place handles now_playing events transparently. The only change is a new event type in daemon.py and a new handler in index.html.
+- **Manual skip requires IPC between two Docker containers:** web_ui and daemon run as separate services sharing the ./data volume mount. skip_request.json (Option B) is the cleanest choice: no changes to state.json schema, easy to detect stale requests by timestamp comparison, daemon clears it on action.
+- **Album artwork is free if wanted:** `track["album"]["images"][1]["url"]` (300px thumbnail) is in the existing Spotify response. Adding artwork to the now_playing event costs zero extra API calls. The decision is purely UI complexity — whether to add an `<img>` to the card layout.
+- **Card is a new DOM section, not a modification of existing sections:** The existing HTML has FSM card + incident log card. The now-playing card is a third card, inserted between the FSM card and the incident log. This avoids any disruption to existing layout.
 
 ---
 
@@ -88,160 +199,91 @@ Per-category toggle UI (future v1.3)
 
 ### Launch With (v1.2)
 
-- [x] `DrugScanner` class: keyword scan returning `(detected: bool, matched: list[str])` — same interface pattern as `ProfanityScanner.scan()`
-- [x] `SexualContentScanner` class: keyword scan returning `(detected: bool, matched: list[str])`
-- [x] ContentChecker extended: new signals evaluated after profanity check; skip on any signal when FSM active
-- [x] Result structure: named boolean fields `has_drug_refs` and `has_sexual_content` on evaluation result (not collapsed into reason string)
-- [x] Incident log: both new boolean signals written to skip_events.jsonl entries
-- [x] Drug word list: curated conservative ~40-60 term list, explicitly excluding ambiguous bare words; documented rationale for exclusions
-- [x] Sexual content word list: explicit act terms, genitalia slang not already in profanity tier, sexual euphemisms with low false-positive risk
+- [ ] `now_playing` SSE event type emitted by daemon.py at two points per track change:
+  1. Before `await content_checker.check(track)` — `state="evaluating"`
+  2. After `content_checker.check()` returns — `state="passed"` | `state="no_lyrics"` | `state="skipped"`
+- [ ] `playback_stopped` SSE event type emitted when `sp.current_playback()` returns None (no active playback)
+- [ ] Now-playing card in index.html:
+  - Track name and artist (large, readable)
+  - Evaluation state badge: Evaluating... / Passed / No lyrics / Skipped
+  - Badge colour: neutral/spinning for evaluating, green for passed, amber for no_lyrics, red for skipped
+  - Card hidden when idle (no playback)
+  - Badge label includes reason for "Skipped" state: "Skipped: explicit tag" or "Skipped: strong language"
+- [ ] Manual skip button:
+  - Visible on the now-playing card
+  - Disabled when FSM is off, disabled when no track is playing, disabled during skip-in-flight
+  - Sends POST /skip to web_ui
+  - Shows error text for 3s on failure (mirrors FSM toggle error pattern)
+- [ ] POST /skip endpoint in web_ui/main.py:
+  - Writes skip_request.json with `{"requested": true, "timestamp": "..."}` to shared data volume
+  - Returns 200 immediately (fire-and-forget from web_ui perspective)
+  - Returns 409 if a request is already pending (avoids duplicate requests)
+- [ ] daemon.py poll_loop modified:
+  - Checks for skip_request.json each cycle; if found and fresh (< 5s old), executes skip using existing client selection logic (SoCo or Spotify API based on is_restricted)
+  - Clears skip_request.json after acting
+  - Logs `[MANUAL_SKIP]` at INFO level
+  - Does not count manual skip toward consecutive_skips counter (parent-initiated skip; no need to trigger the 5-skip pause warning)
 
-### Add After Validation (v1.3)
+### Omit from v1.2
 
-- [ ] Per-category toggle UI in web dashboard — trigger: word lists have been running for 2+ weeks and false positive rate is understood
-- [ ] Song-level allowlist / denylist override — trigger: parent identifies a specific false positive they want to override without editing word lists
-
-### Future Consideration (v2+)
-
-- [ ] Severity scoring within drug / sexual categories — deferred per PROJECT.md
-- [ ] Semantic/LLM-based euphemism detection — deferred per PROJECT.md "Sentiment NLP"
-- [ ] Alcohol detection category — needs its own toggle to avoid catalog decimation
-- [ ] Per-child profile filtering tiers — deferred per PROJECT.md
-
----
-
-## Feature Prioritization Matrix
-
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| Drug scanner (boolean) | HIGH | LOW | P1 |
-| Sexual content scanner (boolean) | HIGH | LOW | P1 |
-| Named boolean fields on result | HIGH (future-proofs toggle UI) | LOW | P1 |
-| Incident log extension | MEDIUM (visibility) | LOW | P1 |
-| Conservative, curated word lists | HIGH (trust in filter) | MEDIUM (editorial judgment) | P1 |
-| Severity scoring in v1.2 | LOW (deferred) | MEDIUM | P3 |
-| LLM euphemism detection in v1.2 | LOW (scope creep) | HIGH | P3 |
-| Alcohol detection in v1.2 | LOW (catalog noise) | LOW | P3 |
-
-**Priority key:**
-- P1: Must have for launch
-- P2: Should have, add when possible
-- P3: Nice to have, future consideration
+- [ ] Album artwork — PROJECT.md designates this nice-to-have; adds `<img>` load logic but no new API calls; defer to avoid scope creep
+- [ ] Progress bar — defer indefinitely
+- [ ] Queue display — out of scope per PROJECT.md
 
 ---
 
-## Edge Cases and Tradeoffs
+## Existing Infrastructure Reused (No Changes Required)
 
-### Drug Reference Detection — Edge Cases
-
-**High false-positive risk terms to exclude or handle with care:**
-
-| Term | False Positive Scenario | Recommendation |
-|------|------------------------|----------------|
-| `high` | "fly so high", "higher ground", "I feel high on life" | Exclude bare form; only include in multi-word phrase like "getting high" — but even that triggers on "getting high hopes". Avoid entirely unless multi-word context guaranteed |
-| `lean` | "lean on me", "lean into it", "lean and mean" | Exclude bare form. "Purple lean", "sipping lean", "double cup lean" are higher-confidence phrases |
-| `white` | "white picket fence", "white wedding", "snow white" | Exclude bare form completely |
-| `snow` | "let it snow", "snow angel" | Exclude bare form |
-| `ice` | "ice ice baby" (this one is actually fine to flag), "ice cream", "cold as ice" | High false positive risk; borderline |
-| `blow` | "blow a kiss", "blow the candles out" | Exclude bare form; include "blow lines", "blow coke" |
-| `herb` | "herb garden", plant names in songs | Exclude bare form; include "smoking herb" |
-| `speed` | "speed of light", "up to speed" | Exclude bare form |
-| `grass` | "the grass is greener", "sitting on the grass" | Exclude bare form |
-| `dope` | "that's dope" (slang for cool), "dope beat" | Extremely polysemous in modern music; exclude or accept high false positive rate |
-| `420` | Numerals in lyrics are rare; this is fairly unambiguous | Include |
-
-**Lower false-positive risk terms worth including:**
-
-Cannabis: `weed`, `marijuana`, `cannabis`, `blunt`, `joint`, `spliff`, `bong`, `kush`, `indica`, `sativa`, `ganja`, `reefer`, `mary jane`, `chronic`, `420`
-Cocaine: `cocaine`, `coke`, `yayo`, `nose candy`, `snorting`, `lines of`
-Opioids: `heroin`, `smack`, `opioid`, `fentanyl`, `oxy`, `oxycontin`, `percocet`, `lean` (in phrase context), `codeine syrup`, `purple drank`, `sizzurp`
-Stimulants: `methamphetamine`, `crystal meth`, `molly`, `ecstasy`, `mdma`, `adderall` (as recreational), `xan`, `xanax` (recreational context)
-Generic: `rolling on drugs`, `on drugs`, `getting lit` (borderline — very high false positive)
-
-**Research finding (MEDIUM confidence):** Academic literature on drug-reference detection in lyrics consistently shows that bare single-word terms produce low precision (many false positives). Multi-word phrases and phrase-level context dramatically improve precision at the cost of recall. For a family filter, false positives erode trust faster than false negatives — err toward precision.
-
-### Sexual Content Detection — Edge Cases
-
-**Interaction with existing profanity tier:**
-
-The SEVERITY_MAP in profanity_scanner.py already covers: `dick`, `cock`, `cocks`, `whore`, `slut`, `slutty`, `tit`, `tits`, `pussy`, `wank`, `wanker`, `twat`, `asshole`. These are caught by profanity scan before the sexual content scan would even run. The new sexual content scanner should focus on what the profanity tier misses:
-
-**Terms to include in sexual content scanner (not in profanity tier):**
-
-Explicit acts: `fucking` (already in profanity tier-3 as the F-word), `sex`, `having sex`, `sexual`, `intercourse`, `orgasm`, `ejaculate`, `cumming`, `cum shot`, `fingering`, `going down on`, `blow job`, `blowjob`, `handjob`, `rimjob`, `anal`, `penetrat`
-Body parts (explicit slang not in profanity tier): `vagina`, `penis`, `erection`, `boobs`, `nipples` (borderline), `naked body`, `nude`, `strip` (very high false positive — strip mall, stripped down to basics)
-Sexual acts described: `making love` (borderline — deliberately romantic, not explicit), `getting laid`, `one night stand` (borderline), `bedroom` (very high false positive)
-
-**Recommended approach:** Focus on explicit act terms (blow job, going down on, orgasm, cumming) rather than body part vocabulary or euphemistic phrases. Explicit act terms have far lower false positive rates in general music lyrics than body part terms. "Boobs" and "nipples" appear in comedy songs, "naked" appears in "Naked Eye" and similar. Explicit act verb phrases are much harder to use accidentally.
-
-**High false-positive risk to avoid:**
-
-| Term | False Positive Scenario | Recommendation |
-|------|------------------------|----------------|
-| `strip` | Strip club, stripped down, strip mall, strip mine | Exclude bare form |
-| `naked` | "Naked Eye", "naked truth", "naked ambition" | Exclude bare form |
-| `bed` | Beds are mentioned constantly in non-sexual contexts | Exclude |
-| `sexy` | "I'm feeling sexy and free" — parent may want this filtered but it is extremely broad | Borderline; discuss with user |
-| `body` | Ubiquitous in non-sexual contexts | Exclude bare form |
-| `kiss` | Not sexual content by any definition | Exclude |
-| `touch` | Not sexual content | Exclude |
-| `love` | Not sexual content | Exclude |
-| `making love` | Euphemism, but extremely common in mainstream pop that the parent likely wants to allow | Low-confidence; borderline; lean toward excluding |
-
-### Boolean vs. Severity — Decision
-
-**The project spec says: boolean signal.** This is the right call for v1.2.
-
-Tradeoff analysis:
-- **Boolean pros:** Simple to reason about, matches the existing explicit-flag contract, drives a clean skip/allow decision, lower implementation complexity, forward-compatible (severity can be added later by adding a field)
-- **Boolean cons:** Cannot distinguish "one oblique drug reference" from "every lyric line glorifies heroin". But this nuance is a v2 problem.
-- **Severity cons for v1.2:** Requires editorial decisions about how many matches of what weight constitute a "moderate" vs "high" drug reference. The profanity tier's severity approach works because there's an established cultural hierarchy of profanity severity; no equivalent consensus exists for drug content severity.
-
-**Decision: boolean in v1.2, severity deferred to v2+ per PROJECT.md.**
-
-### "Detected and Declined" in Practice
-
-When the drug or sexual content scanner fires:
-
-1. `ContentChecker.check()` returns `(action="skip", reason="drug_refs", ...)` or `(action="skip", reason="sexual_content", ...)`
-2. The daemon skips the track (SoCo UPnP or Spotify API fallback, same as profanity skip)
-3. `skip_events.jsonl` receives an entry with `reason: "drug_refs"` (or `"sexual_content"`), `matched_terms: ["blunt", "weed"]`, and the new boolean fields `has_drug_refs: true`, `has_sexual_content: false`
-4. The web dashboard skip history feed shows the skip with the new reason label
-5. The 5-consecutive-skip pause logic counts drug/sexual skips the same as profanity skips
-
-This is behaviorally identical to a profanity skip from the daemon's perspective. The only user-visible difference is the reason label in the dashboard.
+| Component | What It Provides | Change Needed |
+|-----------|-----------------|---------------|
+| `skip_events.jsonl` | File-based IPC channel from daemon to web_ui | Add two new event types (now_playing, playback_stopped) — additive |
+| `_file_tail()` in web_ui | Tails skip_events.jsonl and broadcasts to SSE subscribers | None — new event types pass through transparently |
+| `/events` SSE endpoint | Streams events to browser | None — new event types arrive in the same stream |
+| `es.onmessage` in index.html | Routes events to handlers by type | Add `now_playing` and `playback_stopped` case branches |
+| `_append_skip_event()` in daemon | Writes to skip_events.jsonl | Reuse as-is for now_playing and playback_stopped events |
+| `state.json` read-merge-write pattern | Cross-process state | Reuse for fsm state check in POST /skip to gate the skip |
+| `.card` CSS class | Card layout with dark theme | Reuse for now-playing card — no new CSS needed for the card container |
+| `.badge` CSS classes | Reason badges in incident log | Reuse for evaluation state badge — add two new badge variants (evaluating, no_lyrics) |
 
 ---
 
-## Competitor Feature Analysis
+## State Machine — UI Edge Cases
 
-| Feature | Spotify (built-in) | Apple Music | Our Approach |
-|---------|-------------------|-------------|--------------|
-| Explicit flag | Distributor-set boolean; under-flags heavily | RIAA rating; similar limitations | Consumed as Tier 1 check; already built |
-| Drug reference detection | Not provided | Not provided | Custom keyword scanner against fetched lyrics |
-| Sexual content detection | Not provided (beyond explicit flag) | Not provided (beyond RIAA rating) | Custom keyword scanner against fetched lyrics |
-| Euphemism handling | None | None | Accepted miss; will log; expand list over time |
-| Per-category toggle | No (just "explicit on/off") | No (just "explicit on/off") | Boolean fields ready; toggle UI in v1.3 |
-| Override by song | No | No | Deferred to v1.3 |
+| Edge Case | What Happens | Correct Behaviour |
+|-----------|-------------|-------------------|
+| Track changes while badge shows "Evaluating" | A second now_playing(state="evaluating") arrives | Overwrite with new track name/artist; badge stays Evaluating (still waiting for new track evaluation) |
+| Track changes before evaluation completes (e.g., user manually skips in Spotify) | new track_id detected on next poll; evaluating event for the new track arrives before the old track's result arrives | Evaluation result for the old track arrives but is stale — daemon should include track_id in the event so the UI can discard results for non-current tracks |
+| Manual skip button pressed while auto-skip is in progress | Both skip mechanisms fire near-simultaneously; Spotify or SoCo may get two skip requests 1s apart | The manual skip's skip_request.json will be picked up on the next poll_loop iteration; since the auto-skip already moved the track, the daemon should detect that track_id has changed and skip the pending manual skip request as stale |
+| FSM toggled off while badge shows "Evaluating" | No evaluation result will arrive; badge is stuck | When FSM state change is received via SSE (or re-read on /fsm endpoint), hide or mute the evaluation badge |
+| No playback (result=None) on page load | Card should not show stale track info from a previous session | Card starts hidden; only shows when a now_playing event is received in the current session |
+| LRCLIB takes >3s to respond (slow API) | "Evaluating" badge sits for 3+ seconds | Correct — the badge correctly communicates that evaluation is in progress. No timeout-based fallback needed for v1.2. |
 
-Observation: Neither Spotify nor Apple Music provides category-level detection beyond the blunt-instrument explicit flag. This project's word-list approach, even with its known limitations, provides meaningfully more signal than what streaming platforms expose natively.
+---
+
+## Competitor Feature Analysis (Family Filter / Parental Control Dashboards)
+
+| Feature | Spotify (built-in) | Circle Home | Amazon Parent Dashboard | This Project |
+|---------|-------------------|-------------|------------------------|--------------|
+| Now playing display | In Spotify app only | No | No (music not tracked) | New card in web dashboard |
+| Filter evaluation state | Not shown | Not shown | Not shown | Evaluation badge (new in v1.2) |
+| Manual skip from filter UI | No | No | No | Manual skip button (new in v1.2) |
+| Skip reason transparency | Not shown | Not shown | Not shown | Badge label with reason |
+| Real-time update | App only | App only | Poll-based | SSE (existing infrastructure) |
+
+Observation: No existing family filter product exposes a real-time evaluation state badge. The "Evaluating → Passed / Skipped" UX pattern is novel for this domain. The closest analogy in other domains is build pipeline status indicators (e.g., GitHub Actions running → passed / failed), which shows the pattern is well-understood and trusted by users when the states are clear.
 
 ---
 
 ## Sources
 
-- [An Analysis of the Prevalence and Trends in Drug-Related Lyrics (JMIR 2024)](https://formative.jmir.org/2024/1/e49567) — confirms word-based approaches have high precision / low recall; fuzzy matching improves recall
-- [Covering Cracks in Content Moderation: Delexicalized Distant Supervision for Illicit Drug Jargon Detection (arXiv 2025)](https://arxiv.org/html/2503.14926v1) — context-aware approaches beat bare keyword lists; JEDIS framework
-- [Self-Supervised Euphemism Detection (arXiv 2021)](https://arxiv.org/pdf/2103.16808) — euphemisms specifically escape keyword filters; semantic approaches required for full coverage
-- [Fine-Tuning LLMs for Explicit Content in Spanish Lyrics (arXiv 2026)](https://arxiv.org/html/2602.05485) — dictionary-based filtering achieves 61% F1-score; ML achieves 87%+; euphemism problem is severe in genre-specific music
-- [Explicit Content Detection in Music Lyrics (IEEE 2018)](https://ieeexplore.ieee.org/document/8367165/) — ML baseline; word-based achieves 78% on Korean lyrics
-- [Keyword lists and filtering guide (Sightengine 2026)](https://sightengine.com/keyword-lists-for-text-moderation-the-guide) — practical keyword list maintenance tradeoffs
-- [DEA Drug Slang Reference (2018)](https://www.dea.gov/sites/default/files/2018-07/DIR-022-18.pdf) — comprehensive law enforcement slang reference (used to identify high-false-positive terms to exclude)
-- [Drug Slang Detection via NLP (PMC)](https://pmc.ncbi.nlm.nih.gov/articles/PMC5838358/) — word embeddings for discovering novel slang; confirms list maintenance burden
-- Existing project: `profanity_scanner.py` SEVERITY_MAP (cross-reference to avoid duplicates in sexual content scanner)
-- Existing project: `content_checker.py` pipeline structure (integration point for new scanners)
+- Direct code inspection: `daemon.py` poll_loop, `content_checker.py`, `web_ui/main.py`, `web_ui/templates/index.html`, `skip_client.py` — HIGH confidence
+- Existing IPC design: `data/skip_events.jsonl` file-based IPC pattern with `_file_tail()` — HIGH confidence
+- Project requirements: `.planning/PROJECT.md` v1.2 milestone section — HIGH confidence
+- State machine design: first-principles derivation from ContentChecker return values and daemon action/reason tuple — HIGH confidence
+- Manual skip IPC options: analysis of existing Docker-compose architecture (two-service, shared data volume, network_mode: host) — HIGH confidence
+- UI edge cases: derived from observed timing characteristics of 1s poll cycle, LRCLIB latency (~100ms cached, ~500ms cold), and Sonos UPnP skip latency (~200ms cached IP, ~1.5s SSDP discovery) — MEDIUM confidence (latency values from project retrospective notes, not measured in v1.2 context)
 
 ---
 
-*Feature research for: drug reference detection and sexual content detection in lyric-based family filter*
+*Feature research for: now-playing card with evaluation state badge and manual skip button — v1.2 milestone*
 *Researched: 2026-04-02*

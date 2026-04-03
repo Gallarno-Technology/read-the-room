@@ -1,275 +1,319 @@
-# Pitfalls Research
+# Domain Pitfalls
 
-**Domain:** Extending a lyric-filter pipeline with drug reference and sexual content detection
+**Domain:** Adding a real-time now-playing card and manual skip to an existing Spotify filter daemon + SSE dashboard
 **Researched:** 2026-04-02
-**Confidence:** HIGH (codebase read directly; false positive/negative patterns verified across multiple research sources)
+**Confidence:** HIGH (codebase read directly; all pitfalls grounded in specific existing code paths in daemon.py, web_ui/main.py, and skip_client.py)
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Substring Matching Causes Mass False Positives
+### Pitfall 1: Stale Now-Playing on Fresh Page Load — state.json Has No Evaluation Result
 
 **What goes wrong:**
-The existing `ProfanityScanner.scan()` uses `str.split()` + `strip(punct_chars)` to tokenize lyrics before looking up words in `SEVERITY_MAP`. This works reasonably well for profanity because those words rarely appear as substrings of innocent words. Drug and sexual keyword lists are far more likely to contain short words that are innocent substrings: "high" in "highway" or "highlight", "blow" in "blowfish" or "elbow", "grass" in "grasshopper", "joint" in "joint venture", "cock" in "cocktail" (already partially protected by the profanity map), "roll" in "rock and roll", "score" in "scoreboard", "molly" as a common given name, "pot" in "spot" or "depot", "crack" in "cracker" or "backtrack".
-
-The current `split()` tokenizer strips surrounding punctuation but does NOT enforce word boundaries. A lyric line like "she highlights her eyes" will match "high" if "high" is in the drug list, because after splitting the word is "highlights" and after stripping punctuation it is still "highlights" — the strip only removes leading/trailing punctuation, not embedded substrings. However the check `clean in SEVERITY_MAP` will not match "highlights" against "high". That is actually safe. The real danger is that the strip step produces shorter tokens when punctuation is adjacent: "high," → "high". So this path is actually OK for the exact-word case.
-
-The real risk emerges if the new scanner uses `in` substring checks, `str.contains()`, or `re.search(pattern, lyrics)` without word boundaries. This is the instinctive first implementation — build a list of drug words, then `any(word in lyrics_lower for word in drug_words)` — and it is wrong.
+The dashboard loads, reads `state.json`, and tries to show the current track. `state.json` currently contains only `last_track_id` and `family_safe_mode` — there is no `current_track_name`, `current_artist`, or `eval_state` in it. The dashboard has no track info to show until the daemon detects a track change, which may not happen for minutes if the same song is already playing.
 
 **Why it happens:**
-The profanity scanner already exists and uses a dict lookup. When adding a new scanner it is tempting to copy the simpler form: `any(keyword in lyrics for keyword in DRUG_KEYWORDS)`. Python's `in` operator performs substring matching, not whole-word matching. This is a well-documented Python gotcha: `"hell" in "hello"` is `True`.
+The daemon only writes `last_track_id` to `state.json` on track change. A user who opens the dashboard mid-song sees nothing in the now-playing card because the file does not carry human-readable track metadata or evaluation state. The web UI render path (`GET /`) injects `__FSM_INITIAL__` from `state.json` but has no parallel injection for current track.
 
-**How to avoid:**
-Use `re.search(r'\b' + re.escape(keyword) + r'\b', lyrics_lower)` for each keyword, or build a single compiled regex alternation: `re.compile(r'\b(?:' + '|'.join(re.escape(k) for k in sorted(keywords, key=len, reverse=True)) + r')\b')`. Mirror the existing split-and-lookup approach if word boundaries are reliable enough. Do not use raw `in` substring checks.
+**Consequences:**
+The now-playing card shows blank or a loading state indefinitely on fresh page loads unless the user waits for the next track change. This is the default failure mode without any code change — the card will never populate on first load from the current state.json schema.
 
-**Warning signs:**
-- A test with lyrics "highlight the classroom on the whiteboard" triggers drug detection
-- A test with "cockney accent" triggers sexual detection
-- A test with "grasshopper" triggers drug detection
-- Any test where the matched keyword is shorter than the actual word in lyrics
+**Prevention:**
+Extend `state.json` to carry current track snapshot: `{last_track_id, current_track, current_artist, eval_state, family_safe_mode}`. The daemon writes these fields on every track change alongside `last_track_id`. The web UI `GET /` endpoint injects them into the template the same way it already injects `__FSM_INITIAL__`. The fields default to `null` / `"idle"` when nothing is playing.
 
-**Phase to address:** Drug detection implementation phase (before any integration into ContentChecker)
+**Detection:**
+- Dashboard shows empty now-playing card on page load even though music is playing
+- Refreshing the page does not show the current track
+
+**Phase to address:** v1.2 — must be addressed at the same time as the now-playing card is added; skipping this makes the card useless on fresh load
 
 ---
 
-### Pitfall 2: No Context Awareness — "High" in Hymns, "Roll" in Rock, "Blow" in Jazz
+### Pitfall 2: Race Between Daemon Skip and Manual Skip Button — Double Skip
 
 **What goes wrong:**
-Keyword lists flag words that are legitimately drug-coded in one genre but completely innocent in another. "High" is a drug reference in "I get high with a little help from my friends" but not in "How Great Thou Art" ("Then sings my soul"). "Blow" is slang for cocaine in hip-hop but the name of a Miles Davis album. "Mary Jane" flags as marijuana but is also Spider-Man's girlfriend. "Trees" is slang for marijuana in some lyrics but appears in thousands of innocent songs about nature.
-
-Because the existing pipeline has no context model — it is deliberately keyword-only, per the PROJECT.md "Sentiment NLP — too complex for v1" decision — these false positives cannot be fully resolved. But an unmanaged list will make the feature unusable.
+The parent clicks the manual skip button. The HTTP POST to `/skip` fires. The daemon is mid-evaluation of the same track and is about to auto-skip it too. Both skip calls execute within the same 1-second poll window. The result is two consecutive `next_track()` calls arriving at Spotify within milliseconds, skipping two songs instead of one. On Sonos via SoCo, a second UPnP `next()` while the queue is mid-transition raises a `SoCoUPnPException` error 701, which the existing fallback path logs but does not fully suppress.
 
 **Why it happens:**
-Drug and sexual euphemism lists circulate online and are tempting to import wholesale. These lists are optimized for recall (catch everything), not precision (avoid false positives). Importing one unchanged into a binary skip decision causes the family filter to skip innocent songs constantly, which is worse than missing some drug references — it breaks trust and the toggle gets turned off permanently.
+The daemon polls at 1s. The web UI manual skip endpoint and the daemon poll loop are in different processes (separate Docker containers) with no shared lock. There is no "skip in progress" flag accessible to both processes. The manual skip fires asynchronously to the daemon's current evaluation cycle.
 
-**How to avoid:**
-- Prefer specific multi-word phrases over single common words: "getting high" not "high", "roll a blunt" not "roll", "hit the pipe" not "hit"
-- Exclude words that are also proper nouns, place names, or common given names from the single-word list: "Molly", "Mary Jane", "Charlie", "Lucy in the sky" — use full phrase matching
-- Maintain an explicit allow-list (known false positive phrases) that short-circuits the keyword check: if any allow-phrase is present, suppress the signal
-- Set an initial list that is small and deliberately conservative — start with 20–30 clearly unambiguous phrases rather than 200 ambiguous single words
-- Log every match at INFO level with the matched phrase and surrounding 5 words; review the first 20 real-world matches before finalizing the list
+**Consequences:**
+Two songs skipped instead of one. The `consecutive_skips` counter in the daemon is incremented for the auto-skip, but the manual skip via the web UI has no access to the daemon's in-memory `consecutive_skips` counter — meaning the counter state diverges from reality. If the parent manually skips 4 more songs, the 5th auto-skip triggers the 5-skip pause at count=5 but the actual number of user-perceived skips was already 6+.
 
-**Warning signs:**
-- More than 10% of skips attributed to the new signal within the first week of use
-- Classic rock, gospel, or jazz tracks being flagged
-- Tracks with matching artist names ("The Doors", "The Stones") triggering lyric detection because an artist name fragment matches
+**Prevention:**
+The lightest mitigation is a cooldown timestamp on the skip endpoint: write the last-manual-skip timestamp to `state.json` when a manual skip fires. The daemon reads `state.json` at the top of each track-change block (it already does `state = load_state()` on track change). If `last_manual_skip_at` is within the last N seconds (2s is sufficient given the 1s poll), the daemon suppresses its auto-skip for that track. No shared mutex needed — just a timestamp in the shared file.
 
-**Phase to address:** Keyword list design (before implementation), then reviewed after first production run
+Alternative: the manual skip endpoint calls the skip API and also writes a `skip_in_progress: true` flag; the daemon clears it on next track detection. The timestamp approach is simpler.
+
+**Detection:**
+- Two songs disappear from the queue after one manual skip click
+- `consecutive_skips` counter resets unexpectedly or reaches 5 faster than expected
+- `[SKIP_FAILED] SoCoUPnPException 701` appearing immediately after a manual skip in daemon logs
+
+**Phase to address:** v1.2 — must be part of the manual skip implementation plan, not a later fix
 
 ---
 
-### Pitfall 3: Return Type Changes Break the ContentChecker Integration Contract
+### Pitfall 3: "Evaluating" Badge Stuck After Track Already Evaluated — No SSE Path for Eval State Updates
 
 **What goes wrong:**
-`ContentChecker.check()` currently returns `tuple[str, str, int]` — `(action, reason, severity)`. The daemon and test suite both unpack this tuple positionally. Adding two new boolean signals (drug reference, sexual content) requires extending this return type.
-
-If the new signals are appended to the tuple (making it a 5-tuple), every call site that does `action, reason, severity = await content_checker.check(track)` raises `ValueError: too many values to unpack`. The daemon has one call site; the test suite has implicit assumptions about the shape. The web UI skip event dict also uses `reason` to categorize skips in the SSE feed.
+The now-playing card shows "Evaluating…" when a new track starts. The daemon evaluates and either allows or skips. If allowed, the result is currently not broadcast anywhere — `skip_events.jsonl` only receives entries when `action == "skip"`. There is no SSE event for `action == "allow"`. The badge stays "Evaluating…" forever for every track that passes — which is most of them.
 
 **Why it happens:**
-Tuple positional unpacking is fragile — adding to the end looks backward-compatible but breaks any unpacking assignment. This is a common Python API evolution mistake.
+The existing SSE pipeline was designed purely for skip events. The `_file_tail()` in web_ui reads `skip_events.jsonl`; nothing writes to that file for allowed tracks. The `content_checker.check()` returns `(allow, reason, severity)` but the daemon only calls `_append_skip_event()` in the `action == "skip"` branch.
 
-**How to avoid:**
-Replace the tuple return with a dataclass or `TypedDict` before adding fields:
-```python
-@dataclass
-class CheckResult:
-    action: str          # 'skip' | 'allow'
-    reason: str          # existing reasons + 'drug_reference' | 'sexual_content'
-    severity: int        # 0–3
-    drug_reference: bool # new
-    sexual_content: bool # new
-```
-Update all call sites at the same time. The daemon's `action, reason, severity = await content_checker.check(track)` line becomes `result = await content_checker.check(track)` with attribute access. This is a refactor that should be done in a single commit covering ContentChecker, daemon, and tests together.
+**Consequences:**
+The badge never resolves to "Passed" or "No Lyrics" for the majority of songs. The parent sees "Evaluating…" permanently for safe tracks. This makes the feature useless as a confidence signal.
 
-Alternatively, extend the reason string to encode the new signals (`reason="drug_reference"`, `reason="sexual_content"`) and keep the 3-tuple intact. This avoids changing call sites but loses the ability to log both signals independently (e.g., a track that is both drug-referenced and sexually explicit).
+**Prevention:**
+Emit a `track_update` SSE event type from the daemon for all evaluation outcomes, not just skips. Write to `skip_events.jsonl` with `type: "track_update"` and fields `{track, artist, eval_state: "passed" | "no_lyrics" | "instrumental" | "skipped", timestamp}`. The web UI file-tail loop already dispatches all event types to subscribers — it just needs the `track_update` type handled in the frontend JS (currently only `skip` and `five_skip_warning` are handled in `es.onmessage`).
 
-**Warning signs:**
-- `ValueError: not enough values to unpack` or `too many values to unpack` in daemon logs
-- Test failures on any test that unpacks the check() return value
-- SSE feed showing `undefined` or missing reason fields in the browser dashboard
+Do not conflate `track_update` events with skip events in the Incident Log — they are different UI elements. The now-playing card listens for `track_update`; the skip feed listens for `skip`.
 
-**Phase to address:** ContentChecker return type refactor (must happen before adding new signals)
+**Detection:**
+- Badge always reads "Evaluating…" even 10 seconds after a track starts
+- No entries appear in `skip_events.jsonl` for tracks that were allowed
+- Frontend `es.onmessage` has no handler for `track_update` type
+
+**Phase to address:** v1.2 — the eval state badge is the core of the now-playing card; cannot ship without this
 
 ---
 
-### Pitfall 4: Cached Lyrics Are Not Re-scanned After Keyword List Changes
+### Pitfall 4: SSE Reconnection Loses the Current Track State
 
 **What goes wrong:**
-`LyricsService` caches lyrics in SQLite keyed by Spotify track ID with no schema version or scan-result invalidation. The cache stores `plain_lyrics` text but does NOT store drug/sexual detection results. This is fine — the scan happens in `ContentChecker` on each play, not at cache-write time. However, if someone adds a new scanner (DrugScanner, SexualContentScanner) as a stateful object that caches its own scan results in the DB, those results will become stale when the keyword list is updated.
-
-The specific failure mode: a developer adds a `drug_detected` column to `lyrics_cache` to avoid re-scanning on repeat plays. The keyword list is later updated. The cached `drug_detected = 0` result from the old list is served, and the new keywords are never evaluated against that track's lyrics until the cache entry expires (90 days by default) or is manually deleted.
+The browser's `EventSource` reconnects automatically after a network hiccup. `_file_tail()` in web_ui seeks to the end of `skip_events.jsonl` at startup — it does not replay recent events. After reconnect, the now-playing card goes blank or reverts to the initial server-rendered state (last known track from `state.json` at page load time), even though a `track_update` event occurred while the SSE connection was down.
 
 **Why it happens:**
-Performance optimization impulse — "why re-scan lyrics we've already fetched?" is reasonable. The problem is conflating the immutable fact (lyrics text) with the mutable decision (drug/sexual signal given the current keyword list).
+`_file_tail()` calls `fh.seek(0, 2)` on startup — this is correct behavior for skip history (no point replaying old skips). But for now-playing state, the current track IS relevant to any client that reconnects. The `EventSource` API reconnects using the `Last-Event-ID` header only if the server uses SSE `id:` fields, which the current implementation does not set.
 
-**How to avoid:**
-Keep scan results out of the lyrics cache. The `lyrics_cache` table stores the raw text — always correct, no TTL issue. The scan runs in memory on each new-track event against the cached text. This adds ~1ms of CPU for a string scan; it is not a performance concern. Do not add `drug_detected` or `sexual_detected` columns to `lyrics_cache`.
+**Consequences:**
+After any SSE reconnect — including the brief disconnect that happens when the Docker container restarts — the now-playing card shows stale or empty state until the next track change. In the worst case (a long track) this could be several minutes.
 
-If scan-result persistence is ever needed for analytics, put it in a separate `scan_results` table with a `keyword_list_version` column that is invalidated when the list changes.
+**Prevention:**
+Two complementary approaches:
 
-**Warning signs:**
-- A scan result column added to `lyrics_cache` during implementation
-- A `scan()` call that writes back to SQLite
-- Any test that verifies a cached scan result rather than scanning fresh text
+1. **`GET /now-playing` endpoint:** Add a REST endpoint that returns the current track and eval state from `state.json`. The frontend calls this endpoint on SSE reconnect (`es.onerror` / `es.onopen`) to immediately refresh the card without waiting for the next SSE event. This is the simplest reliable solution.
 
-**Phase to address:** DrugScanner and SexualContentScanner implementation (architectural guardrail, enforce during code review)
+2. **Replay the last `track_update` event:** On SSE reconnect, the client POSTs its `Last-Event-ID` or sends a reconnect signal; the server looks up the last `track_update` from `state.json` and sends it immediately. More complex; the REST approach achieves the same result more simply.
+
+The REST approach is recommended: it also solves Pitfall 1 (fresh page load) via the same endpoint, collapsing two problems into one solution.
+
+**Detection:**
+- Now-playing card goes blank after a browser tab is backgrounded and SSE reconnects
+- Restarting the web_ui container clears the card until the next track change
+
+**Phase to address:** v1.2 — design the `/now-playing` REST endpoint at the same time as the card, not as a later fix
 
 ---
 
-### Pitfall 5: The `better-profanity` Fallback Fires on Drug/Sexual Keywords
+### Pitfall 5: "Evaluating" Badge Flicker on Rapid Track Changes
 
 **What goes wrong:**
-`ProfanityScanner.scan()` has a Pass 2 that calls `profanity.contains_profanity(normalized)` from the `better-profanity` library. If `better-profanity`'s default word list includes some drug slang or sexual terms — and it does, since "bitch", "pussy", "cock", "dick", "whore", "slut" are in the existing `SEVERITY_MAP` at severity 2 — then new keyword lists may overlap with what `better-profanity` already catches.
+On playlist skip-throughs (user tapping next repeatedly in Spotify), the daemon detects each track change and emits `track_update` events in rapid succession. The browser receives `{track: "Song A", eval_state: "evaluating"}`, then `{track: "Song B", eval_state: "evaluating"}`, then `{track: "Song C", eval_state: "evaluating"}` within 2–3 seconds. The card flickers between track names while the "Evaluating…" spinner runs for each.
 
-The dual-fire problem: a track triggers both the new SexualContentScanner AND `better-profanity`, resulting in `reason="profanity"` logged but `sexual_content=True` also set on the `CheckResult`. The skip fires from the profanity path (severity >= 2), but the `sexual_content` flag is set for a word that was already in the profanity map. The logged data becomes ambiguous — did this skip because of "new" sexual content detection, or because the word was already in the profanity map?
+Worse: a `track_update` for Song A's final eval state (`"passed"`) may arrive after the card has already moved to Song B — because LRCLIB lyrics fetch for Song A can take 200ms–2s. The card then briefly shows "Song B — Passed" (incorrect — that was Song A's result applied to the wrong display name).
 
 **Why it happens:**
-The two scanners operate independently without coordination. The new scanners do not know what `SEVERITY_MAP` already contains.
+The daemon emits eval results asynchronously after lyrics fetch completes. Track changes can outpace eval completion. The frontend applies the most recently received `track_update` event without checking whether the `track` field matches the currently displayed track.
 
-**How to avoid:**
-Deduplicate word lists during construction: words already in `SEVERITY_MAP` at any severity level should not be added to the new drug or sexual keyword lists. The new lists are intended to catch signals that profanity scanning misses — euphemisms, slang, coded language. Straightforward explicit sexual terminology is already covered by profanity severity 2+.
+**Consequences:**
+The wrong eval state badge appears on the wrong track name. "Song B — Passed" when Song A passed but B hasn't been evaluated yet. This is visually jarring and technically incorrect.
 
-For the `reason` field: use a priority ordering when multiple signals fire. If `action=skip` is triggered by profanity (severity >= min_severity), `reason="profanity"` takes precedence. The drug/sexual booleans are still set as secondary metadata on the `CheckResult`.
+**Prevention:**
+Include `track_id` in all `track_update` SSE events. The frontend only applies an eval state update if the incoming `track_id` matches the currently displayed `track_id`. If they differ, discard the update silently. This is a version-check pattern: tag each state snapshot with the entity ID it belongs to.
 
-**Warning signs:**
-- The same word appearing in both `SEVERITY_MAP` in `profanity_scanner.py` and the new drug/sexual keyword list
-- Skip events logged with `reason="profanity"` but the matched word is in the sexual content list
-- Test cases that expect `reason="sexual_content"` but observe `reason="profanity"` because `better-profanity` fires first
+On the daemon side, track the `track_id` being evaluated through the async call chain. If `last_track_id` changes between when lyrics fetch starts and when it returns, discard the result.
 
-**Phase to address:** Keyword list construction (explicitly cross-reference SEVERITY_MAP during design)
+**Detection:**
+- "Passed" badge appearing on the wrong song name after rapid skipping
+- Badge shows "Passed" for 500ms before switching to "Evaluating" for the new track
+- Manual test: rapidly skip 5 songs in Spotify; observe card behavior
+
+**Phase to address:** v1.2 — include `track_id` in all events from the start; retrofitting is harder
 
 ---
 
-### Pitfall 6: False Negatives from Heavy Euphemism — The "Miss Rate" Is High and That Is Fine
+### Pitfall 6: Manual Skip Endpoint Needs Spotify Auth — Web UI Container Has No Token
 
 **What goes wrong:**
-Developers building keyword-based drug and sexual detection often see the miss rate — tracks with drug themes that use no keyword from the list — and react by aggressively expanding the keyword list. This expansion loop produces more false positives without meaningfully improving recall. Songs like "Lucy in the Sky with Diamonds", "Semi-Charmed Life", "Brown Sugar", or most coded hip-hop will not be caught by any keyword list that keeps false positives at an acceptable level. This is not a bug; it is a fundamental limitation of keyword-only detection.
-
-The mistake is treating the miss rate as a defect to fix within this milestone, leading to scope creep into NLP/LLM territory that was explicitly deferred.
+The manual skip POST endpoint (`/skip`) in the web UI container calls Spotify's `next_track()` API. The `spotipy.Spotify` instance with the OAuth token lives in the daemon container. The web UI container does not import `daemon.py` directly (they are separate Docker containers sharing only `state.json` and `data/` via bind mount). The web UI has no Spotify credentials.
 
 **Why it happens:**
-The parent using this system has a young child and sees a drug-themed song slip through. The instinct is "add more words". But the marginal words are also the most ambiguous ones.
+This was explicitly noted as acceptable for the existing FSM toggle (reads/writes `state.json` only — no Spotify API call needed). But a manual skip requires an actual API call to Spotify. The web UI container would need either its own spotipy client (duplicating auth setup) or a mechanism to ask the daemon to skip on its behalf.
 
-**How to avoid:**
-Document the miss rate expectation explicitly in code comments and the FEATURES spec: "This scanner catches direct, unambiguous drug/sexual references. Songs using heavy euphemism or coded language are false negatives by design. Severity scoring and LLM-based detection are deferred to v2+." Set a specific quality bar: the scanner should catch direct references in 4 out of 5 songs where the Spotify explicit flag is already set (since those songs frequently contain direct references in lyrics), and should NOT skip more than 1 in 50 innocent songs.
+**Consequences:**
+The most natural implementation — add a `/skip` endpoint to `web_ui/main.py` that calls `sp.next_track()` — fails immediately because `sp` does not exist in that process. Attempting to import `daemon.py` to get `skip_client` would recreate the in-process import problem that was explicitly abandoned (Gap-2 fix in v1.0).
 
-**Warning signs:**
-- Keyword list exceeds 100 entries (scope creep signal)
-- Single-syllable common words ("get", "light", "roll", "blow", "come") being added to the list
-- A discussion about "should we add 'smoke' because it could mean weed" — that conversation is the warning sign
+**Prevention:**
+Two viable approaches:
 
-**Phase to address:** Keyword list design review gate before implementation begins
+1. **Write a "skip request" to `state.json`**: The web UI sets `{"manual_skip_requested": true}` in `state.json`. The daemon's poll loop reads this flag on each cycle (it already calls `load_state()` after track-change detection) and fires the skip, then clears the flag. This piggybacks on the existing file-based IPC pattern — consistent with Gap-2 fix precedent.
 
----
+2. **Add a `/skip` endpoint to the daemon's own FastAPI or a lightweight internal HTTP endpoint**: The daemon exposes `POST /internal/skip` on localhost. The web UI proxies the manual skip request to the daemon's internal endpoint. Requires the daemon to run an HTTP server (currently it does not).
 
-## Technical Debt Patterns
+Option 1 is the lowest-friction approach given the existing architecture. It has a 1s poll latency (acceptable for a manual action) and reuses the proven file-IPC pattern. Option 2 adds an HTTP server to the daemon, which is a larger change.
 
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Raw `in` substring check instead of word-boundary regex | 2-line implementation | Mass false positives on innocent words; "grass" matches "grassroots" | Never — use `\b` word boundaries from the start |
-| Adding `drug_detected` column to `lyrics_cache` | Avoids re-scan on repeat plays | Stale cached results after keyword list updates; requires cache invalidation logic | Never — scan in memory, store only raw lyrics |
-| Copy-pasting a large drug/sexual euphemism list from GitHub | Fast keyword list bootstrap | Too many ambiguous single-word entries; high false positive rate from day one | Only if filtered down to unambiguous multi-word phrases before use |
-| Keeping `check()` as a 3-tuple instead of refactoring to dataclass | No call-site changes | Impossible to add new signals without breaking all callers; deferred pain makes the refactor larger later | Never if adding new return fields; only acceptable if signals are encoded in the existing `reason` string |
-| One combined "explicit content" scanner instead of two separate scanners | Simpler class structure | Cannot toggle drug vs. sexual detection independently in the next milestone (per-category UI toggles are the stated next feature) | Never — PROJECT.md explicitly names per-category toggles as next milestone |
+**Detection:**
+- `AttributeError: module 'daemon' has no attribute 'sp'` in web_ui container logs
+- `NameError: name 'sp' is not defined` when the skip endpoint is first called
+- Web UI container starting without Spotify credentials in `.env`
+
+**Phase to address:** v1.2 — architectural decision (option 1 vs. option 2) must be made before implementation begins
 
 ---
 
-## Integration Gotchas
+### Pitfall 7: Spotify Rate Limit on Manual Skip — Compounding with Auto-Skip Traffic
 
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| `ContentChecker.check()` return type | Appending to the existing 3-tuple | Refactor to a `CheckResult` dataclass with named fields before adding new signals |
-| `daemon.py` skip event dict | Forgetting to propagate `drug_reference` and `sexual_content` booleans to the `skip_events.jsonl` payload | Update the event dict construction at both `_append_skip_event()` call sites to include the new fields from `CheckResult` |
-| `web_ui/main.py` SSE feed | SSE skip events use `reason` string; new reasons `"drug_reference"` and `"sexual_content"` need to be handled in the frontend | Add the new reason strings to any switch/match statement or CSS class mapping in the dashboard JavaScript |
-| `ProfanityScanner` Pass 2 (`better-profanity`) | New sexual keywords that overlap with `better-profanity`'s built-in list cause double-firing | Cross-reference `better_profanity.profanity.CENSOR_WORDLIST` at init time and exclude overlapping words from the new lists |
-| `lyrics_cache` SQLite schema | Temptation to cache scan results alongside lyrics | Keep scan results out of the lyrics cache; scan in memory on every play using cached plain text |
-| `SEVERITY_MAP` in `profanity_scanner.py` | New scanner lists include words already in severity 2+ profanity map | Deduplicate: new lists should only contain words absent from `SEVERITY_MAP` |
+**What goes wrong:**
+Spotify's `POST /v1/me/player/next` endpoint is rate limited. The existing daemon already calls `GET /v1/me/player` (current playback) every 1 second — 60 calls/minute, plus the occasional `POST /next` for auto-skips. Adding a manual skip button that can be clicked rapidly by a parent (or a child who finds the dashboard) could trigger 429 responses on the skip endpoint.
 
----
+The daemon already handles 429 on `current_playback()` with backoff + jitter. But the manual skip path in the web UI is a separate HTTP call that would need its own 429 handling, and the two paths do not share a rate limit budget.
 
-## Performance Traps
+**Why it happens:**
+The Spotify rate limit is per-application (per `client_id`), not per-endpoint. Every API call from the same credentials counts toward the same bucket. The limit is undocumented but practically around 180 requests/30 seconds for user endpoints. At 1s polling (60/min) plus occasional skips, there is usually headroom — but rapid manual clicking can exhaust it.
 
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| Compiling a new regex per keyword on every scan call | Scan latency grows linearly with keyword list size; noticeable if list exceeds ~200 words | Compile a single alternation regex at module load time: `re.compile(r'\b(?:phrase1\|phrase2\|...)\b', re.IGNORECASE)` | At ~100+ keywords per scan; the existing profanity scanner does not hit this because it uses a dict lookup |
-| Using `re.search` in a loop over 200+ keywords | Each `re.search()` call is O(lyrics_length) per keyword | Build one compiled pattern with alternation; a single pass over the lyrics text is O(lyrics_length) regardless of keyword count | At 50+ keywords with lyrics averaging 300–500 words |
-| Blocking the asyncio event loop with CPU-bound regex scan | Poll loop stalls; skip latency increases | The existing scanner is synchronous and called directly from the async poll loop. For lists under 300 keywords and lyrics under 5KB, a synchronous scan completes in <2ms — acceptable. If list grows beyond 500 keywords, wrap in `run_in_executor` | This is not a concern at the keyword counts appropriate for this milestone; flag if keyword list exceeds 500 entries |
+**Consequences:**
+Manual skip appears to fail (HTTP 204 is expected on success; 429 means failure). The parent clicks again. More 429s. The daemon's playback polling starts getting 429s too, which degrades the auto-skip detection latency. The existing backoff in daemon.py handles the daemon side, but the web UI skip path would need its own handling.
 
----
+**Prevention:**
+- Add a 2-second UI debounce on the skip button: disable it for 2 seconds after click, regardless of success/failure
+- On 429 response from the skip endpoint, show a brief "wait a moment" message rather than silently failing
+- Do not expose the skip button to children — the dashboard is parent-only but has no auth; document this
+- The skip endpoint should propagate a 429 error back to the frontend as a distinct failure code
 
-## Security Mistakes
+**Detection:**
+- Skip button clicked rapidly produces no result and daemon logs show 429s
+- Auto-skip detection latency increases after manual skip activity
+- `SpotifyException(http_status=429)` in web_ui or daemon logs
 
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| Storing keyword lists in plaintext in the repository | The list itself is not sensitive, but very specific euphemism lists can be gamed by anyone who can read them | Not a meaningful security concern for a home server project; keyword lists are semi-public by nature |
-| Logging matched drug/sexual keywords verbatim in INFO-level daemon logs | Logs visible to anyone with Docker access; matched words are by definition explicit | Already mitigated by existing pattern: `[SCAN] matched=[...]` logs are INFO-level and the matched word list is controlled. No change needed; keep existing log format |
+**Phase to address:** v1.2 — debounce is trivial to add at button creation; add it by default
 
 ---
 
-## UX Pitfalls
+## Moderate Pitfalls
 
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| New signals skip songs that were previously allowed without informing the parent why | Parent turns off Family Safe Mode because songs they liked are now being skipped, with no way to understand why | Ensure `reason` in skip events uses distinct values (`"drug_reference"`, `"sexual_content"`) so the skip history feed in the dashboard shows the specific signal that fired |
-| Both drug and sexual signals log separately but the skip feed shows only one reason | Parent cannot tell if a song was skipped for both drug AND sexual content, or only one | The `CheckResult` dataclass approach (vs. single-string reason) allows logging both signals simultaneously: log `drug_reference=True sexual_content=True` when both fire |
-| Surprise skips on songs the family knows and trusts (classic rock, country) from the new keyword lists | Trust in the system collapses; FSM gets turned off permanently | Conservative list design (multi-word phrases over single words) is the only mitigation; cannot fix this with UI alone |
+### Pitfall 8: Now-Playing Card Not Cleared When Playback Stops
 
----
+**What goes wrong:**
+Spotify playback stops (user pauses, session ends, Spotify closes). The daemon receives `result is None` or `item is None` from `current_playback()`. It logs "no playback detected" at heartbeat interval (300s default) but does NOT write anything to `skip_events.jsonl` or update `state.json` with a "not playing" signal. The now-playing card on the dashboard continues to show the last track indefinitely.
 
-## "Looks Done But Isn't" Checklist
+**Prevention:**
+When the daemon transitions from "track playing" to "no playback", emit a `track_update` event with `eval_state: "idle"` and null track info. The frontend clears the card on receiving this. Also write `current_track: null` to `state.json` so fresh page loads also see the idle state.
 
-- [ ] **Drug scanner:** Returns `False` for clean lyrics — verify with a test that passes a verse from a children's song and asserts no detection
-- [ ] **Drug scanner:** Does NOT match "high" in "highway", "joint" in "joint venture", "pot" in "sport" — word boundary tests exist
-- [ ] **Sexual content scanner:** Does NOT match "cock" in "cocktail", "ass" in "grassland" or "classroom", "tit" in "title" — word boundary tests exist
-- [ ] **ContentChecker:** Return type is a dataclass with named fields, not a tuple — call sites use attribute access, not positional unpacking
-- [ ] **ContentChecker:** `drug_reference` and `sexual_content` fields exist on `CheckResult` and are independently settable
-- [ ] **Daemon skip event:** Both `drug_reference` and `sexual_content` fields are present in the `skip_events.jsonl` payload written by `_append_skip_event()`
-- [ ] **Keyword lists:** Cross-referenced against `SEVERITY_MAP`; no word appears in both
-- [ ] **Keyword lists:** No plain single-word entries that are also common English words unrelated to the target category ("high", "blow", "pot", "score", "grass", "roll")
-- [ ] **LyricsCache:** No `drug_detected` or `sexual_detected` columns added to the SQLite schema
+**Phase to address:** v1.2 — include "idle" state transitions in the `track_update` event design
 
 ---
 
-## Recovery Strategies
+### Pitfall 9: Manual Skip During 5-Skip Pause State Causes Inconsistent Consecutive Skip Count
 
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| Substring false positives already in production | LOW | Edit the keyword list to remove or replace the offending single-word entries with multi-word phrases; no schema migration needed; cache contains only lyrics text |
-| Return type broken — daemon crashes on tuple unpack | MEDIUM | Patch daemon.py call site to unpack new tuple length or switch to dataclass; redeploy container |
-| Scan results cached in SQLite and now stale | MEDIUM | Add a migration to drop the scan-result columns; re-scan all cached lyrics on next startup (or just delete the cache file and let it rebuild from LRCLIB) |
-| Keyword list causes >10% false positive skip rate | LOW–MEDIUM | Temporarily narrow the list to top 10 most unambiguous phrases; review skip log to identify false positive patterns; restore cautiously |
-| `better-profanity` overlapping with new sexual list — double-fire confusion in logs | LOW | Remove overlapping words from new list; they are already covered by existing profanity detection |
+**What goes wrong:**
+The daemon's `consecutive_skips` counter is in-memory in the daemon process. After a 5-skip pause, it resets to 0. If the parent manually skips via the web UI endpoint while the daemon is in mid-evaluation, the daemon's counter is not incremented (the manual skip is invisible to it). The parent could chain manual skips indefinitely without triggering the 5-skip pause guard.
+
+**Prevention:**
+If the "skip request" file-IPC approach is used for Pitfall 6, the daemon handles the actual skip call and can increment `consecutive_skips` correctly. If the web UI directly calls the Spotify API, the daemon never knows the skip happened and the counter diverges. This is another reason to prefer the file-IPC approach (daemon handles all actual skip calls) over the web UI calling Spotify directly.
+
+**Phase to address:** v1.2 — consequence of architectural choice made for Pitfall 6; document the coupling
 
 ---
 
-## Pitfall-to-Phase Mapping
+### Pitfall 10: SSE `_file_tail()` Polls Every 250ms — Adequate for Skips, Borderline for "Evaluating" State
 
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| Substring matching false positives (Pitfall 1) | DrugScanner / SexualContentScanner implementation | Unit tests: verify "highway" does not match "high"; "cocktail" does not match "cock" |
-| Context ambiguity / overly broad keywords (Pitfall 2) | Keyword list design review before implementation | Curated list review: no single-word entries that are also common non-drug/non-sexual English words |
-| Return type contract break (Pitfall 3) | ContentChecker refactor phase (before new scanners) | All existing tests pass after refactor; daemon starts cleanly; no tuple unpack errors |
-| Cached lyrics / stale scan results (Pitfall 4) | Scanner implementation (architectural guardrail) | Code review check: no new columns in `lyrics_cache`; scan result stored in CheckResult only |
-| `better-profanity` overlap / double-fire (Pitfall 5) | Keyword list construction | Cross-reference check: assert that `set(DRUG_KEYWORDS) & set(SEVERITY_MAP.keys()) == set()` in a test |
-| False negative scope creep (Pitfall 6) | Keyword list design review | Keyword list size gate: CI fails if either list exceeds 80 entries |
+**What goes wrong:**
+The existing `_file_tail()` polling interval is 250ms — acceptable for a skip history feed where latency is not noticeable. For the "Evaluating" → "Passed" transition on the now-playing card, a 250ms polling lag means the badge transition is perceptibly delayed. An explicit track triggers within 1–2 polls (250–500ms); a lyrics fetch can take 500ms–2s, so total time from track start to badge resolution is 1–3 seconds. That's acceptable.
+
+The concern is if the polling interval is increased by an operator (e.g., `POLL_INTERVAL_SECONDS=5`), the badge resolution lag grows to 5+ seconds — the card stays "Evaluating" noticeably too long.
+
+**Prevention:**
+No code change needed for the default case. Document that the badge resolution latency is `poll_daemon_interval + lyrics_fetch_time + file_tail_poll_interval`. Accept this as an architectural property. If sub-200ms badge transitions are ever required, the file-tail approach should be replaced with a websocket or a daemon-side HTTP push — but that is out of scope for v1.2.
+
+**Phase to address:** v1.2 — document in code comments, no implementation change needed
+
+---
+
+### Pitfall 11: `state.json` Write Contention Between Daemon and Web UI
+
+**What goes wrong:**
+`state.json` is written by both the daemon (on track change) and the web UI (on FSM toggle via POST /fsm). Both use the read-merge-write pattern (not atomic rename, per the existing EBUSY decision). Adding a third write path (the manual skip request flag from Pitfall 6) introduces a third writer. Three processes writing to the same non-atomic file create a small but non-zero chance of a partial write collision under load.
+
+**Why it happens:**
+`os.replace()` fails on bind-mounted files on Linux (EBUSY) — this was established in v1.0 and the direct write pattern was adopted as the solution. The data in `state.json` is small (<200 bytes) and writes are infrequent (track changes every ~3 minutes on average), so the collision window is extremely narrow in practice. Adding a third writer does not meaningfully increase risk, but it is worth noting.
+
+**Prevention:**
+The existing pattern is accepted as-is per the PROJECT.md decision log. No change needed. If contention becomes an observable problem, the mitigation is a single-writer model (daemon owns all writes; web UI sends commands via IPC) — but this is over-engineering for the current scale.
+
+**Detection:**
+- `json.JSONDecodeError` in daemon or web UI logs on `state.json` read (indicates partial write caught mid-read)
+- Track state reverting unexpectedly
+
+**Phase to address:** Awareness only — not a new problem introduced by v1.2, but worth noting when adding a third writer
+
+---
+
+## Minor Pitfalls
+
+### Pitfall 12: Frontend Handles `skip` and `five_skip_warning` Only — New Event Types Break Silently
+
+**What goes wrong:**
+`es.onmessage` in `index.html` currently handles exactly two event types: `skip` and `five_skip_warning`. Any unrecognized type is silently ignored (the catch block discards parse errors but unrecognized types fall through without action). Adding `track_update` requires explicitly adding a handler — there is no default dispatch, and forgetting it means the now-playing card never updates despite events being delivered.
+
+**Prevention:**
+When adding `track_update` event handling, also add a development-mode console.log for unhandled event types so unknown events are visible during testing. Remove or gate the log in production.
+
+**Phase to address:** v1.2 — frontend handler must be written alongside the daemon-side event emission
+
+---
+
+### Pitfall 13: Album Art Requires a Separate Spotify API Call
+
+**What goes wrong:**
+The Spotify `current_playback()` response already includes album art URLs in `item.album.images[]`. No extra API call is needed — the URL is in the daemon's existing `result` object. However, the daemon currently does not write this to `state.json` or include it in any event payload. If album art is added to the now-playing card, the daemon must pass the image URL through the `track_update` event.
+
+The pitfall: treating album art as a separate feature requiring a new Spotify API call, which would double the rate-limit cost. It is free data that is already in the response.
+
+**Prevention:**
+Include `album_art_url: track["album"]["images"][0]["url"]` (or the 64px thumbnail at index 2) in the `track_update` event payload from the daemon. No additional API call. The frontend fetches the image from Spotify's CDN directly — no proxy needed.
+
+**Phase to address:** v1.2 — if album art is included, get it from the existing response payload, not a new API call
+
+---
+
+### Pitfall 14: Skip Button Visible When FSM Is Off Causes Parent Confusion
+
+**What goes wrong:**
+The manual skip button is useful when FSM is on (parent wants to skip a track the daemon missed or is still evaluating). When FSM is off, the daemon is not filtering, and the parent is presumably listening freely. A skip button is still technically functional when FSM is off (Spotify API accepts skip regardless), but it confuses the interface — the parent may not realize they're skipping just for themselves vs. for the children.
+
+**Prevention:**
+Tie the skip button's enabled state to the FSM toggle state. When FSM is off, disable (grey out) the skip button. The FSM state is already available client-side (`fsmEnabled` boolean in the existing JS). This is a UI polish decision, not a correctness requirement.
+
+**Phase to address:** v1.2 — minor, can be deferred to end of phase
+
+---
+
+## Phase-Specific Warnings
+
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| Extending `state.json` schema for now-playing data | Daemon and web UI read `state.json` at different times — partial-write window during track change | Keep writes small; the read-merge-write pattern already mitigates this; accept the narrow race |
+| Adding `track_update` events to `skip_events.jsonl` | Eval result arriving after track has changed — badge applied to wrong track | Include `track_id` in all `track_update` payloads; frontend checks before applying |
+| Manual skip architecture | Web UI container has no Spotify token | Use file-IPC "skip request" pattern: web UI writes flag to `state.json`, daemon executes the skip |
+| SSE reconnection | Now-playing card blanks on reconnect | Add `GET /now-playing` REST endpoint; frontend calls it on SSE `onopen` after reconnect |
+| "Evaluating" badge initial state | Badge stuck "Evaluating" for allowed tracks | Daemon must emit `track_update` for ALL outcomes, not just skips |
+| Fresh page load | Card blank until next track change | Inject current track state from `state.json` at render time (same pattern as `__FSM_INITIAL__`) |
+| Rapid manual skip clicking | Spotify 429 rate limit, double skip | 2-second button debounce; daemon handles actual skip call to keep counter consistent |
+| Skip count consistency | Manual skip invisible to daemon's `consecutive_skips` counter | Route all skips through daemon via file-IPC; web UI should not call Spotify API directly |
 
 ---
 
 ## Sources
 
-- Codebase direct read: `content_checker.py`, `profanity_scanner.py`, `lyrics_service.py`, `daemon.py` — HIGH confidence
-- [Covering Cracks in Content Moderation: Delexicalized Distant Supervision for Illicit Drug Jargon Detection (KDD 2025)](https://arxiv.org/html/2503.14926v1) — MEDIUM confidence (context-based vs. keyword-based drug jargon detection tradeoffs)
-- [Fine-Tuning LLMs for Sexually Explicit Content in Spanish Song Lyrics (2026)](https://arxiv.org/html/2602.05485) — MEDIUM confidence (confirms keyword-only approaches miss metaphor and coded language)
-- [Explicit Content Detection in Music Lyrics Using Machine Learning — IEEE 2018](https://ieeexplore.ieee.org/document/8367165/) — MEDIUM confidence (still-relevant ML vs. keyword comparison)
-- [A novel approach for explicit song lyrics detection — PeerJ 2023](https://peerj.com/articles/cs-1469/) — MEDIUM confidence (false positive analysis in keyword approaches)
-- [Toxic keyword lists and filters guide 2026 — Sightengine](https://sightengine.com/keyword-lists-for-text-moderation-the-guide) — MEDIUM confidence (practical content moderation false positive patterns)
-- [Python Gotcha: Word boundaries in regular expressions — Developmentality](https://developmentality.wordpress.com/2011/09/22/python-gotcha-word-boundaries-in-regular-expressions/) — HIGH confidence (confirmed against Python docs)
-- [Python `re` module documentation — python.org](https://docs.python.org/3/library/re.html) — HIGH confidence (`\b` word boundary behavior)
-- [better-profanity PyPI](https://pypi.org/project/better-profanity/) — HIGH confidence (default word list behavior)
-- `.planning/PROJECT.md` — HIGH confidence (confirmed existing pipeline structure, active requirements, deferred scope)
-- `.planning/research/LYRICS_FILTERING.md` — HIGH confidence (prior research on false positive / false negative tradeoffs, LRCLIB coverage)
+- Codebase direct read: `daemon.py`, `web_ui/main.py`, `skip_client.py`, `web_ui/templates/index.html`, `state.json`, `docker-compose.yml` — HIGH confidence
+- [Spotify Web API Rate Limits — developer.spotify.com](https://developer.spotify.com/documentation/web-api/concepts/rate-limits) — HIGH confidence (rate limit behavior for user endpoints)
+- [Server-Sent Events — MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#reconnection_time) — HIGH confidence (EventSource reconnect behavior and Last-Event-ID)
+- [FastAPI StreamingResponse / SSE patterns — fastapi.tiangolo.com](https://fastapi.tiangolo.com/advanced/custom-response/) — HIGH confidence (SSE generator lifecycle)
+- `.planning/PROJECT.md` — HIGH confidence (confirmed existing IPC pattern, architectural decisions, v1.2 requirements)
 
 ---
-*Pitfalls research for: drug reference and sexual content detection extension to existing lyric filter pipeline*
+*Pitfalls research for: v1.2 now-playing card and manual skip on existing Spotify filter daemon + SSE dashboard*
 *Researched: 2026-04-02*
