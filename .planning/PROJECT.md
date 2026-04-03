@@ -106,4 +106,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-02 — v1.2 Now Playing Status milestone started*
+*Last updated: 2026-04-03 — Phase 06 complete: daemon now emits track_change/eval_result events and writes now_playing.json*
