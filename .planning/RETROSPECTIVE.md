@@ -102,6 +102,59 @@
 
 ---
 
+## Milestone: v1.2 — Now Playing Status
+
+**Shipped:** 2026-04-03
+**Phases:** 4 (6, 7, 8, 8.1) | **Plans:** 9 | **LOC:** ~1,754 total (+541 from v1.1)
+
+### What Was Built
+
+- `track_change` and `eval_result` SSE events emitted in all daemon poll_loop branches — every track gets both events regardless of outcome
+- `now_playing.json` file snapshot written on track detection (evaluating) and overwritten after evaluation — decoupled hydration from SSE stream
+- Shared spotipy token cache between daemon and web_ui via Docker volume — single `make auth` flow covers both containers
+- `GET /now-playing` hydration endpoint returning current track + eval state from snapshot file; `POST /skip` calling Spotify API directly from web_ui
+- Now-playing card with eval-state badge state machine (evaluating → passed / no-lyrics / skipped) wired to both hydration and SSE
+- Manual skip button with in-flight disabled state; skip counter bypass preserved
+- `severity` field propagated into all 8 eval_result/now_playing call sites in daemon.py
+- Multi-badge flex container (`badge-group`) in dashboard; amber "Mild language" badge alongside green "Passed" for severity >= 1 tracks
+- Phase 8.1 inserted mid-milestone as a decimal phase (8.1) — first use of the decimal insertion pattern
+
+### What Worked
+
+- **Dual delivery model (SSE + file snapshot)** — SSE for real-time updates, file for hydration; each solves a different problem cleanly without coupling. No complex state sync needed between containers
+- **Decimal phase insertion (8.1)** — the allow-reason context feature fit cleanly as 8.1 without disrupting the 8→9 numbering; the pattern works for urgent mid-stream scope
+- **TDD still paying off** — severity propagation (Plan 8.1-01) used the existing xfail test scaffold from Phase 6; adding assertions before implementation caught an out-of-scope branch immediately
+- **`severity=0` sentinel decision** — using 0 as "no scan ran" instead of making the field optional means frontend never needs to handle missing key; small decision, large downstream simplicity
+- **Multi-badge additive pattern** — designing badge-group as additive (criteria badges alongside eval_state badge) instead of replacing means v1.3 drug/sexual badges slot in with no refactor
+
+### What Was Inefficient
+
+- **OAuth scope gap on cold start** — `setup_auth.py` requested `user-read-currently-playing` instead of `user-read-playback-state`; `sp.current_playback()` silently needs the broader scope. Only caught during UAT cold start. Scope requirements should be validated in the TDD scaffold before implementation
+- **Phase 7 marked incomplete in ROADMAP** — Phase 7 was complete but its checkbox wasn't updated; the ROADMAP showed `[ ]` Phase 7 when Phase 8 was already done. Plan to auto-check on SUMMARY.md creation
+- **Roadmap analyzer failing on `<details>` sections** — `gsd-tools roadmap analyze` returned 0 phases because it couldn't parse phases inside `<details>` HTML tags. Required manual verification for the milestone readiness check
+
+### Patterns Established
+
+- **Dual delivery: SSE events + file snapshot** — SSE for real-time; file snapshot for hydration/reconnect. Any real-time feature that needs page-load state should use this pattern
+- **Decimal phase insertion** — urgent mid-stream scope goes in as `N.1` without disrupting milestone numbering; CONTEXT.md `depends on: Phase N` makes the dependency clear
+- **Field presence over optional fields** — when a field may not have a meaningful value (e.g., severity when no scan ran), use a sentinel (0, empty string) rather than omitting the field; consumers never need null checks
+- **Criteria badge additive model** — evaluation result badge is the primary; content signal badges (mild language, drug reference, etc.) are additive overlays; purge-then-conditionally-append makes the function idempotent
+
+### Key Lessons
+
+1. **OAuth scope must match the Spotipy method, not the endpoint name** — `sp.current_playback()` calls `/v1/me/player` (needs `user-read-playback-state`), not `/v1/me/player/currently-playing` (needs `user-read-currently-playing`); verify scope against Spotipy source, not the Spotify docs endpoint name
+2. **Snapshot file + SSE is a better pattern than SSE-only for dashboard state** — pure SSE dashboards go blank on reconnect; a file snapshot that SSE overwrites gives you hydration for free
+3. **The Docker shared volume is the simplest token sharing solution** — no token proxy, no API, no copy; mount the same cache path in both containers. Works because spotipy token format is stable
+4. **Additive badge design beats replacement design** — if badge state is modeled as "replace current badge," adding a second simultaneous badge requires redesign; additive from day 1 costs nothing extra upfront
+
+### Cost Observations
+
+- Model mix: Sonnet 4.6 (GSD balanced profile)
+- Sessions: ~6 sessions (2026-04-03, single day)
+- Notable: 9 plans in one day; parallel wave execution and TDD scaffolding kept each plan scoped to 1-2 files max
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -110,6 +163,7 @@
 |-----------|----------|--------|------------|
 | v1.0 | ~8 | 3 | First milestone; GSD coarse granularity established |
 | v1.1 | ~3 | 2 | TDD RED/GREEN discipline adopted; parallel wave execution |
+| v1.2 | ~6 | 4 | Dual delivery (SSE + snapshot) pattern; decimal phase insertion; additive badge model |
 
 ### Cumulative Quality
 
@@ -117,9 +171,12 @@
 |-----------|-------|----------|--------------------|
 | v1.0 | manual UAT | — | 0 (all deps intentional) |
 | v1.1 | pytest (healthcheck + Sonos probe) | targeted | pytest, pytest-asyncio |
+| v1.2 | pytest (13 daemon event tests, 4 web_ui endpoint tests) | targeted | spotipy (web_ui container) |
 
 ### Top Lessons (Verified Across Milestones)
 
 1. Design for the container/process boundary from day 1 — asyncio queues don't cross walls
 2. Hardware discovery needs manual override escape hatches from day 1
 3. Test runner must be in the container image — verify with `docker compose run` before writing tests
+4. OAuth scope must match the Spotipy method signature, not the Spotify docs endpoint name — verify against Spotipy source
+5. Snapshot file + SSE is more resilient than SSE-only for dashboard state — hydration on reconnect is free
