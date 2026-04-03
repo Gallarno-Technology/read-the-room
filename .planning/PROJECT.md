@@ -30,8 +30,9 @@ Songs that violate family-safe rules are skipped automatically before children h
 ### Active
 
 - ✓ web_ui exposes GET /now-playing (hydration) and POST /skip (manual skip via Spotify API) — v1.2 (Validated in Phase 07)
-- [ ] Dashboard shows current track with real-time filter evaluation state (v1.2)
-- [ ] Parent can manually skip current track from dashboard without opening Spotify (v1.2)
+- ✓ Dashboard shows current track with real-time filter evaluation state (v1.2) (Validated in Phase 08)
+- ✓ Parent can manually skip current track from dashboard without opening Spotify (v1.2) (Validated in Phase 08)
+- ✓ Dashboard badge shows "Mild language" alongside "Passed" when severity=1 (v1.2) (Validated in Phase 8.1)
 - [ ] Drug reference detection in lyrics — boolean signal (v1.3)
 - [ ] Sexual content detection in lyrics — boolean signal (v1.3)
 - [ ] Both new signals logged in incident log alongside existing flags (v1.3)
@@ -107,4 +108,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-03 — Phase 07 complete: web_ui has GET /now-playing and POST /skip endpoints; spotipy singleton reads shared token cache*
+*Last updated: 2026-04-03 — Phase 8.1 complete: severity field propagated into eval_result SSE events and now_playing.json; dashboard shows amber "Mild language" badge alongside green "Passed" for severity=1 tracks; multi-badge container groundwork in place for v1.3*
