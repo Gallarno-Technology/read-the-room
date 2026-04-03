@@ -98,6 +98,21 @@ def _append_event(event: dict) -> None:
         log.error("[EVENTS] failed to write event log: %s", exc)
 
 
+def _write_now_playing(data: dict) -> None:
+    """Write current track state to now_playing.json (D-06).
+
+    Overwrites the file on every call — first call at eval_state='evaluating',
+    second call after evaluation completes with final eval_state.
+    Direct write (not atomic rename — os.replace() raises EBUSY on bind-mounted files).
+    """
+    try:
+        os.makedirs(os.path.dirname(NOW_PLAYING_PATH) or ".", exist_ok=True)
+        with open(NOW_PLAYING_PATH, "w") as f:
+            json.dump(data, f)
+    except OSError as exc:
+        log.error("[NOW_PLAYING] failed to write: %s", exc)
+
+
 # ---------------------------------------------------------------------------
 # Sonos startup probe (Phase 4, D-01 through D-07)
 # ---------------------------------------------------------------------------
@@ -206,6 +221,15 @@ async def poll_loop(
                         "album_art_url": album_art_url,
                         "eval_state": "evaluating",
                         "timestamp": time.strftime("%H:%M:%S"),
+                    })
+                    # DAEM-03: write now_playing.json at "evaluating" state (D-06)
+                    _write_now_playing({
+                        "track_id": track_id,
+                        "track": track["name"],
+                        "artist": track["artists"][0]["name"],
+                        "album_art_url": album_art_url,
+                        "eval_state": "evaluating",
+                        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
                     })
 
                     # Phase 2: Content filtering (FSM-02: only when FSM is on)
