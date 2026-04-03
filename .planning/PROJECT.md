@@ -29,14 +29,18 @@ Songs that violate family-safe rules are skipped automatically before children h
 
 ### Active
 
+- [ ] Drug reference detection in lyrics (boolean signal)
+- [ ] Sexual content detection in lyrics (boolean signal)
+- [ ] Both signals logged in incident log alongside existing flags
 - [ ] Support for multiple Sonos rooms without env var mapping
 - [ ] Dashboard shows current track with real-time filter evaluation state
 - [ ] Parent can manually skip current track from dashboard without opening Spotify
 
 ### Deferred (v2+)
 
-- [ ] Sentiment analysis for adult themes (depression, violence, drug use)
+- [ ] Configurable per-category toggle UI (drug / sexual / profanity on/off)
 - [ ] Per-child profiles or age-based filtering tiers
+- [ ] Severity scoring within content categories
 
 ### Out of Scope
 
@@ -71,16 +75,16 @@ Songs that violate family-safe rules are skipped automatically before children h
 | PROXMOX.md as separate file | Keeps README minimal; LXC multicast edge case is niche enough to warrant dedicated doc | ✓ Good |
 | 3-section README (Quick Start / Prerequisites / Updating) | Minimal surface area; no troubleshooting section forces good defaults over workarounds | ✓ Good |
 
-## Current Milestone: v1.2 Now Playing Status
+## Current Milestone: v1.2 Drug & Sexual Reference Detection
 
-**Goal:** Dashboard shows the current track with its real-time filter evaluation state and a manual skip button, so parents can see what's playing and act on it without opening Spotify.
+**Goal:** Extend the filter pipeline with two new discrete content signals — drug references and sexual content — detected from lyrics already fetched by LRCLIB, sitting alongside the existing explicit flag and profanity layers.
 
 **Target features:**
-- Now-playing card: track name, artist, evaluation state badge (evaluating → passed / no-lyrics / skipped)
-- "Evaluating" is always the initial state on every new track — Spotify/Sonos API latency means no instant result is reliable
-- Album artwork: nice-to-have, not a requirement
-- Manual skip button — triggers skip from web UI without duplicating Spotify auth
-- Current track only — existing skip feed history unchanged
+- Drug reference detection against LRCLIB lyrics (boolean signal)
+- Sexual content detection against LRCLIB lyrics (boolean signal)
+- Both signals logged in incident log alongside existing flags
+- Independent named booleans on track evaluation result (structured for per-category UI toggles next milestone)
+- Detection method within existing pipeline — no LLM integration required
 
 ## Evolution
 
@@ -91,4 +95,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-02 — v1.2 Now Playing Status milestone started*
+*Last updated: 2026-04-02 — v1.2 Drug & Sexual Reference Detection milestone started*
