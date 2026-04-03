@@ -1,10 +1,12 @@
 """Spotify Family Safe Mode — Web UI Service (Phase 3).
 
 FastAPI app serving the dashboard HTML and providing:
-  GET  /          -> HTML dashboard (template rendered by Plan 03-02)
-  GET  /events    -> SSE stream of skip events from daemon's shared queue
-  GET  /fsm       -> current FSM state {"family_safe_mode": bool}
-  POST /fsm       -> toggle FSM {"enabled": bool} -> {"family_safe_mode": bool}
+  GET  /              -> HTML dashboard (template rendered by Plan 03-02)
+  GET  /events        -> SSE stream of skip events from daemon's shared queue
+  GET  /fsm           -> current FSM state {"family_safe_mode": bool}
+  POST /fsm           -> toggle FSM {"enabled": bool} -> {"family_safe_mode": bool}
+  GET  /now-playing   -> current track state from now_playing.json; {"status":"idle"} when absent
+  POST /skip          -> skip current track via Spotify API; {"ok":true} on success
 
 Shares skip_event_queue with daemon.py when run in-process.
 When run as a separate process (docker-compose web_ui service),
@@ -22,6 +24,8 @@ import os
 from typing import AsyncGenerator
 
 from dotenv import load_dotenv
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth, CacheFileHandler
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -47,6 +51,36 @@ app = FastAPI(title="Spotify Family Safe Mode", docs_url=None, redoc_url=None)
 # Both containers share the file via a docker-compose ./data volume mount.
 # ---------------------------------------------------------------------------
 EVENTS_PATH = os.environ.get("EVENTS_PATH", "data/events.jsonl")
+NOW_PLAYING_PATH = os.path.join(os.path.dirname(EVENTS_PATH) or ".", "now_playing.json")
+
+
+def _sp_init() -> "spotipy.Spotify | None":
+    """Initialize spotipy using shared token cache (D-07). Returns None if env vars absent."""
+    cache_path = os.environ.get("SPOTIFY_CACHE_PATH")
+    client_id = os.environ.get("SPOTIFY_CLIENT_ID")
+    client_secret = os.environ.get("SPOTIFY_CLIENT_SECRET")
+    redirect_uri = os.environ.get("SPOTIFY_REDIRECT_URI")
+    if not all([cache_path, client_id, client_secret, redirect_uri]):
+        log.warning("web_ui: Spotify env vars not set — POST /skip will return 503 until configured")
+        return None
+    if not os.path.exists(cache_path):
+        log.warning(
+            "web_ui: token cache %s not found — POST /skip will fail until daemon authenticates",
+            cache_path,
+        )
+    cache_handler = CacheFileHandler(cache_path=cache_path)
+    auth_manager = SpotifyOAuth(
+        client_id=client_id,
+        client_secret=client_secret,
+        redirect_uri=redirect_uri,
+        scope="user-read-currently-playing user-modify-playback-state",
+        open_browser=False,
+        cache_handler=cache_handler,
+    )
+    return spotipy.Spotify(auth_manager=auth_manager)
+
+
+sp = _sp_init()
 
 # Each SSE client gets its own subscriber queue (maxsize=100).
 _subscribers: list[asyncio.Queue] = []
