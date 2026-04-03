@@ -245,19 +245,19 @@ async def poll_loop(
                             device_name, is_restricted,
                         )
 
-                        action, reason, severity = await content_checker.check(track)
+                        result = await content_checker.check(track)
 
                         # D-09: [SCAN] log is emitted inside content_checker.check()
                         # for all code paths (explicit, instrumental, profanity, clean, etc.)
 
-                        if action == "allow":
+                        if result.action == "allow":
                             consecutive_skips = 0
                             # DAEM-02: emit eval_result for every allowed track
                             _append_event({
                                 "type": "eval_result",
                                 "track_id": track_id,
-                                "eval_state": _eval_state_from_result(action, reason),
-                                "severity": severity,
+                                "eval_state": _eval_state_from_result(result.action, result.reason),
+                                "severity": result.severity,
                                 "timestamp": time.strftime("%H:%M:%S"),
                             })
                             _write_now_playing({
@@ -265,12 +265,12 @@ async def poll_loop(
                                 "track": track["name"],
                                 "artist": track["artists"][0]["name"],
                                 "album_art_url": album_art_url,
-                                "eval_state": _eval_state_from_result(action, reason),
-                                "severity": severity,
+                                "eval_state": _eval_state_from_result(result.action, result.reason),
+                                "severity": result.severity,
                                 "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
                             })
 
-                        if action == "skip":
+                        if result.action == "skip":
                             # SKIP-03: Select skip client based on is_restricted (D-01).
                             # When Spotify Connect controls a Sonos, UPnP next() fails with
                             # error 701 (queue owned by Spotify, not Sonos). Fall back to
@@ -324,7 +324,7 @@ async def poll_loop(
                                     # D-07: Structured skip log
                                     log.info(
                                         "[SKIP] reason=%s track=%r artist=%r",
-                                        reason,
+                                        result.reason,
                                         track["name"],
                                         track["artists"][0]["name"],
                                     )
@@ -333,14 +333,14 @@ async def poll_loop(
                                         "type": "skip",
                                         "track": track["name"],
                                         "artist": track["artists"][0]["name"],
-                                        "reason": reason,
+                                        "reason": result.reason,
                                         "timestamp": time.strftime("%H:%M:%S"),
                                     })
                                     _append_event({
                                         "type": "skip",
                                         "track": track["name"],
                                         "artist": track["artists"][0]["name"],
-                                        "reason": reason,
+                                        "reason": result.reason,
                                         "timestamp": time.strftime("%H:%M:%S"),
                                     })
                                     consecutive_skips += 1
@@ -349,7 +349,7 @@ async def poll_loop(
                                         "type": "eval_result",
                                         "track_id": track_id,
                                         "eval_state": "skipped",
-                                        "severity": severity,
+                                        "severity": result.severity,
                                         "timestamp": time.strftime("%H:%M:%S"),
                                     })
                                     _write_now_playing({
@@ -358,13 +358,13 @@ async def poll_loop(
                                         "artist": track["artists"][0]["name"],
                                         "album_art_url": album_art_url,
                                         "eval_state": "skipped",
-                                        "severity": severity,
+                                        "severity": result.severity,
                                         "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
                                     })
                                 else:
                                     log.warning(
                                         "[SKIP_FAILED] reason=%s track=%r artist=%r",
-                                        reason,
+                                        result.reason,
                                         track["name"],
                                         track["artists"][0]["name"],
                                     )
