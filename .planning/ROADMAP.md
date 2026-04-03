@@ -34,7 +34,7 @@ See `.planning/milestones/v1.1-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Dashboard shows the current track with its real-time filter evaluation state and a manual skip button, so parents can see what's playing and act on it without opening Spotify.
 
-- [ ] **Phase 6: Daemon SSE Extensions** — Emit track_change and eval_result events for all tracks; write now_playing.json snapshot
+- [x] **Phase 6: Daemon SSE Extensions** — Emit track_change and eval_result events for all tracks; write now_playing.json snapshot (completed 2026-04-03)
 - [ ] **Phase 7: Web UI Backend** — Spotipy init in web_ui; GET /now-playing hydration endpoint; POST /skip endpoint
 - [ ] **Phase 8: Dashboard Frontend** — Now-playing card, evaluation badge state machine, album art, skip button, SSE reconnect hydration
 
@@ -60,7 +60,7 @@ Plans:
 - [x] 06-01-PLAN.md — Failing test scaffold (9 xfail stubs for DAEM-01, DAEM-02, DAEM-03)
 - [x] 06-02-PLAN.md — Env var + function rename: SKIP_EVENTS_PATH → EVENTS_PATH, _append_skip_event → _append_event
 - [x] 06-03-PLAN.md — Event emission in poll_loop: track_change (DAEM-01) + eval_result all branches (DAEM-02)
-- [ ] 06-04-PLAN.md — now_playing.json writer: _write_now_playing helper + call sites (DAEM-03)
+- [x] 06-04-PLAN.md — now_playing.json writer: _write_now_playing helper + call sites (DAEM-03)
 
 ### Phase 7: Web UI Backend
 **Goal**: The web UI container can serve current track state for page-load hydration and execute a manual skip directly against the Spotify API
@@ -95,6 +95,6 @@ Plans:
 | 3. Web UI Dashboard | v1.0 | 5/5 | Complete | 2026-04-02 |
 | 4. Sonos Discovery Hardening | v1.1 | 2/2 | Complete | 2026-04-02 |
 | 5. Deployment & Documentation | v1.1 | 2/2 | Complete | 2026-04-02 |
-| 6. Daemon SSE Extensions | v1.2 | 3/4 | In Progress|  |
+| 6. Daemon SSE Extensions | v1.2 | 4/4 | Complete   | 2026-04-03 |
 | 7. Web UI Backend | v1.2 | 0/? | Not started | - |
 | 8. Dashboard Frontend | v1.2 | 0/? | Not started | - |
