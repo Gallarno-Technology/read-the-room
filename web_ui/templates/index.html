@@ -398,6 +398,7 @@
     const nowPlayingName = document.getElementById('now-playing-name');
     const nowPlayingArtist = document.getElementById('now-playing-artist');
     const nowPlayingBadge = document.getElementById('now-playing-badge');
+    const badgeGroup = document.getElementById('badge-group');
     const skipBtn = document.getElementById('skip-btn');
     const skipError = document.getElementById('skip-error');
 
@@ -469,9 +470,19 @@
       'fsm-off':    'Monitoring off',
     };
 
-    function setEvalBadge(evalState) {
+    function setEvalBadge(evalState, severity) {
       nowPlayingBadge.className = 'badge ' + (EVAL_BADGE_CLASS[evalState] || 'badge--evaluating');
       nowPlayingBadge.textContent = EVAL_BADGE_LABEL[evalState] || '';
+      // Remove any existing mild-language badge before potentially re-adding
+      const existing = badgeGroup.querySelector('.badge--mild-language');
+      if (existing) existing.remove();
+      // Only render mild-language badge when track passed with severity >= 1 (D-07, D-09)
+      if (evalState === 'passed' && severity >= 1) {
+        const mildBadge = document.createElement('span');
+        mildBadge.className = 'badge badge--mild-language';
+        mildBadge.textContent = 'Mild language';
+        badgeGroup.appendChild(mildBadge);
+      }
     }
 
     function renderTrack(data) {
@@ -485,7 +496,7 @@
       } else {
         nowPlayingArt.style.display = 'none';
       }
-      setEvalBadge(data.eval_state || 'evaluating');
+      setEvalBadge(data.eval_state || 'evaluating', data.severity || 0);
     }
 
     function renderIdle() {
@@ -582,10 +593,10 @@
         } else if (evt.type === 'track_change') {
           renderTrack(evt);
           currentTrackId = evt.track_id;
-          setEvalBadge('evaluating');
+          setEvalBadge('evaluating', 0);
         } else if (evt.type === 'eval_result') {
           if (evt.track_id === currentTrackId) {
-            setEvalBadge(evt.eval_state);
+            setEvalBadge(evt.eval_state, evt.severity || 0);
           }
         }
       } catch (err) {
