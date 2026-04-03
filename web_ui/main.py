@@ -42,11 +42,11 @@ TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 app = FastAPI(title="Spotify Family Safe Mode", docs_url=None, redoc_url=None)
 
 # ---------------------------------------------------------------------------
-# File-based IPC bridge — daemon writes skip_events.jsonl; we tail it here.
+# File-based IPC bridge — daemon writes events.jsonl; we tail it here.
 # Replaces the broken in-process asyncio.Queue import (Gap-2 fix).
 # Both containers share the file via a docker-compose ./data volume mount.
 # ---------------------------------------------------------------------------
-SKIP_EVENTS_PATH = os.environ.get("SKIP_EVENTS_PATH", "data/skip_events.jsonl")
+EVENTS_PATH = os.environ.get("EVENTS_PATH", "data/events.jsonl")
 
 # Each SSE client gets its own subscriber queue (maxsize=100).
 _subscribers: list[asyncio.Queue] = []
@@ -59,12 +59,12 @@ async def _file_tail() -> None:
     only sees events that occur while it is connected — consistent with the original
     in-process queue behaviour.
     """
-    log.info("web_ui: tailing %s for SSE events", SKIP_EVENTS_PATH)
+    log.info("web_ui: tailing %s for SSE events", EVENTS_PATH)
     # Wait until the file exists (daemon may start slightly after web_ui)
-    while not os.path.exists(SKIP_EVENTS_PATH):
+    while not os.path.exists(EVENTS_PATH):
         await asyncio.sleep(1)
 
-    with open(SKIP_EVENTS_PATH) as fh:
+    with open(EVENTS_PATH) as fh:
         fh.seek(0, 2)  # seek to end — skip existing history
         while True:
             line = fh.readline()
