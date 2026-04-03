@@ -185,6 +185,19 @@ async def poll_loop(
                         log.info("[FSM] consecutive_skips reset — FSM re-enabled")
                     prev_fsm = fsm_now
 
+                    # DAEM-01: emit track_change immediately on detection, before evaluation
+                    images = track.get("album", {}).get("images", [])
+                    album_art_url = images[0]["url"] if images else None
+                    _append_event({
+                        "type": "track_change",
+                        "track_id": track_id,
+                        "track": track["name"],
+                        "artist": track["artists"][0]["name"],
+                        "album_art_url": album_art_url,
+                        "eval_state": "evaluating",
+                        "timestamp": time.strftime("%H:%M:%S"),
+                    })
+
                     # Phase 2: Content filtering (FSM-02: only when FSM is on)
                     # D-06: read family_safe_mode each cycle — toggle takes effect within 1 poll
                     if state.get("family_safe_mode", False):
