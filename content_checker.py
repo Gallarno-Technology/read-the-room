@@ -11,9 +11,23 @@ Tiers 2 and 3 are stubbed in this plan (Plan 01) — the conditional check on
 LyricsService and ProfanityScanner.
 """
 import logging
+from dataclasses import dataclass
 from typing import Optional
 
 log = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class TrackEvalResult:
+    """Named result from ContentChecker.check().
+
+    Replaces the positional (action, reason, severity) 3-tuple (PIPE-01).
+    frozen=True enforces immutability and value-object semantics.
+    """
+    action: str    # 'skip' | 'allow'
+    reason: str    # 'explicit' | 'profanity' | 'instrumental' | 'clean'
+                   # | 'lyrics_unavailable' | 'no_lyrics_service'
+    severity: int  # 0-3 (0=none, 1=mild, 2=moderate, 3=severe)
 
 
 class ContentChecker:
@@ -36,7 +50,7 @@ class ContentChecker:
         self.profanity_scanner = profanity_scanner
         self.min_severity = min_severity
 
-    async def check(self, track: dict) -> tuple[str, str, int]:
+    async def check(self, track: dict) -> "TrackEvalResult":
         """Check a track against content filter rules.
 
         Args:
@@ -44,7 +58,7 @@ class ContentChecker:
                    Must contain: id, name, artists, explicit fields.
 
         Returns:
-            Tuple of (action, reason, severity):
+            TrackEvalResult with fields:
             - action: 'skip' or 'allow'
             - reason: 'explicit' | 'profanity' | 'instrumental' |
                       'clean' | 'lyrics_unavailable' | 'no_lyrics_service'
@@ -61,7 +75,7 @@ class ContentChecker:
                 track_name,
                 artist_name,
             )
-            return ("skip", "explicit", 3)
+            return TrackEvalResult(action="skip", reason="explicit", severity=3)
 
         # Tier 2 & 3: Lyrics fetch + profanity scan (Plan 02)
         # Only runs when both services are wired in — Plan 02 will inject them.
@@ -79,7 +93,7 @@ class ContentChecker:
                     track_name,
                     artist_name,
                 )
-                return ("allow", "instrumental", 0)
+                return TrackEvalResult(action="allow", reason="instrumental", severity=0)
 
             # FILT-05: Lyrics unavailable = ambiguous, do NOT auto-skip
             if lyrics_result.lyrics is None:
@@ -88,7 +102,7 @@ class ContentChecker:
                     track_name,
                     artist_name,
                 )
-                return ("allow", "lyrics_unavailable", 0)
+                return TrackEvalResult(action="allow", reason="lyrics_unavailable", severity=0)
 
             # Tier 3: Profanity scan (D-09)
             severity, matched = self.profanity_scanner.scan(lyrics_result.lyrics)
@@ -107,7 +121,7 @@ class ContentChecker:
                 matched,
                 action,
             )
-            return (action, reason, severity)
+            return TrackEvalResult(action=action, reason=reason, severity=severity)
 
         # No lyrics service configured yet (or failed to initialize) — allow non-explicit tracks.
         log.warning(
@@ -116,4 +130,4 @@ class ContentChecker:
             track_name,
             artist_name,
         )
-        return ("allow", "no_lyrics_service", 0)
+        return TrackEvalResult(action="allow", reason="no_lyrics_service", severity=0)
