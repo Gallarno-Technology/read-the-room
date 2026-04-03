@@ -30,3 +30,4 @@ services:
     volumes:
       - ./state.json:/app/state.json  # FSM toggle reads/writes this file (D-09)
       - ./data:/app/data              # Shared event log (events.jsonl) and now_playing.json (Phase 6)
+      - ./token_cache:/app/token_cache    # Shared OAuth token cache with daemon (Phase 7)
