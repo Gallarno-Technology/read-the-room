@@ -30,20 +30,37 @@ Requirements for milestone v1.2: Now Playing Status.
 - [x] **SKIP-03**: Manual skip does not increment the consecutive-skip counter
 - [x] **SKIP-04**: Skip button is disabled while a skip request is in flight to prevent double-fire
 
+## v1.3 Requirements
+
+Requirements for milestone v1.3: Drug & Sexual Reference Detection.
+
+### Pipeline
+
+- [ ] **PIPE-01**: `ContentChecker.check()` returns a named `TrackEvalResult` dataclass instead of a positional 3-tuple
+
+### Drug Detection
+
+- [ ] **DRUG-01**: System detects drug references in song lyrics using word-boundary keyword matching
+- [ ] **DRUG-02**: `DrugScanner.scan()` returns a `(bool, list[str])` tuple — matched terms available for debug logging
+- [ ] **DRUG-03**: Skip is triggered when a drug reference is detected and Family Safe Mode is active
+
+### Sexual Content Detection
+
+- [ ] **SEXL-01**: System detects sexual content in song lyrics using word-boundary keyword matching
+- [ ] **SEXL-02**: `SexualContentScanner.scan()` returns a `(bool, list[str])` tuple — matched terms available for debug logging
+- [ ] **SEXL-03**: Sexual content keyword list has no overlap with terms already in the profanity `SEVERITY_MAP` (enforced by unit test)
+- [ ] **SEXL-04**: Skip is triggered when sexual content is detected and Family Safe Mode is active
+
+### Logging
+
+- [ ] **LOG-01**: Skip events in `skip_events.jsonl` include boolean fields for all four signals: `explicit`, `profanity`, `drug_reference`, `sexual_content`
+- [ ] **LOG-02**: Matched terms from drug/sexual scanners are logged to Python logger only — not written to `skip_events.jsonl`
+
+### Dashboard
+
+- [ ] **UI-01**: Skip feed displays distinct badge variants for drug-reference and sexual-content skip reasons
+
 ## Future Requirements
-
-### v1.3 — Drug & Sexual Reference Detection
-
-- **DRUG-01**: System detects drug references in song lyrics using word-boundary keyword matching
-- **DRUG-02**: Drug detection returns list of matched terms alongside the boolean signal
-- **DRUG-03**: Skip is triggered when drug reference is detected and Family Safe Mode is active
-- **SEXL-01**: System detects sexual content in song lyrics using word-boundary keyword matching
-- **SEXL-02**: Sexual content detection returns list of matched terms alongside the boolean signal
-- **SEXL-03**: Sexual content keyword list has no overlap with terms already in the profanity `SEVERITY_MAP`
-- **SEXL-04**: Skip is triggered when sexual content is detected and Family Safe Mode is active
-- **LOG-01**: Skip events in `skip_events.jsonl` include boolean fields for all four signals: `explicit`, `profanity`, `drug_reference`, `sexual_content`
-- **UI-01**: Skip feed in dashboard displays distinct badges for drug reference and sexual content skip reasons
-- **PIPE-01**: `ContentChecker.check()` returns a named `TrackEvalResult` dataclass instead of a positional 3-tuple
 
 ### v2+
 
@@ -59,6 +76,11 @@ Requirements for milestone v1.2: Now Playing Status.
 | Manual skip counts toward 5-skip pause | Parent intent is deliberate — not an algorithmic cascade; bypass is correct behavior |
 | Daemon-mediated skip IPC | web_ui calls Spotify directly via shared token cache — cleaner web-app separation |
 | Evaluation history per track | Current track only; history is the existing skip feed |
+| Matched terms in skip_events.jsonl | Debug logging sufficient; keeps JSONL schema clean and avoids leaking term lists to web_ui |
+| Severity tiers for drug/sexual signals | No actionable effect for ages 3 and 7 — any detection warrants a skip; defer to v2+ |
+| Phrase matching ("making love", "getting high") | Requires multi-word scan; defer to v2+ |
+| Alcohol/tobacco as a separate signal | Too many false positives in mainstream pop; defer to per-category toggle milestone |
+| Drug/sexual badges on now-playing eval card | Skip feed shows the history; now-playing card eval state (skipped) is sufficient |
 
 ## Traceability
 
@@ -80,12 +102,23 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SKIP-02 | Phase 7 | Complete |
 | SKIP-03 | Phase 7 | Complete |
 | SKIP-04 | Phase 8 | Complete |
+| PIPE-01 | Phase TBD | Pending |
+| DRUG-01 | Phase TBD | Pending |
+| DRUG-02 | Phase TBD | Pending |
+| DRUG-03 | Phase TBD | Pending |
+| SEXL-01 | Phase TBD | Pending |
+| SEXL-02 | Phase TBD | Pending |
+| SEXL-03 | Phase TBD | Pending |
+| SEXL-04 | Phase TBD | Pending |
+| LOG-01 | Phase TBD | Pending |
+| LOG-02 | Phase TBD | Pending |
+| UI-01 | Phase TBD | Pending |
 
 **Coverage:**
-- v1.2 requirements: 14 total
-- Mapped to phases: 14
-- Unmapped: 0 ✓
+- v1.3 requirements: 11 total
+- Mapped to phases: 0 (roadmap pending)
+- Unmapped: 11 ⚠️
 
 ---
 *Requirements defined: 2026-04-02*
-*Last updated: 2026-04-02 after roadmap creation*
+*Last updated: 2026-04-03 after v1.3 milestone requirements definition*
