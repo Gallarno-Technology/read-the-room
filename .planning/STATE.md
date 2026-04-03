@@ -61,6 +61,10 @@ Progress: [░░░░░░░░░░] 0% (v1.2)
 
 ## Accumulated Context
 
+### Roadmap Evolution
+
+- Phase 8.1 inserted after Phase 8: Allow-reason context — severity-aware badge when track passes with mild language (INSERTED 2026-04-03)
+
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.

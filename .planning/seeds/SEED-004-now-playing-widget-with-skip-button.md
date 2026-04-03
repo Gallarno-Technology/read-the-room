@@ -1,6 +1,6 @@
 ---
 id: SEED-004
-status: active
+status: consumed
 planted: 2026-04-02T00:00:00Z
 planted_during: v1.0 / Phase 03 — signal-notifications-interactive-confirmations
 trigger_when: next milestone / UI iteration

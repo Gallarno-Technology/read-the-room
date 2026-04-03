@@ -36,7 +36,8 @@ See `.planning/milestones/v1.1-ROADMAP.md` for full phase details.
 
 - [x] **Phase 6: Daemon SSE Extensions** — Emit track_change and eval_result events for all tracks; write now_playing.json snapshot (completed 2026-04-03)
 - [ ] **Phase 7: Web UI Backend** — Spotipy init in web_ui; GET /now-playing hydration endpoint; POST /skip endpoint
-- [ ] **Phase 8: Dashboard Frontend** — Now-playing card, evaluation badge state machine, album art, skip button, SSE reconnect hydration
+- [x] **Phase 8: Dashboard Frontend** — Now-playing card, evaluation badge state machine, album art, skip button, SSE reconnect hydration (completed 2026-04-03)
+- [ ] **Phase 8.1: Allow-reason context** — Severity-aware badge when track passes with mild language; daemon exposes severity in events; frontend shows "Mild language — allowed by settings" (INSERTED)
 
 ### 📋 v1.3 Drug & Sexual Reference Detection (Planned)
 
@@ -90,6 +91,16 @@ Plans:
 Plans:
 - [x] 08-01-PLAN.md — Now-playing card HTML + six badge CSS modifier classes + full JS wiring (hydration, SSE routing, skip handler)
 
+### Phase 8.1: Allow-reason context (INSERTED)
+**Goal**: When a track passes with mild language (severity=1, below the skip threshold), the dashboard badge communicates the app is aware of the content level and implies it was shown because of the user's configured threshold
+**Depends on**: Phase 8
+**Success Criteria** (what must be TRUE):
+  1. A track that passes with severity=1 shows "Mild language" badge variant instead of plain "Passed"
+  2. The badge implies the track was shown because of the user's configured threshold (e.g., sub-label or tooltip: "shown by your settings")
+  3. Tracks with severity=0 (clean) continue to show plain "Passed" unchanged
+  4. The severity field is present in both the eval_result SSE event payload and GET /now-playing response
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -100,5 +111,6 @@ Plans:
 | 4. Sonos Discovery Hardening | v1.1 | 2/2 | Complete | 2026-04-02 |
 | 5. Deployment & Documentation | v1.1 | 2/2 | Complete | 2026-04-02 |
 | 6. Daemon SSE Extensions | v1.2 | 4/4 | Complete   | 2026-04-03 |
-| 7. Web UI Backend | v1.2 | 1/2 | In Progress|  |
-| 8. Dashboard Frontend | v1.2 | 0/1 | Not started | - |
+| 7. Web UI Backend | v1.2 | 2/2 | Complete | 2026-04-03 |
+| 8. Dashboard Frontend | v1.2 | 1/1 | Complete | 2026-04-03 |
+| 8.1. Allow-reason context | v1.2 | 0/? | Not started | - |
