@@ -86,8 +86,9 @@ Plans:
   3. After SSE reconnects, the card repopulates correctly with current track state rather than going blank
   4. An `eval_result` event with a mismatched `track_id` does not overwrite the displayed badge — only the badge matching the currently displayed track updates
   5. Clicking the skip button skips the track; the button is disabled while the request is in flight and re-enables when the request completes
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 1 plan
+Plans:
+- [ ] 08-01-PLAN.md — Now-playing card HTML + six badge CSS modifier classes + full JS wiring (hydration, SSE routing, skip handler)
 
 ## Progress
 
@@ -100,4 +101,4 @@ Plans:
 | 5. Deployment & Documentation | v1.1 | 2/2 | Complete | 2026-04-02 |
 | 6. Daemon SSE Extensions | v1.2 | 4/4 | Complete   | 2026-04-03 |
 | 7. Web UI Backend | v1.2 | 1/2 | In Progress|  |
-| 8. Dashboard Frontend | v1.2 | 0/? | Not started | - |
+| 8. Dashboard Frontend | v1.2 | 0/1 | Not started | - |
