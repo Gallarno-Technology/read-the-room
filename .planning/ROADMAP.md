@@ -37,7 +37,7 @@ See `.planning/milestones/v1.1-ROADMAP.md` for full phase details.
 - [x] **Phase 6: Daemon SSE Extensions** — Emit track_change and eval_result events for all tracks; write now_playing.json snapshot (completed 2026-04-03)
 - [ ] **Phase 7: Web UI Backend** — Spotipy init in web_ui; GET /now-playing hydration endpoint; POST /skip endpoint
 - [x] **Phase 8: Dashboard Frontend** — Now-playing card, evaluation badge state machine, album art, skip button, SSE reconnect hydration (completed 2026-04-03)
-- [ ] **Phase 8.1: Allow-reason context** — Severity-aware badge when track passes with mild language; daemon exposes severity in events; frontend shows "Mild language — allowed by settings" (INSERTED)
+- [x] **Phase 8.1: Allow-reason context** — Severity-aware badge when track passes with mild language; daemon exposes severity in events; frontend shows "Mild language — allowed by settings" (INSERTED) (completed 2026-04-03)
 
 ### 📋 v1.3 Drug & Sexual Reference Detection (Planned)
 
@@ -101,8 +101,8 @@ Plans:
   4. The severity field is present in both the eval_result SSE event payload and GET /now-playing response
 **Plans**: 2 plans
 Plans:
-- [ ] 8.1-01-PLAN.md — Add severity field to eval_result events and now_playing.json writes in daemon.py
-- [ ] 8.1-02-PLAN.md — Add .badge--mild-language CSS, flex badge container, severity rendering in index.html
+- [x] 8.1-01-PLAN.md — Add severity field to eval_result events and now_playing.json writes in daemon.py
+- [x] 8.1-02-PLAN.md — Add .badge--mild-language CSS, flex badge container, severity rendering in index.html
 
 ## Progress
 
@@ -116,4 +116,4 @@ Plans:
 | 6. Daemon SSE Extensions | v1.2 | 4/4 | Complete   | 2026-04-03 |
 | 7. Web UI Backend | v1.2 | 2/2 | Complete | 2026-04-03 |
 | 8. Dashboard Frontend | v1.2 | 1/1 | Complete | 2026-04-03 |
-| 8.1. Allow-reason context | v1.2 | 0/2 | Not started | - |
+| 8.1. Allow-reason context | v1.2 | 2/2 | Complete | 2026-04-03 |

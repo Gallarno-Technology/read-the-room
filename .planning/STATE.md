@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Now Playing Status
-status: verifying
-stopped_at: Completed 8.1-02-PLAN.md
+status: complete
+stopped_at: Phase 8.1 complete — Allow-reason context
 last_updated: "2026-04-03T15:17:34.047Z"
 last_activity: 2026-04-03
 progress:
