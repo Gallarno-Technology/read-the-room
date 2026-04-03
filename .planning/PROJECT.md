@@ -29,6 +29,7 @@ Songs that violate family-safe rules are skipped automatically before children h
 
 ### Active
 
+- ✓ web_ui exposes GET /now-playing (hydration) and POST /skip (manual skip via Spotify API) — v1.2 (Validated in Phase 07)
 - [ ] Dashboard shows current track with real-time filter evaluation state (v1.2)
 - [ ] Parent can manually skip current track from dashboard without opening Spotify (v1.2)
 - [ ] Drug reference detection in lyrics — boolean signal (v1.3)
@@ -106,4 +107,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-03 — Phase 06 complete: daemon now emits track_change/eval_result events and writes now_playing.json*
+*Last updated: 2026-04-03 — Phase 07 complete: web_ui has GET /now-playing and POST /skip endpoints; spotipy singleton reads shared token cache*
