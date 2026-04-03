@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Now Playing Status
 status: verifying
-stopped_at: Phase 08 UI-SPEC approved
-last_updated: "2026-04-03T11:47:26.379Z"
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-04-03T12:31:45.780Z"
 last_activity: 2026-04-03
 progress:
   total_phases: 6
-  completed_phases: 5
-  total_plans: 20
-  completed_plans: 20
+  completed_phases: 6
+  total_plans: 21
+  completed_plans: 21
   percent: 0
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-02)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Phase 07 — web-ui-backend
+**Current focus:** Phase 08 — dashboard-frontend
 
 ## Current Position
 
-Phase: 07
-Plan: Not started
+Phase: 08 (dashboard-frontend) — EXECUTING
+Plan: 1 of 1
 Status: Phase complete — ready for verification
 Last activity: 2026-04-03
 
@@ -57,6 +57,7 @@ Progress: [░░░░░░░░░░] 0% (v1.2)
 | Phase 06-daemon-sse-extensions P04 | 2 | 2 tasks | 1 files |
 | Phase 07-web-ui-backend P01 | 2 | 2 tasks | 3 files |
 | Phase 07-web-ui-backend P02 | 2 | 2 tasks | 1 files |
+| Phase 08-dashboard-frontend P01 | 2 | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,8 @@ Recent decisions affecting current work:
 - [Phase 07-web-ui-backend]: fastapi+httpx installed into project venv to enable pytest collection of TestClient-based tests (Rule 3 auto-fix)
 - [Phase 07-02]: Used JSONResponse(status_code=503) instead of HTTPException for skip errors to avoid double-wrapping detail key
 - [Phase 07-02]: SKIP-03 architecturally guaranteed: consecutive_skips is daemon in-memory only; web_ui calls Spotify directly
+- [Phase 08-dashboard-frontend]: currentTrackId set only from track_change events and hydration — never from eval_result events (NOW-07 guard)
+- [Phase 08-dashboard-frontend]: No polling — all live updates come exclusively from SSE events (D-05 constraint)
 
 ### Pending Todos
 
@@ -90,6 +93,6 @@ None at roadmap creation.
 
 ## Session Continuity
 
-Last session: 2026-04-03T11:47:26.378Z
-Stopped at: Phase 08 UI-SPEC approved
-Resume file: .planning/phases/08-dashboard-frontend/08-UI-SPEC.md
+Last session: 2026-04-03T12:31:45.779Z
+Stopped at: Completed 08-01-PLAN.md
+Resume file: None

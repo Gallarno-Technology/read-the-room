@@ -88,7 +88,7 @@ Plans:
   5. Clicking the skip button skips the track; the button is disabled while the request is in flight and re-enables when the request completes
 **Plans**: 1 plan
 Plans:
-- [ ] 08-01-PLAN.md — Now-playing card HTML + six badge CSS modifier classes + full JS wiring (hydration, SSE routing, skip handler)
+- [x] 08-01-PLAN.md — Now-playing card HTML + six badge CSS modifier classes + full JS wiring (hydration, SSE routing, skip handler)
 
 ## Progress
 

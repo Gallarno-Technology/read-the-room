@@ -15,20 +15,20 @@ Requirements for milestone v1.2: Now Playing Status.
 
 ### Now Playing Display
 
-- [ ] **NOW-01**: Dashboard displays a now-playing card showing current track name and artist
-- [ ] **NOW-02**: Card shows an evaluation state badge that updates in real-time (evaluating → passed / no-lyrics / skipped)
-- [ ] **NOW-03**: Badge shows "evaluating" immediately when a new track starts, before evaluation completes
-- [ ] **NOW-04**: Card is populated on fresh page load — not blank when opening the dashboard mid-session
-- [ ] **NOW-05**: Card is populated correctly after SSE reconnection
-- [ ] **NOW-06**: Card displays album artwork
-- [ ] **NOW-07**: Badge ignores `eval_result` events with a mismatched `track_id` (prevents stale results from rapid skips overwriting current state)
+- [x] **NOW-01**: Dashboard displays a now-playing card showing current track name and artist
+- [x] **NOW-02**: Card shows an evaluation state badge that updates in real-time (evaluating → passed / no-lyrics / skipped)
+- [x] **NOW-03**: Badge shows "evaluating" immediately when a new track starts, before evaluation completes
+- [x] **NOW-04**: Card is populated on fresh page load — not blank when opening the dashboard mid-session
+- [x] **NOW-05**: Card is populated correctly after SSE reconnection
+- [x] **NOW-06**: Card displays album artwork
+- [x] **NOW-07**: Badge ignores `eval_result` events with a mismatched `track_id` (prevents stale results from rapid skips overwriting current state)
 
 ### Manual Skip
 
-- [ ] **SKIP-01**: Dashboard displays a manual skip button on the now-playing card
-- [ ] **SKIP-02**: User can skip the current track by clicking the skip button
-- [ ] **SKIP-03**: Manual skip does not increment the consecutive-skip counter
-- [ ] **SKIP-04**: Skip button is disabled while a skip request is in flight to prevent double-fire
+- [x] **SKIP-01**: Dashboard displays a manual skip button on the now-playing card
+- [x] **SKIP-02**: User can skip the current track by clicking the skip button
+- [x] **SKIP-03**: Manual skip does not increment the consecutive-skip counter
+- [x] **SKIP-04**: Skip button is disabled while a skip request is in flight to prevent double-fire
 
 ## Future Requirements
 
@@ -69,17 +69,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DAEM-01 | Phase 6 | Complete |
 | DAEM-02 | Phase 6 | Complete |
 | DAEM-03 | Phase 6 | Complete |
-| NOW-01 | Phase 8 | Pending |
-| NOW-02 | Phase 8 | Pending |
-| NOW-03 | Phase 8 | Pending |
-| NOW-04 | Phase 8 | Pending |
-| NOW-05 | Phase 8 | Pending |
-| NOW-06 | Phase 8 | Pending |
-| NOW-07 | Phase 8 | Pending |
-| SKIP-01 | Phase 8 | Pending |
-| SKIP-02 | Phase 7 | Pending |
-| SKIP-03 | Phase 7 | Pending |
-| SKIP-04 | Phase 8 | Pending |
+| NOW-01 | Phase 8 | Complete |
+| NOW-02 | Phase 8 | Complete |
+| NOW-03 | Phase 8 | Complete |
+| NOW-04 | Phase 8 | Complete |
+| NOW-05 | Phase 8 | Complete |
+| NOW-06 | Phase 8 | Complete |
+| NOW-07 | Phase 8 | Complete |
+| SKIP-01 | Phase 8 | Complete |
+| SKIP-02 | Phase 7 | Complete |
+| SKIP-03 | Phase 7 | Complete |
+| SKIP-04 | Phase 8 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 14 total
