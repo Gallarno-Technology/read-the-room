@@ -368,6 +368,7 @@
     // FSM initial state injected by web_ui/main.py at serve time
     const FSM_INITIAL = "__FSM_INITIAL__";
     let fsmEnabled = FSM_INITIAL === "true";
+    let currentTrackId = null;
 
     const fsmBtn = document.getElementById('fsm-toggle');
     const fsmError = document.getElementById('fsm-error');
@@ -376,6 +377,14 @@
     const sseDot = document.getElementById('sse-dot');
     const sseLabel = document.getElementById('sse-label');
     const bannerDismiss = document.getElementById('banner-dismiss');
+    const nowPlayingIdle = document.getElementById('now-playing-idle');
+    const nowPlayingTrack = document.getElementById('now-playing-track');
+    const nowPlayingArt = document.getElementById('now-playing-art');
+    const nowPlayingName = document.getElementById('now-playing-name');
+    const nowPlayingArtist = document.getElementById('now-playing-artist');
+    const nowPlayingBadge = document.getElementById('now-playing-badge');
+    const skipBtn = document.getElementById('skip-btn');
+    const skipError = document.getElementById('skip-error');
 
     function setFsmUI(enabled) {
       fsmEnabled = enabled;
@@ -427,6 +436,64 @@
       if (r.includes('adult')) return 'Flagged: adult themes';
       return 'Flagged: explicit tag';
     }
+
+    const EVAL_BADGE_CLASS = {
+      'evaluating': 'badge--evaluating',
+      'passed':     'badge--passed',
+      'no-lyrics':  'badge--no-lyrics',
+      'skipped':    'badge--skipped',
+      'paused':     'badge--paused',
+      'fsm-off':    'badge--fsm-off',
+    };
+    const EVAL_BADGE_LABEL = {
+      'evaluating': 'Checking\u2026',
+      'passed':     'Passed',
+      'no-lyrics':  'No lyrics',
+      'skipped':    'Skipped',
+      'paused':     'Paused',
+      'fsm-off':    'Monitoring off',
+    };
+
+    function setEvalBadge(evalState) {
+      nowPlayingBadge.className = 'badge ' + (EVAL_BADGE_CLASS[evalState] || 'badge--evaluating');
+      nowPlayingBadge.textContent = EVAL_BADGE_LABEL[evalState] || '';
+    }
+
+    function renderTrack(data) {
+      nowPlayingIdle.style.display = 'none';
+      nowPlayingTrack.style.display = '';
+      nowPlayingName.textContent = data.track || '';
+      nowPlayingArtist.textContent = data.artist || '';
+      if (data.album_art_url) {
+        nowPlayingArt.src = data.album_art_url;
+        nowPlayingArt.style.display = '';
+      } else {
+        nowPlayingArt.style.display = 'none';
+      }
+      setEvalBadge(data.eval_state || 'evaluating');
+    }
+
+    function renderIdle() {
+      nowPlayingIdle.style.display = '';
+      nowPlayingTrack.style.display = 'none';
+    }
+
+    async function hydrateNowPlaying() {
+      try {
+        const resp = await fetch('/now-playing');
+        const data = await resp.json();
+        if (data.status === 'idle') {
+          renderIdle();
+        } else {
+          renderTrack(data);
+          currentTrackId = data.track_id;
+        }
+      } catch (err) {
+        // Network error — leave card in current state; SSE reconnect will retry
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', hydrateNowPlaying);
 
     function removeEmptyState() {
       const empty = skipFeed.querySelector('li.empty');
@@ -482,6 +549,7 @@
     es.onopen = function() {
       sseDot.className = 'sse-dot connected';
       sseLabel.textContent = '';
+      hydrateNowPlaying();
     };
 
     es.onerror = function() {
@@ -496,11 +564,36 @@
           prependSkipItem(evt);
         } else if (evt.type === 'five_skip_warning') {
           banner.removeAttribute('hidden');
+        } else if (evt.type === 'track_change') {
+          renderTrack(evt);
+          currentTrackId = evt.track_id;
+          setEvalBadge('evaluating');
+        } else if (evt.type === 'eval_result') {
+          if (evt.track_id === currentTrackId) {
+            setEvalBadge(evt.eval_state);
+          }
         }
       } catch (err) {
         // Ignore malformed events
       }
     };
+
+    skipBtn.addEventListener('click', async function() {
+      skipBtn.disabled = true;
+      skipError.textContent = '';
+      try {
+        const resp = await fetch('/skip', { method: 'POST' });
+        if (resp.status === 503) {
+          skipError.textContent = 'Skip failed \u2014 try again.';
+          setTimeout(function() { skipError.textContent = ''; }, 3000);
+        }
+      } catch (err) {
+        skipError.textContent = 'Skip failed \u2014 try again.';
+        setTimeout(function() { skipError.textContent = ''; }, 3000);
+      } finally {
+        skipBtn.disabled = false;
+      }
+    });
 
     // Banner dismiss
     bannerDismiss.addEventListener('click', function() {
