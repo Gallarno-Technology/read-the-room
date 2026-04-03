@@ -99,7 +99,10 @@ Plans:
   2. The badge implies the track was shown because of the user's configured threshold (e.g., sub-label or tooltip: "shown by your settings")
   3. Tracks with severity=0 (clean) continue to show plain "Passed" unchanged
   4. The severity field is present in both the eval_result SSE event payload and GET /now-playing response
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 8.1-01-PLAN.md — Add severity field to eval_result events and now_playing.json writes in daemon.py
+- [ ] 8.1-02-PLAN.md — Add .badge--mild-language CSS, flex badge container, severity rendering in index.html
 
 ## Progress
 
@@ -113,4 +116,4 @@ Plans:
 | 6. Daemon SSE Extensions | v1.2 | 4/4 | Complete   | 2026-04-03 |
 | 7. Web UI Backend | v1.2 | 2/2 | Complete | 2026-04-03 |
 | 8. Dashboard Frontend | v1.2 | 1/1 | Complete | 2026-04-03 |
-| 8.1. Allow-reason context | v1.2 | 0/? | Not started | - |
+| 8.1. Allow-reason context | v1.2 | 0/2 | Not started | - |
