@@ -259,6 +259,14 @@ async def poll_loop(
                                 "eval_state": _eval_state_from_result(action, reason),
                                 "timestamp": time.strftime("%H:%M:%S"),
                             })
+                            _write_now_playing({
+                                "track_id": track_id,
+                                "track": track["name"],
+                                "artist": track["artists"][0]["name"],
+                                "album_art_url": album_art_url,
+                                "eval_state": _eval_state_from_result(action, reason),
+                                "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+                            })
 
                         if action == "skip":
                             # SKIP-03: Select skip client based on is_restricted (D-01).
@@ -293,6 +301,14 @@ async def poll_loop(
                                     "track_id": track_id,
                                     "eval_state": "paused",
                                     "timestamp": time.strftime("%H:%M:%S"),
+                                })
+                                _write_now_playing({
+                                    "track_id": track_id,
+                                    "track": track["name"],
+                                    "artist": track["artists"][0]["name"],
+                                    "album_art_url": album_art_url,
+                                    "eval_state": "paused",
+                                    "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
                                 })
                             else:
                                 success = await client.skip(device_name, device.get("id"))
@@ -331,6 +347,14 @@ async def poll_loop(
                                         "eval_state": "skipped",
                                         "timestamp": time.strftime("%H:%M:%S"),
                                     })
+                                    _write_now_playing({
+                                        "track_id": track_id,
+                                        "track": track["name"],
+                                        "artist": track["artists"][0]["name"],
+                                        "album_art_url": album_art_url,
+                                        "eval_state": "skipped",
+                                        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+                                    })
                                 else:
                                     log.warning(
                                         "[SKIP_FAILED] reason=%s track=%r artist=%r",
@@ -345,6 +369,14 @@ async def poll_loop(
                             "track_id": track_id,
                             "eval_state": "fsm-off",
                             "timestamp": time.strftime("%H:%M:%S"),
+                        })
+                        _write_now_playing({
+                            "track_id": track_id,
+                            "track": track["name"],
+                            "artist": track["artists"][0]["name"],
+                            "album_art_url": album_art_url,
+                            "eval_state": "fsm-off",
+                            "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
                         })
 
         except SpotifyException as exc:
