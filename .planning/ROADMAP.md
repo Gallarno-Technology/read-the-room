@@ -71,7 +71,10 @@ Plans:
   2. `POST /skip` calls the Spotify API and returns success — the track advances
   3. A manual skip via `POST /skip` does not increment the daemon's consecutive-skip counter (counter stays at its pre-skip value)
   4. The web_ui spotipy instance authenticates using the shared token cache without requiring a second OAuth flow
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 07-01-PLAN.md — Infrastructure + test scaffold: spotipy in requirements.txt, token_cache volume in docker-compose.yml, 4 failing tests
+- [ ] 07-02-PLAN.md — Endpoint implementation: NOW_PLAYING_PATH + sp init + GET /now-playing + POST /skip in web_ui/main.py
 
 ### Phase 8: Dashboard Frontend
 **Goal**: Parents can see the current track, its real-time evaluation state badge, and album artwork, and skip it from the dashboard without opening Spotify
@@ -96,5 +99,5 @@ Plans:
 | 4. Sonos Discovery Hardening | v1.1 | 2/2 | Complete | 2026-04-02 |
 | 5. Deployment & Documentation | v1.1 | 2/2 | Complete | 2026-04-02 |
 | 6. Daemon SSE Extensions | v1.2 | 4/4 | Complete   | 2026-04-03 |
-| 7. Web UI Backend | v1.2 | 0/? | Not started | - |
+| 7. Web UI Backend | v1.2 | 0/2 | Not started | - |
 | 8. Dashboard Frontend | v1.2 | 0/? | Not started | - |
