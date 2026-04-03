@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: Now Playing Status
-status: verifying
-stopped_at: Completed 8.1-02-PLAN.md
-last_updated: "2026-04-03T22:09:47.646Z"
+milestone: v1.3
+milestone_name: Drug & Sexual Reference Detection
+status: planning
+stopped_at: Milestone initialized
+last_updated: "2026-04-03T00:00:00.000Z"
 last_activity: 2026-04-03
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 23
-  completed_plans: 23
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
   percent: 0
 ---
 
@@ -18,27 +18,25 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-02)
+See: .planning/PROJECT.md (updated 2026-04-03)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Phase 8.1 — Allow-reason context
+**Current focus:** Defining requirements for v1.3
 
 ## Current Position
 
-Phase: 8.1 (Allow-reason context) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
-Last activity: 2026-04-03
-
-Progress: [░░░░░░░░░░] 0% (v1.2)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-03 — Milestone v1.3 started
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 18 (v1.0 + v1.1)
+- Total plans completed: 23 (v1.0 + v1.1 + v1.2)
 - Average duration: ~3 min
-- Total execution time: ~54 min
+- Total execution time: ~69 min
 
 **By Phase:**
 
@@ -49,17 +47,10 @@ Progress: [░░░░░░░░░░] 0% (v1.2)
 | v1.0 Phase 03 | 5 | ~15 min | ~3 min |
 | v1.1 Phase 04 | 2 | ~4 min | ~2 min |
 | v1.1 Phase 05 | 2 | ~4 min | ~2 min |
-
-*Updated after each plan completion*
-| Phase 06-daemon-sse-extensions P01 | 5 | 1 tasks | 1 files |
-| Phase 06-daemon-sse-extensions P02 | 5 | 2 tasks | 3 files |
-| Phase 06-daemon-sse-extensions P03 | 4 | 2 tasks | 2 files |
-| Phase 06-daemon-sse-extensions P04 | 2 | 2 tasks | 1 files |
-| Phase 07-web-ui-backend P01 | 2 | 2 tasks | 3 files |
-| Phase 07-web-ui-backend P02 | 2 | 2 tasks | 1 files |
-| Phase 08-dashboard-frontend P01 | 2 | 3 tasks | 1 files |
-| Phase 8.1-allow-reason-context P01 | 525616 | 1 tasks | 2 files |
-| Phase 8.1-allow-reason-context P02 | 8 | 2 tasks | 1 files |
+| v1.2 Phase 06 | 4 | ~8 min | ~2 min |
+| v1.2 Phase 07 | 2 | ~4 min | ~2 min |
+| v1.2 Phase 08 | 1 | ~3 min | ~3 min |
+| v1.2 Phase 8.1 | 2 | ~4 min | ~2 min |
 
 ## Accumulated Context
 
@@ -70,27 +61,6 @@ Progress: [░░░░░░░░░░] 0% (v1.2)
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- v1.2 manual skip: web_ui calls Spotify directly via shared token cache — no file-IPC, no consecutive-skip counter increment
-- v1.2 hydration: separate `now_playing.json` file (not `state.json` extension) — cleaner separation of FSM state from transient track metadata
-- v1.2 badge guard: `track_id` included in all `track_change` and `eval_result` events; browser discards mismatched events
-- [Phase 06-01]: Tests reference post-rename names (EVENTS_PATH, NOW_PLAYING_PATH) before rename exists — xfail catches AttributeError until Plan 02 lands
-- [Phase 06-01]: eval_result not emitted on skip failure — test_eval_result_not_emitted_on_skip_failure enforces actual outcome wins over intended action
-- [Phase 06-02]: Hard rename SKIP_EVENTS_PATH to EVENTS_PATH per D-01 — no backwards-compat alias
-- [Phase 06-02]: NOW_PLAYING_PATH derived from dirname(EVENTS_PATH) so both paths share the same data/ bind-mount directory
-- [Phase 06-03]: album_art_url assigned at track detection scope (not inline in dict) to be in scope for Plan 04 now_playing writes
-- [Phase 06-03]: pathlib.Path.touch mocked in test helpers — /app/.healthcheck doesn't exist outside Docker
-- [Phase 06-04]: Direct open('w') for now_playing.json — no atomic rename (EBUSY on bind-mounted files)
-- [Phase 07-web-ui-backend]: spotipy pinned at 2.26.0 in web_ui to match daemon version exactly
-- [Phase 07-web-ui-backend]: fastapi+httpx installed into project venv to enable pytest collection of TestClient-based tests (Rule 3 auto-fix)
-- [Phase 07-02]: Used JSONResponse(status_code=503) instead of HTTPException for skip errors to avoid double-wrapping detail key
-- [Phase 07-02]: SKIP-03 architecturally guaranteed: consecutive_skips is daemon in-memory only; web_ui calls Spotify directly
-- [Phase 08-dashboard-frontend]: currentTrackId set only from track_change events and hydration — never from eval_result events (NOW-07 guard)
-- [Phase 08-dashboard-frontend]: No polling — all live updates come exclusively from SSE events (D-05 constraint)
-- [Phase 8.1-allow-reason-context]: severity=0 for fsm-off and 5th-skip-pause paths (no profanity scan ran); severity=severity for allow and auto-skip paths
-- [Phase 8.1-allow-reason-context]: Badge container uses id=badge-group div preserving existing span id for zero-JS-breakage migration
-- [Phase 8.1-allow-reason-context]: setEvalBadge purges .badge--mild-language before conditionally re-adding for idempotency on rapid eval_result updates
 
 ### Pending Todos
 
@@ -98,10 +68,10 @@ None yet.
 
 ### Blockers/Concerns
 
-None at roadmap creation.
+None at milestone start.
 
 ## Session Continuity
 
-Last session: 2026-04-03T15:17:34.045Z
-Stopped at: Completed 8.1-02-PLAN.md
+Last session: 2026-04-03
+Stopped at: Milestone v1.3 initialized
 Resume file: None

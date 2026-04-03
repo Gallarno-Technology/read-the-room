@@ -106,4 +106,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-03 after v1.2 milestone — Now-playing dashboard shipped: real-time eval badge, album art, manual skip, severity-aware "Mild language" badge. Multi-badge container pattern ready for v1.3.*
+*Last updated: 2026-04-03 after v1.3 milestone start — Drug & Sexual Reference Detection milestone initialized.*
