@@ -84,6 +84,52 @@ async def _run_one_cycle(sp, checker, state_override=None):
                     await daemon.poll_loop(sp, checker, soco_skip, spotify_skip)
 
 
+async def _run_n_empty_cycles(n: int, data_dir, resume_on=None, resume_track=None):
+    """Run poll_loop for N cycles where current_playback returns None.
+
+    If resume_on is set, cycle at that index returns resume_track instead of None.
+    """
+    state = {"last_track_id": None, "family_safe_mode": False, "consecutive_skips": 0}
+    soco_skip = AsyncMock()
+    spotify_skip = AsyncMock()
+    soco_skip.skip.return_value = True
+    soco_skip.pause.return_value = True
+    spotify_skip.skip.return_value = True
+
+    daemon.stop_event.clear()
+
+    cycle_count = 0
+    original_sleep = asyncio.sleep
+
+    async def _n_shot_sleep(t):
+        nonlocal cycle_count
+        cycle_count += 1
+        if cycle_count >= n:
+            daemon.stop_event.set()
+        await original_sleep(0)
+
+    sp = MagicMock()
+    playback_call = 0
+
+    def _playback():
+        nonlocal playback_call
+        idx = playback_call
+        playback_call += 1
+        if resume_on is not None and idx == resume_on:
+            return {"item": resume_track, "device": {"name": "Dev", "id": "d1", "is_restricted": False}}
+        return None
+
+    sp.current_playback.side_effect = _playback
+    checker = MagicMock()
+    checker.check = AsyncMock(return_value=TrackEvalResult(action="allow", reason="clean", severity=0))
+
+    with patch("daemon.load_state", return_value=state):
+        with patch("daemon.save_state"):
+            with patch("asyncio.sleep", side_effect=_n_shot_sleep):
+                with patch("pathlib.Path.touch"):
+                    await daemon.poll_loop(sp, checker, soco_skip, spotify_skip)
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -477,3 +523,74 @@ async def test_eval_result_severity_mild(data_dir):
     eval_result_lines = [l for l in lines if l.get("type") == "eval_result"]
     assert len(eval_result_lines) >= 1
     assert eval_result_lines[0]["severity"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Idle-detection tests (IDLE-01, IDLE-02) — RED state; daemon has no idle logic yet
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_idle_writes_now_playing(data_dir):
+    """After 3 consecutive empty polls, now_playing.json must contain {"status": "idle"}."""
+    await _run_n_empty_cycles(4, data_dir)  # 4 cycles ensures threshold (3) is crossed
+    np_file = data_dir / "now_playing.json"
+    assert np_file.exists(), "now_playing.json must be written on idle"
+    data = json.loads(np_file.read_text())
+    assert data == {"status": "idle"}, f'Expected {{"status": "idle"}}, got {data}'
+
+
+@pytest.mark.asyncio
+async def test_idle_dedup(data_dir):
+    """After 5 empty polls, now_playing.json written once and events.jsonl has exactly one idle event."""
+    await _run_n_empty_cycles(6, data_dir)
+    events_file = data_dir / "events.jsonl"
+    assert events_file.exists()
+    idle_lines = [
+        json.loads(l) for l in events_file.read_text().strip().splitlines() if l.strip()
+        if json.loads(l).get("type") == "idle"
+    ]
+    assert len(idle_lines) == 1, f"Expected 1 idle event, got {len(idle_lines)}"
+
+
+@pytest.mark.asyncio
+async def test_idle_resets_on_track(data_dir):
+    """3 empty -> 1 active -> 3 empty must produce 2 idle events total."""
+    resume_track = _make_track(track_id="spotify:track:resume1")
+    # First idle period: cycles 0-2 empty (threshold at 3), cycle 3 active (resets)
+    # Second idle period: cycles 4-6 empty (threshold at 3 again = 2nd idle)
+    await _run_n_empty_cycles(8, data_dir, resume_on=3, resume_track=resume_track)
+    events_file = data_dir / "events.jsonl"
+    assert events_file.exists()
+    lines = [json.loads(l) for l in events_file.read_text().strip().splitlines() if l.strip()]
+    idle_events = [l for l in lines if l.get("type") == "idle"]
+    assert len(idle_events) == 2, f"Expected 2 idle events (reset between periods), got {len(idle_events)}"
+
+
+@pytest.mark.asyncio
+async def test_idle_event_emitted(data_dir):
+    """After 3 empty polls, events.jsonl must contain an idle event with timestamp field."""
+    await _run_n_empty_cycles(4, data_dir)
+    events_file = data_dir / "events.jsonl"
+    assert events_file.exists(), "events.jsonl must be written"
+    lines = [json.loads(l) for l in events_file.read_text().strip().splitlines() if l.strip()]
+    idle_events = [l for l in lines if l.get("type") == "idle"]
+    assert len(idle_events) >= 1, "At least one idle event must be in events.jsonl"
+    evt = idle_events[0]
+    assert "timestamp" in evt, "idle event must have a timestamp field"
+    assert evt["type"] == "idle"
+
+
+@pytest.mark.asyncio
+async def test_idle_debounce(data_dir):
+    """2 empty polls (below threshold of 3) must NOT write idle state or emit idle event."""
+    await _run_n_empty_cycles(2, data_dir)
+    np_file = data_dir / "now_playing.json"
+    # now_playing.json should not exist (no idle write triggered)
+    if np_file.exists():
+        data = json.loads(np_file.read_text())
+        assert data.get("status") != "idle", "idle must not be written after only 2 empty polls"
+    events_file = data_dir / "events.jsonl"
+    if events_file.exists():
+        lines = [json.loads(l) for l in events_file.read_text().strip().splitlines() if l.strip()]
+        idle_events = [l for l in lines if l.get("type") == "idle"]
+        assert len(idle_events) == 0, f"No idle events expected after 2 polls, got {len(idle_events)}"
