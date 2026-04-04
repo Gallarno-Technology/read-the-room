@@ -36,7 +36,7 @@ Songs that violate family-safe rules are skipped automatically before children h
 - ✓ Drug reference detection in lyrics — boolean signal (v1.3) — Validated in Phase 10: scanner-modules
 - ✓ Sexual content detection in lyrics — boolean signal (v1.3) — Validated in Phase 10: scanner-modules
 - ✓ Both new signals logged in incident log alongside existing flags (v1.3) — Validated in Phase 12: Event Propagation & Incident Log
-- [ ] Dashboard shows drug reference and sexual content badge variants in skip feed (v1.3)
+- ✓ Dashboard shows drug reference and sexual content badge variants in skip feed (v1.3) — Validated in Phase 13: Dashboard Badge Variants
 - ✓ ContentChecker.check() returns named TrackEvalResult dataclass instead of positional 3-tuple — v1.3 (Validated in Phase 9: TrackEvalResult Dataclass Refactor)
 - [ ] Support for multiple Sonos rooms without env var mapping (future)
 
@@ -56,6 +56,7 @@ Songs that violate family-safe rules are skipped automatically before children h
 
 ## Context
 
+- **Shipped v1.3** on 2026-04-04: 13 phases total, drug/sexual reference detection + incident log + dashboard badge variants complete
 - **Shipped v1.2** on 2026-04-03: 9 phases total, 23 plans, ~1,754 lines (Python + HTML/CSS/JS + tests)
 - Tech stack: Python 3.12, asyncio, spotipy, SoCo, FastAPI, SSE, LRCLIB, better-profanity, Docker, pytest; vanilla JS frontend (no framework)
 - Sonos SSDP auto-discovery via `probe_sonos_speakers()` at startup; `SONOS_SPEAKER_IPS=Name=IP,...` is explicit escape hatch for LXC/Proxmox hosts
@@ -106,4 +107,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-04 after Phase 12 complete — Event propagation wired: all four boolean signals (explicit, profanity, drug_reference, sexual_content) flow through every eval_result SSE event, skip_events.jsonl entry, and now_playing.json snapshot; LOG-01 and LOG-02 validated.*
+*Last updated: 2026-04-04 after Phase 13 complete — v1.3 milestone complete: drug/sexual reference detection, incident log propagation, and dashboard badge variants (purple "Drug reference", pink "Sexual content") all shipped. UI-01 validated. All v1.3 requirements complete.*
