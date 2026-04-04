@@ -78,7 +78,11 @@ Plans:
   3. Neither scanner produces false positives on known-clean songs ("High Hopes", "Here Comes the Sun", "Puff the Magic Dragon")
   4. A unit test asserts `SEXUAL_TERMS.isdisjoint(SEVERITY_MAP.keys())` — no term appears in both sets
   5. Both scanners match case-insensitively and respect word boundaries (no substring false positives)
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 10-01-PLAN.md — DrugScanner: TDD test suite and implementation with DRUG_TERMS keyword set
+- [ ] 10-02-PLAN.md — SexualContentScanner: TDD test suite (disjoint test first) and implementation with SEXUAL_TERMS keyword set
 
 ### Phase 11: ContentChecker Pipeline Integration
 **Goal**: Drug and sexual content detections trigger auto-skip alongside the existing explicit flag and profanity signals
@@ -129,7 +133,7 @@ Plans:
 | 8. Dashboard Frontend | v1.2 | 1/1 | Complete | 2026-04-03 |
 | 8.1. Allow-reason Context | v1.2 | 2/2 | Complete | 2026-04-03 |
 | 9. TrackEvalResult Dataclass Refactor | v1.3 | 1/1 | Complete    | 2026-04-03 |
-| 10. Scanner Modules | v1.3 | 0/TBD | Not started | - |
+| 10. Scanner Modules | v1.3 | 0/2 | Not started | - |
 | 11. ContentChecker Pipeline Integration | v1.3 | 0/TBD | Not started | - |
 | 12. Event Propagation & Incident Log | v1.3 | 0/TBD | Not started | - |
 | 13. Dashboard Badge Variants | v1.3 | 0/TBD | Not started | - |
