@@ -47,6 +47,10 @@ async def test_clean_track_allowed(checker_with_scanners):
     result = await checker.check(_make_track())
     assert result.action == "allow"
     assert result.reason == "clean"
+    assert result.explicit == False
+    assert result.profanity == False
+    assert result.drug_reference == False
+    assert result.sexual_content == False
 
 
 @pytest.mark.asyncio
@@ -57,6 +61,10 @@ async def test_drug_reference_triggers_skip(checker_with_scanners):
     result = await checker.check(_make_track())
     assert result.action == "skip"
     assert result.reason == "drug_reference"
+    assert result.drug_reference == True
+    assert result.sexual_content == False
+    assert result.profanity == False
+    assert result.explicit == False
 
 
 @pytest.mark.asyncio
@@ -67,6 +75,10 @@ async def test_sexual_content_triggers_skip(checker_with_scanners):
     result = await checker.check(_make_track())
     assert result.action == "skip"
     assert result.reason == "sexual_content"
+    assert result.sexual_content == True
+    assert result.drug_reference == False
+    assert result.profanity == False
+    assert result.explicit == False
 
 
 @pytest.mark.asyncio
@@ -77,6 +89,10 @@ async def test_profanity_only_triggers_skip(checker_with_scanners):
     result = await checker.check(_make_track())
     assert result.action == "skip"
     assert result.reason == "profanity"
+    assert result.profanity == True
+    assert result.drug_reference == False
+    assert result.sexual_content == False
+    assert result.explicit == False
 
 
 @pytest.mark.asyncio
@@ -93,3 +109,37 @@ async def test_all_signals_fire_all_scans_run(checker_with_scanners):
     prof.scan.assert_called_once()
     drug.scan.assert_called_once()
     sexual.scan.assert_called_once()
+    # All three signals were detected — all three booleans must be True (D-02)
+    assert result.profanity == True
+    assert result.drug_reference == True
+    assert result.sexual_content == True
+    assert result.explicit == False
+
+
+@pytest.mark.asyncio
+async def test_explicit_track_sets_explicit_boolean():
+    """Tier 1 explicit path sets explicit=True, all other booleans False (D-01, D-02)."""
+    checker = ContentChecker(min_severity=2)  # no scanners — won't reach Tier 2+
+    result = await checker.check(_make_track(explicit=True))
+    assert result.action == "skip"
+    assert result.reason == "explicit"
+    assert result.explicit == True
+    assert result.profanity == False
+    assert result.drug_reference == False
+    assert result.sexual_content == False
+
+
+@pytest.mark.asyncio
+async def test_scan_lines_logged_at_debug_not_info(checker_with_scanners, caplog):
+    """[SCAN] log lines must be emitted at DEBUG level, not INFO (LOG-02 / D-11)."""
+    import logging
+    checker, lyrics_svc, prof, drug, sexual = checker_with_scanners
+    lyrics_svc.get_lyrics = AsyncMock(return_value=_make_lyrics_result("la la la"))
+    with caplog.at_level(logging.DEBUG, logger="content_checker"):
+        await checker.check(_make_track())
+    scan_records = [r for r in caplog.records if "[SCAN]" in r.message]
+    assert len(scan_records) >= 1, "At least one [SCAN] log line must be emitted"
+    for record in scan_records:
+        assert record.levelno == logging.DEBUG, (
+            f"[SCAN] line emitted at {record.levelname}, expected DEBUG: {record.message!r}"
+        )
