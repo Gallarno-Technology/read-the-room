@@ -109,7 +109,11 @@ Plans:
   2. Every entry written to `skip_events.jsonl` includes `explicit`, `profanity`, `drug_reference`, and `sexual_content` boolean fields
   3. Matched drug and sexual terms appear in Python log output at DEBUG level and are absent from `skip_events.jsonl`
   4. `now_playing.json` carries the same four boolean fields as the corresponding `eval_result` event — dashboard hydration on reload reflects the same data as the live SSE stream
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 12-01-PLAN.md — Extend TrackEvalResult with four boolean fields; update all ContentChecker return sites; add boolean assertions to test_content_checker.py
+- [ ] 12-02-PLAN.md — Extract _emit_eval_result helper; update skip event payload; demote [SCAN] to DEBUG; clean xfail markers; add daemon event boolean assertions
 
 ### Phase 13: Dashboard Badge Variants
 **Goal**: The skip feed shows visually distinct badge variants for drug-reference and sexual-content skip reasons
@@ -139,5 +143,5 @@ Plans:
 | 9. TrackEvalResult Dataclass Refactor | v1.3 | 1/1 | Complete    | 2026-04-03 |
 | 10. Scanner Modules | v1.3 | 2/2 | Complete    | 2026-04-04 |
 | 11. ContentChecker Pipeline Integration | v1.3 | 2/2 | Complete    | 2026-04-04 |
-| 12. Event Propagation & Incident Log | v1.3 | 0/TBD | Not started | - |
+| 12. Event Propagation & Incident Log | v1.3 | 0/2 | Not started | - |
 | 13. Dashboard Badge Variants | v1.3 | 0/TBD | Not started | - |
