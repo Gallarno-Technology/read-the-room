@@ -58,7 +58,7 @@ Requirements for milestone v1.3: Drug & Sexual Reference Detection.
 
 ### Dashboard
 
-- [ ] **UI-01**: Skip feed displays distinct badge variants for drug-reference and sexual-content skip reasons
+- [x] **UI-01**: Skip feed displays distinct badge variants for drug-reference and sexual-content skip reasons
 
 ## Future Requirements
 
@@ -112,7 +112,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEXL-04 | Phase 11 | Complete |
 | LOG-01 | Phase 12 | Complete |
 | LOG-02 | Phase 12 | Complete |
-| UI-01 | Phase 13 | Pending |
+| UI-01 | Phase 13 | Complete |
 
 **Coverage:**
 - v1.3 requirements: 11 total

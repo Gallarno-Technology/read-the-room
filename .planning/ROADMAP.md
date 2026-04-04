@@ -50,7 +50,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full phase details.
 - [x] **Phase 10: Scanner Modules** — DrugScanner and SexualContentScanner as standalone pure functions with word-boundary regex matching; disjoint keyword sets (completed 2026-04-04)
 - [x] **Phase 11: ContentChecker Pipeline Integration** — Wire both scanners into ContentChecker; drug and sexual detection trigger skip when FSM is active (completed 2026-04-04)
 - [x] **Phase 12: Event Propagation & Incident Log** — Propagate drug_reference and sexual_content booleans through all daemon event emission and now_playing.json write paths (completed 2026-04-04)
-- [ ] **Phase 13: Dashboard Badge Variants** — CSS and JS for drug-reference and sexual-content badge variants in the skip feed
+- [x] **Phase 13: Dashboard Badge Variants** — CSS and JS for drug-reference and sexual-content badge variants in the skip feed (completed 2026-04-04)
 
 ## Phase Details
 
@@ -128,7 +128,7 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 13-01-PLAN.md — Add badge--drug-reference and badge--sexual-content CSS classes; extend setBadgeClass/badgeLabel JS functions
+- [x] 13-01-PLAN.md — Add badge--drug-reference and badge--sexual-content CSS classes; extend setBadgeClass/badgeLabel JS functions
 
 ## Progress
 
@@ -147,4 +147,4 @@ Plans:
 | 10. Scanner Modules | v1.3 | 2/2 | Complete    | 2026-04-04 |
 | 11. ContentChecker Pipeline Integration | v1.3 | 2/2 | Complete    | 2026-04-04 |
 | 12. Event Propagation & Incident Log | v1.3 | 2/2 | Complete    | 2026-04-04 |
-| 13. Dashboard Badge Variants | v1.3 | 0/1 | Not started | - |
+| 13. Dashboard Badge Variants | v1.3 | 1/1 | Complete   | 2026-04-04 |
