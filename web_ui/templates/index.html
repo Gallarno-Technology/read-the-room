@@ -453,6 +453,8 @@
       const r = (reason || '').toLowerCase();
       if (r.includes('explicit')) return 'badge--explicit';
       if (r.includes('profanity') || r.includes('language')) return 'badge--profanity';
+      if (r.includes('drug')) return 'badge--drug-reference';
+      if (r.includes('sexual')) return 'badge--sexual-content';
       if (r.includes('adult')) return 'badge--adult';
       return 'badge--explicit';
     }
@@ -461,6 +463,8 @@
       const r = (reason || '').toLowerCase();
       if (r.includes('explicit')) return 'Flagged: explicit tag';
       if (r.includes('profanity') || r.includes('language')) return 'Flagged: strong language';
+      if (r.includes('drug')) return 'Drug reference';
+      if (r.includes('sexual')) return 'Sexual content';
       if (r.includes('adult')) return 'Flagged: adult themes';
       return 'Flagged: explicit tag';
     }
