@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-03)
 Phase: 13
 Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-04-04
+Last activity: 2026-04-04 - Completed quick task 260404-avv: when a song has no lyrics, evaluate against title at the least
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -97,6 +97,12 @@ Recent decisions affecting current work:
 ### Pending Todos
 
 None.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260404-avv | when a song has no lyrics, evaluate against title at the least | 2026-04-04 | 15a2c61 | [260404-avv-when-a-song-has-no-lyrics-evaluate-again](./quick/260404-avv-when-a-song-has-no-lyrics-evaluate-again/) |
 
 ### Blockers/Concerns
 
