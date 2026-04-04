@@ -169,7 +169,7 @@ Plans:
 
 Plans:
 - [x] 15-01-PLAN.md — Event IDs in daemon + GET /feed endpoint with tests
-- [ ] 15-02-PLAN.md — Frontend hydration, SSE reconnect merge, DOM cap
+- [x] 15-02-PLAN.md — Frontend hydration, SSE reconnect merge, DOM cap
 
 #### Phase 16: Filter Profiles
 **Goal**: Parent can select a named filter profile from the dashboard; the active profile controls which content rules apply
@@ -205,5 +205,5 @@ Phases execute in numeric order: 14 → 15 → 16
 | 12. Event Propagation & Incident Log | v1.3 | 2/2 | Complete | 2026-04-04 |
 | 13. Dashboard Badge Variants | v1.3 | 1/1 | Complete | 2026-04-04 |
 | 14. Idle Detection | v1.4 | 2/2 | Complete    | 2026-04-04 |
-| 15. Skip History | v1.4 | 1/2 | In Progress|  |
+| 15. Skip History | v1.4 | 2/2 | Complete   | 2026-04-04 |
 | 16. Filter Profiles | v1.4 | 0/TBD | Not started | - |
