@@ -97,7 +97,7 @@ Plans:
 **UI hint**: no
 
 Plans:
-- [ ] 11-01-PLAN.md — TDD RED: Create failing integration tests for ContentChecker pipeline (drug_scanner + sexual_content_scanner constructor args)
+- [x] 11-01-PLAN.md — TDD RED: Create failing integration tests for ContentChecker pipeline (drug_scanner + sexual_content_scanner constructor args)
 - [ ] 11-02-PLAN.md — TDD GREEN: Extend ContentChecker to five-tier pipeline; wire DrugScanner + SexualContentScanner into daemon.py main()
 
 ### Phase 12: Event Propagation & Incident Log
@@ -138,6 +138,6 @@ Plans:
 | 8.1. Allow-reason Context | v1.2 | 2/2 | Complete | 2026-04-03 |
 | 9. TrackEvalResult Dataclass Refactor | v1.3 | 1/1 | Complete    | 2026-04-03 |
 | 10. Scanner Modules | v1.3 | 2/2 | Complete    | 2026-04-04 |
-| 11. ContentChecker Pipeline Integration | v1.3 | 0/2 | Not started | - |
+| 11. ContentChecker Pipeline Integration | v1.3 | 1/2 | In Progress|  |
 | 12. Event Propagation & Incident Log | v1.3 | 0/TBD | Not started | - |
 | 13. Dashboard Badge Variants | v1.3 | 0/TBD | Not started | - |

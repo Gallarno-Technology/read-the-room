@@ -42,14 +42,14 @@ Requirements for milestone v1.3: Drug & Sexual Reference Detection.
 
 - [x] **DRUG-01**: System detects drug references in song lyrics using word-boundary keyword matching
 - [x] **DRUG-02**: `DrugScanner.scan()` returns a `(bool, list[str])` tuple — matched terms available for debug logging
-- [ ] **DRUG-03**: Skip is triggered when a drug reference is detected and Family Safe Mode is active
+- [x] **DRUG-03**: Skip is triggered when a drug reference is detected and Family Safe Mode is active
 
 ### Sexual Content Detection
 
 - [x] **SEXL-01**: System detects sexual content in song lyrics using word-boundary keyword matching
 - [x] **SEXL-02**: `SexualContentScanner.scan()` returns a `(bool, list[str])` tuple — matched terms available for debug logging
 - [x] **SEXL-03**: Sexual content keyword list has no overlap with terms already in the profanity `SEVERITY_MAP` (enforced by unit test)
-- [ ] **SEXL-04**: Skip is triggered when sexual content is detected and Family Safe Mode is active
+- [x] **SEXL-04**: Skip is triggered when sexual content is detected and Family Safe Mode is active
 
 ### Logging
 
@@ -105,11 +105,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PIPE-01 | Phase 9 | Complete |
 | DRUG-01 | Phase 10 | Complete |
 | DRUG-02 | Phase 10 | Complete |
-| DRUG-03 | Phase 11 | Pending |
+| DRUG-03 | Phase 11 | Complete |
 | SEXL-01 | Phase 10 | Complete |
 | SEXL-02 | Phase 10 | Complete |
 | SEXL-03 | Phase 10 | Complete |
-| SEXL-04 | Phase 11 | Pending |
+| SEXL-04 | Phase 11 | Complete |
 | LOG-01 | Phase 12 | Pending |
 | LOG-02 | Phase 12 | Pending |
 | UI-01 | Phase 13 | Pending |

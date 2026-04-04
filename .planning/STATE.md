@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Drug & Sexual Reference Detection
-status: verifying
-stopped_at: Completed 10-02-PLAN.md
-last_updated: "2026-04-04T01:22:58.305Z"
+status: executing
+stopped_at: Completed 11-01-PLAN.md
+last_updated: "2026-04-04T04:01:15.342Z"
 last_activity: 2026-04-04
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 5
+  completed_plans: 4
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-03)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Phase 10 — scanner-modules
+**Current focus:** Phase 11 — contentchecker-pipeline-integration
 
 ## Current Position
 
-Phase: 11
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 11 (contentchecker-pipeline-integration) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-04-04
 
 Progress: [░░░░░░░░░░] 0%
@@ -56,6 +56,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 09-trackevalresult-dataclass-refactor P01 | 3 | 2 tasks | 3 files |
 | Phase 10-scanner-modules P01 | 5 | 2 tasks | 2 files |
 | Phase 10-scanner-modules P02 | 5 | 2 tasks | 2 files |
+| Phase 11-contentchecker-pipeline-integration P01 | 3 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,8 @@ Recent decisions affecting current work:
 - [Phase 10-scanner-modules]: DrugScanner has no __init__ args — boolean-only scanner, returns tuple[bool, list[str]] not tuple[int, list[str]]
 - [Phase 10-scanner-modules]: SEXUAL_TERMS (36 terms) is strictly disjoint from SEVERITY_MAP — enforced by test_sexual_terms_disjoint_from_severity_map as first test in file
 - [Phase 10-scanner-modules]: naked and nude excluded from SEXUAL_TERMS per D-09 — too many innocent lyric uses
+- [Phase 11-contentchecker-pipeline-integration]: TDD RED: tests fail with TypeError (drug_scanner unexpected kwarg) before Plan 02 implements the contract
+- [Phase 11-contentchecker-pipeline-integration]: No-short-circuit contract: test_all_signals_fire_all_scans_run asserts all three scan() methods called even when profanity fires first
 
 ### Pending Todos
 
@@ -89,6 +92,6 @@ None at roadmap creation.
 
 ## Session Continuity
 
-Last session: 2026-04-04T01:19:05.197Z
-Stopped at: Completed 10-02-PLAN.md
+Last session: 2026-04-04T04:01:15.340Z
+Stopped at: Completed 11-01-PLAN.md
 Resume file: None
