@@ -38,6 +38,7 @@ POLL_INTERVAL = float(os.environ.get("POLL_INTERVAL_SECONDS", "1"))       # D-04
 HEARTBEAT_INTERVAL = float(os.environ.get("HEARTBEAT_INTERVAL_SECONDS", "300"))  # D-10
 STATE_PATH = os.environ.get("STATE_PATH", "state.json")
 PROFANITY_MIN_SEVERITY = int(os.environ.get("PROFANITY_MIN_SEVERITY", "2"))  # D-10
+IDLE_THRESHOLD: int = 3  # consecutive empty polls before writing idle state (D-03)
 LYRICS_DB_PATH = os.environ.get("LYRICS_DB_PATH", "lyrics_cache.db")
 EVENTS_PATH = os.environ.get("EVENTS_PATH", "data/events.jsonl")
 NOW_PLAYING_PATH = os.path.join(os.path.dirname(EVENTS_PATH) or ".", "now_playing.json")
@@ -214,6 +215,8 @@ async def poll_loop(
     state = load_state()
     consecutive_skips: int = 0
     prev_fsm: bool = False
+    idle_counter: int = 0      # consecutive empty-playback polls (D-04)
+    was_idle: bool = False     # dedup flag — gates idle write to once per transition (D-05)
     last_heartbeat = time.monotonic()
 
     log.info(
@@ -229,12 +232,24 @@ async def poll_loop(
 
             if result is None or result.get("item") is None:
                 # 204 No Content (nothing playing) or item=null (podcast/ad)
+                idle_counter += 1
+                if idle_counter >= IDLE_THRESHOLD and not was_idle:
+                    _write_now_playing({"status": "idle"})
+                    _append_event({
+                        "type": "idle",
+                        "timestamp": time.strftime("%H:%M:%S"),
+                    })
+                    was_idle = True
+                    log.info("[IDLE] no active playback — idle state written")
                 # D-09: log only the heartbeat, not every silent poll
                 if time.monotonic() - last_heartbeat >= HEARTBEAT_INTERVAL:
                     log.info("Heartbeat: daemon alive, no playback detected")
                     last_heartbeat = time.monotonic()
 
             else:
+                # Item present (playing or paused) — reset idle state unconditionally (D-04, pitfall 1)
+                idle_counter = 0
+                was_idle = False
                 track = result["item"]
                 track_id = track["id"]
 
