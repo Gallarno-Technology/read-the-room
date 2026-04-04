@@ -49,7 +49,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full phase details.
 - [x] **Phase 9: TrackEvalResult Dataclass Refactor** — Replace positional 3-tuple return from ContentChecker.check() with a named frozen dataclass; no behavior change (completed 2026-04-03)
 - [x] **Phase 10: Scanner Modules** — DrugScanner and SexualContentScanner as standalone pure functions with word-boundary regex matching; disjoint keyword sets (completed 2026-04-04)
 - [x] **Phase 11: ContentChecker Pipeline Integration** — Wire both scanners into ContentChecker; drug and sexual detection trigger skip when FSM is active (completed 2026-04-04)
-- [ ] **Phase 12: Event Propagation & Incident Log** — Propagate drug_reference and sexual_content booleans through all daemon event emission and now_playing.json write paths
+- [x] **Phase 12: Event Propagation & Incident Log** — Propagate drug_reference and sexual_content booleans through all daemon event emission and now_playing.json write paths (completed 2026-04-04)
 - [ ] **Phase 13: Dashboard Badge Variants** — CSS and JS for drug-reference and sexual-content badge variants in the skip feed
 
 ## Phase Details
@@ -113,7 +113,7 @@ Plans:
 
 Plans:
 - [x] 12-01-PLAN.md — Extend TrackEvalResult with four boolean fields; update all ContentChecker return sites; add boolean assertions to test_content_checker.py
-- [ ] 12-02-PLAN.md — Extract _emit_eval_result helper; update skip event payload; demote [SCAN] to DEBUG; clean xfail markers; add daemon event boolean assertions
+- [x] 12-02-PLAN.md — Extract _emit_eval_result helper; update skip event payload; demote [SCAN] to DEBUG; clean xfail markers; add daemon event boolean assertions
 
 ### Phase 13: Dashboard Badge Variants
 **Goal**: The skip feed shows visually distinct badge variants for drug-reference and sexual-content skip reasons
@@ -143,5 +143,5 @@ Plans:
 | 9. TrackEvalResult Dataclass Refactor | v1.3 | 1/1 | Complete    | 2026-04-03 |
 | 10. Scanner Modules | v1.3 | 2/2 | Complete    | 2026-04-04 |
 | 11. ContentChecker Pipeline Integration | v1.3 | 2/2 | Complete    | 2026-04-04 |
-| 12. Event Propagation & Incident Log | v1.3 | 1/2 | In Progress|  |
+| 12. Event Propagation & Incident Log | v1.3 | 2/2 | Complete   | 2026-04-04 |
 | 13. Dashboard Badge Variants | v1.3 | 0/TBD | Not started | - |
