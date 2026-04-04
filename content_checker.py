@@ -111,14 +111,46 @@ class ContentChecker:
                 )
                 return TrackEvalResult(action="allow", reason="instrumental", severity=0)
 
-            # FILT-05: Lyrics unavailable = ambiguous, do NOT auto-skip
+            # FILT-05: Lyrics unavailable = scan title+artist before falling back
             if lyrics_result.lyrics is None:
+                scan_text = f"{track_name} {artist_name}"
+
+                # Run all enabled scanners against the title+artist string (no short-circuit)
+                title_severity, title_prof_matched = self.profanity_scanner.scan(scan_text)
+
+                title_drug_detected, title_drug_matched = False, []
+                if self.drug_scanner is not None:
+                    title_drug_detected, title_drug_matched = self.drug_scanner.scan(scan_text)
+
+                title_sexual_detected, title_sexual_matched = False, []
+                if self.sexual_content_scanner is not None:
+                    title_sexual_detected, title_sexual_matched = self.sexual_content_scanner.scan(scan_text)
+
+                # Priority: profanity > drug > sexual
+                if title_severity >= self.min_severity:
+                    title_action, title_reason = "skip", "profanity"
+                elif title_drug_detected:
+                    title_action, title_reason = "skip", "drug_reference"
+                elif title_sexual_detected:
+                    title_action, title_reason = "skip", "sexual_content"
+                else:
+                    title_action, title_reason = "allow", "lyrics_unavailable"
+
                 log.debug(
-                    "[SCAN] track=%r artist=%r severity=0 matched=[] action=allow reason=lyrics_unavailable",
+                    "[SCAN] track=%r artist=%r title_fallback=True severity=%d action=%s",
                     track_name,
                     artist_name,
+                    title_severity,
+                    title_action,
                 )
-                return TrackEvalResult(action="allow", reason="lyrics_unavailable", severity=0)
+                return TrackEvalResult(
+                    action=title_action,
+                    reason=title_reason,
+                    severity=title_severity,
+                    profanity=(title_severity >= self.min_severity),
+                    drug_reference=title_drug_detected,
+                    sexual_content=title_sexual_detected,
+                )
 
             # Tiers 3-5: Run ALL scanners unconditionally — no short-circuit (Success Criteria 3)
             severity, prof_matched = self.profanity_scanner.scan(lyrics_result.lyrics)
