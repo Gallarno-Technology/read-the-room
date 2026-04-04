@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Content filtering orchestrator for Spotify Family Safe Mode (Phase 2).
 
-Implements a three-tier filter pipeline:
+Implements a five-tier filter pipeline:
   Tier 1: Spotify explicit flag (instant — no API call needed)
   Tier 2: LRCLIB lyrics fetch (cache-first, then API)
   Tier 3: Profanity scan with severity scoring
+  Tier 4: Drug reference scan (DRUG-03)
+  Tier 5: Sexual content scan (SEXL-04)
 
 Tiers 2 and 3 are stubbed in this plan (Plan 01) — the conditional check on
 ``self.lyrics_service is not None`` keeps them dormant until Plan 02 wires in
@@ -27,15 +29,18 @@ class TrackEvalResult:
     action: str    # 'skip' | 'allow'
     reason: str    # 'explicit' | 'profanity' | 'instrumental' | 'clean'
                    # | 'lyrics_unavailable' | 'no_lyrics_service'
+                   # | 'drug_reference' | 'sexual_content'
     severity: int  # 0-3 (0=none, 1=mild, 2=moderate, 3=severe)
 
 
 class ContentChecker:
-    """Three-tier content filter.
+    """Five-tier content filter.
 
     Args:
-        lyrics_service: LyricsService instance (Plan 02). None until wired.
-        profanity_scanner: ProfanityScanner instance (Plan 02). None until wired.
+        lyrics_service: LyricsService instance. None until wired.
+        profanity_scanner: ProfanityScanner instance. None until wired.
+        drug_scanner: DrugScanner instance (DRUG-03). None disables drug scan.
+        sexual_content_scanner: SexualContentScanner instance (SEXL-04). None disables sexual scan.
         min_severity: Minimum profanity severity level to trigger skip (D-10).
             1=mild, 2=moderate (default), 3=severe only.
     """
@@ -44,10 +49,14 @@ class ContentChecker:
         self,
         lyrics_service=None,
         profanity_scanner=None,
+        drug_scanner=None,
+        sexual_content_scanner=None,
         min_severity: int = 2,
     ) -> None:
         self.lyrics_service = lyrics_service
         self.profanity_scanner = profanity_scanner
+        self.drug_scanner = drug_scanner
+        self.sexual_content_scanner = sexual_content_scanner
         self.min_severity = min_severity
 
     async def check(self, track: dict) -> "TrackEvalResult":
@@ -61,7 +70,8 @@ class ContentChecker:
             TrackEvalResult with fields:
             - action: 'skip' or 'allow'
             - reason: 'explicit' | 'profanity' | 'instrumental' |
-                      'clean' | 'lyrics_unavailable' | 'no_lyrics_service'
+                      'clean' | 'lyrics_unavailable' | 'no_lyrics_service' |
+                      'drug_reference' | 'sexual_content'
             - severity: 0-3 (0=none, 1=mild, 2=moderate, 3=severe)
         """
         track_name = track.get("name", "unknown")
@@ -104,21 +114,36 @@ class ContentChecker:
                 )
                 return TrackEvalResult(action="allow", reason="lyrics_unavailable", severity=0)
 
-            # Tier 3: Profanity scan (D-09)
-            severity, matched = self.profanity_scanner.scan(lyrics_result.lyrics)
+            # Tiers 3-5: Run ALL scanners unconditionally — no short-circuit (Success Criteria 3)
+            severity, prof_matched = self.profanity_scanner.scan(lyrics_result.lyrics)
+
+            drug_detected, drug_matched = False, []
+            if self.drug_scanner is not None:
+                drug_detected, drug_matched = self.drug_scanner.scan(lyrics_result.lyrics)
+
+            sexual_detected, sexual_matched = False, []
+            if self.sexual_content_scanner is not None:
+                sexual_detected, sexual_matched = self.sexual_content_scanner.scan(lyrics_result.lyrics)
+
+            # Decision: priority order profanity > drug > sexual
             if severity >= self.min_severity:
-                action = "skip"
-                reason = "profanity"
+                action, reason = "skip", "profanity"
+            elif drug_detected:
+                action, reason = "skip", "drug_reference"
+            elif sexual_detected:
+                action, reason = "skip", "sexual_content"
             else:
-                action = "allow"
-                reason = "clean"
+                action, reason = "allow", "clean"
 
             log.info(
-                "[SCAN] track=%r artist=%r severity=%d matched=%s action=%s",
+                "[SCAN] track=%r artist=%r severity=%d prof_matched=%s "
+                "drug_matched=%s sexual_matched=%s action=%s",
                 track_name,
                 artist_name,
                 severity,
-                matched,
+                prof_matched,
+                drug_matched,
+                sexual_matched,
                 action,
             )
             return TrackEvalResult(action=action, reason=reason, severity=severity)
