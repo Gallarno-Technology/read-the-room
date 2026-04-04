@@ -35,7 +35,7 @@ Songs that violate family-safe rules are skipped automatically before children h
 
 - ✓ Drug reference detection in lyrics — boolean signal (v1.3) — Validated in Phase 10: scanner-modules
 - ✓ Sexual content detection in lyrics — boolean signal (v1.3) — Validated in Phase 10: scanner-modules
-- [ ] Both new signals logged in incident log alongside existing flags (v1.3)
+- ✓ Both new signals logged in incident log alongside existing flags (v1.3) — Validated in Phase 12: Event Propagation & Incident Log
 - [ ] Dashboard shows drug reference and sexual content badge variants in skip feed (v1.3)
 - ✓ ContentChecker.check() returns named TrackEvalResult dataclass instead of positional 3-tuple — v1.3 (Validated in Phase 9: TrackEvalResult Dataclass Refactor)
 - [ ] Support for multiple Sonos rooms without env var mapping (future)
@@ -106,4 +106,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-04 after Phase 11 complete — ContentChecker five-tier pipeline integrated with DrugScanner and SexualContentScanner; DRUG-03, SEXL-04 validated.*
+*Last updated: 2026-04-04 after Phase 12 complete — Event propagation wired: all four boolean signals (explicit, profanity, drug_reference, sexual_content) flow through every eval_result SSE event, skip_events.jsonl entry, and now_playing.json snapshot; LOG-01 and LOG-02 validated.*
