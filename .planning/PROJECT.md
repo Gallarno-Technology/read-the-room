@@ -57,6 +57,7 @@ Songs that violate family-safe rules are skipped automatically before children h
 
 ## Context
 
+- **Phase 15 (skip-history) complete** on 2026-04-04: event IDs on all daemon events, GET /feed endpoint, frontend hydrateFeed() on page load + SSE reconnect with dedup
 - **Shipped v1.3** on 2026-04-04: 13 phases total, 8 plans (v1.3), drug/sexual reference detection pipeline + incident log propagation + dashboard badge variants; title-fallback scan added as quick task
 - **Shipped v1.2** on 2026-04-03: 9 phases total, 23 plans, ~1,754 lines (Python + HTML/CSS/JS + tests)
 - Tech stack: Python 3.12, asyncio, spotipy, SoCo, FastAPI, SSE, LRCLIB, better-profanity, Docker, pytest; vanilla JS frontend (no framework)
@@ -93,6 +94,8 @@ Songs that violate family-safe rules are skipped automatically before children h
 | severity=0 sentinel for drug/sexual skip branches | eval_result always includes severity field; frontend never gets KeyError regardless of which scanner fired | ✓ Good — consistent with profanity sentinel pattern |
 | Title+artist fallback scan when lyrics unavailable | Tracks with no lyrics (e.g., "Cocaine") bypassed all scanning; title scan catches obvious cases before returning lyrics_unavailable | ✓ Good — catches high-signal titles at zero lyric cost |
 | Drug/sexual badge labels: no "Flagged:" prefix | "Drug reference" and "Sexual content" are self-explanatory; prefix adds noise without clarity | ✓ Good — consistent with explicit badge label pattern |
+| Event IDs for dedup | Monotonic integer event IDs on every event (vs UUID or timestamp-based); enables robust SSE reconnect merge | ✓ Good — simpler than UUID, counter survives restart via file scan |
+| GET /feed endpoint for history | File-read endpoint returns last 20 skip/five_skip_warning events; decouples history from SSE stream (_file_tail stays at EOF) | ✓ Good — consistent with /now-playing hydration pattern |
 
 ## Current Milestone: v1.4 Dashboard Polish & Filter Profiles
 
@@ -118,4 +121,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-04 after Phase 14 (idle-detection) complete — dashboard now shows idle state when nothing is playing.*
+*Last updated: 2026-04-04 after Phase 15 (skip-history) complete — skip feed history persists across page refresh and SSE reconnect.*
