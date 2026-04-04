@@ -535,7 +535,10 @@
       }
     }
 
-    document.addEventListener('DOMContentLoaded', hydrateNowPlaying);
+    document.addEventListener('DOMContentLoaded', function() {
+      hydrateNowPlaying();
+      hydrateFeed();
+    });
 
     function removeEmptyState() {
       const empty = skipFeed.querySelector('li.empty');
@@ -547,6 +550,9 @@
 
       const li = document.createElement('li');
       li.className = 'feed-new';
+      if (evt.id !== undefined) {
+        li.setAttribute('data-event-id', evt.id);
+      }
 
       const track = document.createElement('span');
       track.textContent = evt.track || 'Unknown track';
@@ -583,6 +589,60 @@
       li.appendChild(ts);
 
       skipFeed.insertBefore(li, skipFeed.firstChild);
+      while (skipFeed.children.length > 20) {
+        skipFeed.removeChild(skipFeed.lastElementChild);
+      }
+    }
+
+    function prependWarningItem(evt) {
+      removeEmptyState();
+      const li = document.createElement('li');
+      li.className = 'feed-new';
+      if (evt.id !== undefined) {
+        li.setAttribute('data-event-id', evt.id);
+      }
+
+      const msg = document.createElement('span');
+      msg.textContent = '5 consecutive skips -- playback paused';
+
+      const sep = document.createElement('span');
+      sep.className = 'feed-sep';
+      sep.textContent = ' \u00b7 ';
+
+      const ts = document.createElement('span');
+      ts.className = 'feed-timestamp';
+      ts.textContent = evt.timestamp || '';
+
+      li.appendChild(msg);
+      li.appendChild(sep);
+      li.appendChild(ts);
+
+      skipFeed.insertBefore(li, skipFeed.firstChild);
+      while (skipFeed.children.length > 20) {
+        skipFeed.removeChild(skipFeed.lastElementChild);
+      }
+    }
+
+    async function hydrateFeed() {
+      try {
+        const resp = await fetch('/feed');
+        const events = await resp.json();
+        const existing = new Set();
+        skipFeed.querySelectorAll('li[data-event-id]').forEach(function(li) {
+          existing.add(Number(li.dataset.eventId));
+        });
+        var toRender = events.filter(function(e) { return !existing.has(e.id); }).reverse();
+        for (var i = 0; i < toRender.length; i++) {
+          var evt = toRender[i];
+          if (evt.type === 'skip') {
+            prependSkipItem(evt);
+          } else if (evt.type === 'five_skip_warning') {
+            prependWarningItem(evt);
+          }
+        }
+      } catch (err) {
+        // Silently fail -- SSE will pick up live events
+      }
     }
 
     // SSE connection
@@ -592,6 +652,7 @@
       sseDot.className = 'sse-dot connected';
       sseLabel.textContent = '';
       hydrateNowPlaying();
+      hydrateFeed();
     };
 
     es.onerror = function() {
@@ -606,6 +667,7 @@
           prependSkipItem(evt);
         } else if (evt.type === 'five_skip_warning') {
           banner.removeAttribute('hidden');
+          prependWarningItem(evt);
         } else if (evt.type === 'track_change') {
           renderTrack(evt);
           currentTrackId = evt.track_id;
