@@ -24,6 +24,8 @@ from spotipy.oauth2 import CacheFileHandler, SpotifyOAuth
 from content_checker import ContentChecker
 from lyrics_service import LyricsService
 from profanity_scanner import ProfanityScanner
+from drug_scanner import DrugScanner
+from sexual_content_scanner import SexualContentScanner
 from skip_client import SocoSkipClient, SpotifySkipClient
 
 load_dotenv()
@@ -459,9 +461,13 @@ async def main() -> None:
     # Phase 2: Instantiate lyrics pipeline and content filter
     lyrics_service = LyricsService(db_path=LYRICS_DB_PATH)
     profanity_scanner = ProfanityScanner(min_severity=PROFANITY_MIN_SEVERITY)
+    drug_scanner = DrugScanner()
+    sexual_content_scanner = SexualContentScanner()
     content_checker = ContentChecker(
         lyrics_service=lyrics_service,
         profanity_scanner=profanity_scanner,
+        drug_scanner=drug_scanner,
+        sexual_content_scanner=sexual_content_scanner,
         min_severity=PROFANITY_MIN_SEVERITY,
     )
     soco_skip = SocoSkipClient()
