@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Dashboard Polish & Filter Profiles
-status: ready_to_plan
-stopped_at: Roadmap created — Phase 14 ready to plan
-last_updated: "2026-04-04T00:00:00.000Z"
-last_activity: 2026-04-04
+status: planning
+stopped_at: Phase 14 context gathered
+last_updated: "2026-04-04T16:05:39.282Z"
+last_activity: 2026-04-04 — v1.4 roadmap created (Phases 14-16)
 progress:
   total_phases: 3
   completed_phases: 0
@@ -92,6 +92,6 @@ None at roadmap creation.
 
 ## Session Continuity
 
-Last session: 2026-04-04T00:00:00.000Z
-Stopped at: v1.4 roadmap created — Phase 14 (Idle Detection) ready to plan
-Resume file: None
+Last session: 2026-04-04T16:05:39.281Z
+Stopped at: Phase 14 context gathered
+Resume file: .planning/phases/14-idle-detection/14-CONTEXT.md
