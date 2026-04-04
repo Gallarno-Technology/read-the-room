@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Dashboard Polish & Filter Profiles
 status: executing
-stopped_at: Phase 15 context gathered
-last_updated: "2026-04-04T19:19:42.386Z"
+stopped_at: Completed 15-01-PLAN.md
+last_updated: "2026-04-04T19:40:28.093Z"
 last_activity: 2026-04-04
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
   percent: 0
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Phase 14 — idle-detection
+**Current focus:** Phase 15 — skip-history
 
 ## Current Position
 
-Phase: 15
-Plan: Not started
+Phase: 15 (skip-history) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
 Last activity: 2026-04-04
 
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 | v1.3 Phase 13 | 1 | ~2 min | ~2 min |
 | Phase 14-idle-detection P01 | 1 | 1 tasks | 1 files |
 | Phase 14-idle-detection P02 | 2min | 2 tasks | 2 files |
+| Phase 15-skip-history P01 | 2min | 1 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,7 @@ Recent decisions affecting current work:
 - [Phase 14-idle-detection]: test_idle_debounce passes vacuously vs no-implementation: absence assertion is correctly satisfied by no-op; threshold=3 will be enforced by Plan 02 implementation
 - [Phase 14-idle-detection]: idle_counter reset at top of else branch to handle same-track continuation polls
 - [Phase 14-idle-detection]: currentTrackId nulled on idle to prevent stale eval_result badge updates
+- [Phase 15-skip-history]: _init_event_counter resets to 0 on missing/empty file rather than preserving stale counter value
 
 ### Pending Todos
 
@@ -97,6 +99,6 @@ None at roadmap creation.
 
 ## Session Continuity
 
-Last session: 2026-04-04T19:19:42.385Z
-Stopped at: Phase 15 context gathered
-Resume file: .planning/phases/15-skip-history/15-CONTEXT.md
+Last session: 2026-04-04T19:40:28.092Z
+Stopped at: Completed 15-01-PLAN.md
+Resume file: None

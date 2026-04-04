@@ -12,7 +12,7 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 - [ ] **HIST-01**: User sees up to 20 most recent session skips in the skip feed on page load
 - [ ] **HIST-02**: Skip feed history is preserved after SSE reconnects (no blank-out on reconnect)
-- [ ] **HIST-03**: `GET /feed` endpoint returns last N skip/five_skip_warning events from events.jsonl
+- [x] **HIST-03**: `GET /feed` endpoint returns last N skip/five_skip_warning events from events.jsonl
 
 ### Idle Detection
 
@@ -47,7 +47,7 @@ Requirements for this milestone. Each maps to a roadmap phase.
 |-------------|-------|--------|
 | HIST-01 | Phase 15 | Pending |
 | HIST-02 | Phase 15 | Pending |
-| HIST-03 | Phase 15 | Pending |
+| HIST-03 | Phase 15 | Complete |
 | IDLE-01 | Phase 14 | Complete |
 | IDLE-02 | Phase 14 | Complete |
 | PROF-01 | Phase 16 | Pending |
