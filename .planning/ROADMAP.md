@@ -48,7 +48,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full phase details.
 
 - [x] **Phase 9: TrackEvalResult Dataclass Refactor** — Replace positional 3-tuple return from ContentChecker.check() with a named frozen dataclass; no behavior change (completed 2026-04-03)
 - [x] **Phase 10: Scanner Modules** — DrugScanner and SexualContentScanner as standalone pure functions with word-boundary regex matching; disjoint keyword sets (completed 2026-04-04)
-- [ ] **Phase 11: ContentChecker Pipeline Integration** — Wire both scanners into ContentChecker; drug and sexual detection trigger skip when FSM is active
+- [x] **Phase 11: ContentChecker Pipeline Integration** — Wire both scanners into ContentChecker; drug and sexual detection trigger skip when FSM is active (completed 2026-04-04)
 - [ ] **Phase 12: Event Propagation & Incident Log** — Propagate drug_reference and sexual_content booleans through all daemon event emission and now_playing.json write paths
 - [ ] **Phase 13: Dashboard Badge Variants** — CSS and JS for drug-reference and sexual-content badge variants in the skip feed
 
@@ -98,7 +98,7 @@ Plans:
 
 Plans:
 - [x] 11-01-PLAN.md — TDD RED: Create failing integration tests for ContentChecker pipeline (drug_scanner + sexual_content_scanner constructor args)
-- [ ] 11-02-PLAN.md — TDD GREEN: Extend ContentChecker to five-tier pipeline; wire DrugScanner + SexualContentScanner into daemon.py main()
+- [x] 11-02-PLAN.md — TDD GREEN: Extend ContentChecker to five-tier pipeline; wire DrugScanner + SexualContentScanner into daemon.py main()
 
 ### Phase 12: Event Propagation & Incident Log
 **Goal**: Every eval_result event and skip_events.jsonl entry carries the complete four-signal record including drug_reference and sexual_content
@@ -138,6 +138,6 @@ Plans:
 | 8.1. Allow-reason Context | v1.2 | 2/2 | Complete | 2026-04-03 |
 | 9. TrackEvalResult Dataclass Refactor | v1.3 | 1/1 | Complete    | 2026-04-03 |
 | 10. Scanner Modules | v1.3 | 2/2 | Complete    | 2026-04-04 |
-| 11. ContentChecker Pipeline Integration | v1.3 | 1/2 | In Progress|  |
+| 11. ContentChecker Pipeline Integration | v1.3 | 2/2 | Complete   | 2026-04-04 |
 | 12. Event Propagation & Incident Log | v1.3 | 0/TBD | Not started | - |
 | 13. Dashboard Badge Variants | v1.3 | 0/TBD | Not started | - |

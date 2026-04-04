@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Drug & Sexual Reference Detection
-status: executing
-stopped_at: Completed 11-01-PLAN.md
-last_updated: "2026-04-04T04:01:15.342Z"
+status: verifying
+stopped_at: Completed 11-02-PLAN.md
+last_updated: "2026-04-04T04:03:49.256Z"
 last_activity: 2026-04-04
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-03)
 
 Phase: 11 (contentchecker-pipeline-integration) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-04
 
 Progress: [░░░░░░░░░░] 0%
@@ -57,6 +57,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 10-scanner-modules P01 | 5 | 2 tasks | 2 files |
 | Phase 10-scanner-modules P02 | 5 | 2 tasks | 2 files |
 | Phase 11-contentchecker-pipeline-integration P01 | 3 | 1 tasks | 1 files |
+| Phase 11-contentchecker-pipeline-integration P02 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,8 @@ Recent decisions affecting current work:
 - [Phase 10-scanner-modules]: naked and nude excluded from SEXUAL_TERMS per D-09 — too many innocent lyric uses
 - [Phase 11-contentchecker-pipeline-integration]: TDD RED: tests fail with TypeError (drug_scanner unexpected kwarg) before Plan 02 implements the contract
 - [Phase 11-contentchecker-pipeline-integration]: No-short-circuit contract: test_all_signals_fire_all_scans_run asserts all three scan() methods called even when profanity fires first
+- [Phase 11-contentchecker-pipeline-integration]: No short-circuit: all three scan() methods always called before reason is decided — enforced by test_all_signals_fire_all_scans_run
+- [Phase 11-contentchecker-pipeline-integration]: Drug/sexual skip returns severity=0 — consistent with severity=0 sentinel for non-profanity branches
 
 ### Pending Todos
 
@@ -92,6 +95,6 @@ None at roadmap creation.
 
 ## Session Continuity
 
-Last session: 2026-04-04T04:01:15.340Z
-Stopped at: Completed 11-01-PLAN.md
+Last session: 2026-04-04T04:03:49.254Z
+Stopped at: Completed 11-02-PLAN.md
 Resume file: None
