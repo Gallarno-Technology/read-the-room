@@ -14,6 +14,7 @@ import random
 import signal
 import time
 from pathlib import Path
+from typing import Optional
 
 from dotenv import load_dotenv
 import soco.discovery
@@ -113,6 +114,51 @@ def _write_now_playing(data: dict) -> None:
             json.dump(data, f)
     except OSError as exc:
         log.error("[NOW_PLAYING] failed to write: %s", exc)
+
+
+def _emit_eval_result(
+    track_id: str,
+    track_name: str,
+    artist: str,
+    album_art_url: Optional[str],
+    eval_state: str,
+    severity: int,
+    result: Optional["TrackEvalResult"],
+) -> None:
+    """Emit eval_result event to events.jsonl and now_playing.json atomically (D-04, D-10).
+
+    Accepts result=None for the fsm-off path where no scan ran (D-05).
+    All four boolean fields default to False when result is None (D-09).
+    """
+    explicit = result.explicit if result is not None else False
+    profanity = result.profanity if result is not None else False
+    drug_reference = result.drug_reference if result is not None else False
+    sexual_content = result.sexual_content if result is not None else False
+
+    _append_event({
+        "type": "eval_result",
+        "track_id": track_id,
+        "eval_state": eval_state,
+        "severity": severity,
+        "explicit": explicit,
+        "profanity": profanity,
+        "drug_reference": drug_reference,
+        "sexual_content": sexual_content,
+        "timestamp": time.strftime("%H:%M:%S"),
+    })
+    _write_now_playing({
+        "track_id": track_id,
+        "track": track_name,
+        "artist": artist,
+        "album_art_url": album_art_url,
+        "eval_state": eval_state,
+        "severity": severity,
+        "explicit": explicit,
+        "profanity": profanity,
+        "drug_reference": drug_reference,
+        "sexual_content": sexual_content,
+        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -255,22 +301,16 @@ async def poll_loop(
                         if result.action == "allow":
                             consecutive_skips = 0
                             # DAEM-02: emit eval_result for every allowed track
-                            _append_event({
-                                "type": "eval_result",
-                                "track_id": track_id,
-                                "eval_state": _eval_state_from_result(result.action, result.reason),
-                                "severity": result.severity,
-                                "timestamp": time.strftime("%H:%M:%S"),
-                            })
-                            _write_now_playing({
-                                "track_id": track_id,
-                                "track": track["name"],
-                                "artist": track["artists"][0]["name"],
-                                "album_art_url": album_art_url,
-                                "eval_state": _eval_state_from_result(result.action, result.reason),
-                                "severity": result.severity,
-                                "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
-                            })
+                            eval_state = _eval_state_from_result(result.action, result.reason)
+                            _emit_eval_result(
+                                track_id=track_id,
+                                track_name=track["name"],
+                                artist=track["artists"][0]["name"],
+                                album_art_url=album_art_url,
+                                eval_state=eval_state,
+                                severity=result.severity,
+                                result=result,
+                            )
 
                         if result.action == "skip":
                             # SKIP-03: Select skip client based on is_restricted (D-01).
@@ -300,22 +340,15 @@ async def poll_loop(
                                 })
                                 consecutive_skips = 0
                                 # DAEM-02: eval_result for 5th-skip pause
-                                _append_event({
-                                    "type": "eval_result",
-                                    "track_id": track_id,
-                                    "eval_state": "paused",
-                                    "severity": 0,
-                                    "timestamp": time.strftime("%H:%M:%S"),
-                                })
-                                _write_now_playing({
-                                    "track_id": track_id,
-                                    "track": track["name"],
-                                    "artist": track["artists"][0]["name"],
-                                    "album_art_url": album_art_url,
-                                    "eval_state": "paused",
-                                    "severity": 0,
-                                    "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
-                                })
+                                _emit_eval_result(
+                                    track_id=track_id,
+                                    track_name=track["name"],
+                                    artist=track["artists"][0]["name"],
+                                    album_art_url=album_art_url,
+                                    eval_state="paused",
+                                    severity=result.severity,
+                                    result=result,
+                                )
                             else:
                                 success = await client.skip(device_name, device.get("id"))
                                 if not success and is_restricted:
@@ -336,6 +369,10 @@ async def poll_loop(
                                         "track": track["name"],
                                         "artist": track["artists"][0]["name"],
                                         "reason": result.reason,
+                                        "explicit": result.explicit,
+                                        "profanity": result.profanity,
+                                        "drug_reference": result.drug_reference,
+                                        "sexual_content": result.sexual_content,
                                         "timestamp": time.strftime("%H:%M:%S"),
                                     })
                                     _append_event({
@@ -343,26 +380,23 @@ async def poll_loop(
                                         "track": track["name"],
                                         "artist": track["artists"][0]["name"],
                                         "reason": result.reason,
+                                        "explicit": result.explicit,
+                                        "profanity": result.profanity,
+                                        "drug_reference": result.drug_reference,
+                                        "sexual_content": result.sexual_content,
                                         "timestamp": time.strftime("%H:%M:%S"),
                                     })
                                     consecutive_skips += 1
                                     # DAEM-02: eval_result for successful auto-skip
-                                    _append_event({
-                                        "type": "eval_result",
-                                        "track_id": track_id,
-                                        "eval_state": "skipped",
-                                        "severity": result.severity,
-                                        "timestamp": time.strftime("%H:%M:%S"),
-                                    })
-                                    _write_now_playing({
-                                        "track_id": track_id,
-                                        "track": track["name"],
-                                        "artist": track["artists"][0]["name"],
-                                        "album_art_url": album_art_url,
-                                        "eval_state": "skipped",
-                                        "severity": result.severity,
-                                        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
-                                    })
+                                    _emit_eval_result(
+                                        track_id=track_id,
+                                        track_name=track["name"],
+                                        artist=track["artists"][0]["name"],
+                                        album_art_url=album_art_url,
+                                        eval_state="skipped",
+                                        severity=result.severity,
+                                        result=result,
+                                    )
                                 else:
                                     log.warning(
                                         "[SKIP_FAILED] reason=%s track=%r artist=%r",
@@ -373,22 +407,15 @@ async def poll_loop(
                     else:
                         # FSM off — D-03: still emit eval_result with fsm-off
                         # severity=0: no profanity check ran (FSM disabled)
-                        _append_event({
-                            "type": "eval_result",
-                            "track_id": track_id,
-                            "eval_state": "fsm-off",
-                            "severity": 0,
-                            "timestamp": time.strftime("%H:%M:%S"),
-                        })
-                        _write_now_playing({
-                            "track_id": track_id,
-                            "track": track["name"],
-                            "artist": track["artists"][0]["name"],
-                            "album_art_url": album_art_url,
-                            "eval_state": "fsm-off",
-                            "severity": 0,
-                            "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
-                        })
+                        _emit_eval_result(
+                            track_id=track_id,
+                            track_name=track["name"],
+                            artist=track["artists"][0]["name"],
+                            album_art_url=album_art_url,
+                            eval_state="fsm-off",
+                            severity=0,
+                            result=None,
+                        )
 
         except SpotifyException as exc:
             if exc.http_status == 429:
