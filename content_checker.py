@@ -86,7 +86,7 @@ class ContentChecker:
         # Tier 1: Spotify explicit flag (FILT-01)
         # Instant check — no network call required.
         if track.get("explicit", False):
-            log.info(
+            log.debug(
                 "[SCAN] track=%r artist=%r severity=3 matched=[] action=skip",
                 track_name,
                 artist_name,
@@ -104,7 +104,7 @@ class ContentChecker:
 
             # FILT-04: Instrumental tracks are allowed without scanning
             if lyrics_result.instrumental:
-                log.info(
+                log.debug(
                     "[SCAN] track=%r artist=%r severity=0 matched=[] action=allow reason=instrumental",
                     track_name,
                     artist_name,
@@ -113,7 +113,7 @@ class ContentChecker:
 
             # FILT-05: Lyrics unavailable = ambiguous, do NOT auto-skip
             if lyrics_result.lyrics is None:
-                log.info(
+                log.debug(
                     "[SCAN] track=%r artist=%r severity=0 matched=[] action=allow reason=lyrics_unavailable",
                     track_name,
                     artist_name,
@@ -141,7 +141,7 @@ class ContentChecker:
             else:
                 action, reason = "allow", "clean"
 
-            log.info(
+            log.debug(
                 "[SCAN] track=%r artist=%r severity=%d prof_matched=%s "
                 "drug_matched=%s sexual_matched=%s action=%s",
                 track_name,
