@@ -581,6 +581,50 @@ async def test_idle_event_emitted(data_dir):
 
 
 @pytest.mark.asyncio
+async def test_event_id_added(data_dir):
+    """Calling _append_event writes a JSON line containing an integer 'id' field."""
+    daemon._event_counter = 0
+    daemon._append_event({"type": "skip"})
+    events_file = data_dir / "events.jsonl"
+    assert events_file.exists()
+    line = events_file.read_text().strip()
+    evt = json.loads(line)
+    assert "id" in evt, "Event must have an 'id' field"
+    assert evt["id"] == 1
+    assert isinstance(evt["id"], int)
+
+
+@pytest.mark.asyncio
+async def test_event_id_increments(data_dir):
+    """Calling _append_event twice produces events with id=1 and id=2."""
+    daemon._event_counter = 0
+    daemon._append_event({"type": "skip"})
+    daemon._append_event({"type": "skip"})
+    events_file = data_dir / "events.jsonl"
+    lines = [json.loads(l) for l in events_file.read_text().strip().splitlines() if l.strip()]
+    assert lines[0]["id"] == 1
+    assert lines[1]["id"] == 2
+
+
+@pytest.mark.asyncio
+async def test_init_event_counter_from_file(data_dir):
+    """_init_event_counter reads the last event's id and sets _event_counter."""
+    events_file = data_dir / "events.jsonl"
+    events_file.write_text(json.dumps({"id": 42, "type": "skip"}) + "\n")
+    daemon._event_counter = 0
+    daemon._init_event_counter()
+    assert daemon._event_counter == 42
+
+
+@pytest.mark.asyncio
+async def test_init_event_counter_empty_file(data_dir):
+    """_init_event_counter with missing file sets _event_counter to 0."""
+    daemon._event_counter = 99
+    daemon._init_event_counter()
+    assert daemon._event_counter == 0
+
+
+@pytest.mark.asyncio
 async def test_idle_debounce(data_dir):
     """2 empty polls (below threshold of 3) must NOT write idle state or emit idle event."""
     await _run_n_empty_cycles(2, data_dir)
