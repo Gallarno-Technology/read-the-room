@@ -245,6 +245,35 @@ async def now_playing() -> JSONResponse:
 
 
 # ---------------------------------------------------------------------------
+# Feed — skip history persistence (Phase 15, HIST-03, D-01)
+# ---------------------------------------------------------------------------
+
+@app.get("/feed")
+async def feed() -> JSONResponse:
+    """Return last 20 skip/five_skip_warning events, newest-first (HIST-03, D-01)."""
+    try:
+        with open(EVENTS_PATH) as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        return JSONResponse([])
+
+    events = []
+    for line in reversed(lines):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            evt = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if evt.get("type") in ("skip", "five_skip_warning"):
+            events.append(evt)
+            if len(events) >= 20:
+                break
+    return JSONResponse(events)
+
+
+# ---------------------------------------------------------------------------
 # Manual Skip — calls Spotify API directly (Phase 7, SKIP-02, SKIP-03)
 # ---------------------------------------------------------------------------
 
