@@ -30,14 +30,15 @@ Songs that violate family-safe rules are skipped automatically before children h
 - ✓ Dashboard shows current track with real-time filter evaluation state badge — v1.2
 - ✓ Parent can manually skip current track from dashboard without opening Spotify — v1.2
 - ✓ Dashboard badge shows "Mild language" alongside "Passed" when severity=1 — v1.2
+- ✓ ContentChecker.check() returns named TrackEvalResult dataclass instead of positional 3-tuple — v1.3
+- ✓ Drug reference detection in lyrics — boolean signal — v1.3
+- ✓ Sexual content detection in lyrics — boolean signal — v1.3
+- ✓ Both new signals logged in incident log alongside existing flags — v1.3
+- ✓ Dashboard shows drug reference and sexual content badge variants in skip feed — v1.3
+- ✓ When lyrics unavailable, scan track title + artist before allowing — v1.3 (quick task)
 
 ### Active
 
-- ✓ Drug reference detection in lyrics — boolean signal (v1.3) — Validated in Phase 10: scanner-modules
-- ✓ Sexual content detection in lyrics — boolean signal (v1.3) — Validated in Phase 10: scanner-modules
-- ✓ Both new signals logged in incident log alongside existing flags (v1.3) — Validated in Phase 12: Event Propagation & Incident Log
-- ✓ Dashboard shows drug reference and sexual content badge variants in skip feed (v1.3) — Validated in Phase 13: Dashboard Badge Variants
-- ✓ ContentChecker.check() returns named TrackEvalResult dataclass instead of positional 3-tuple — v1.3 (Validated in Phase 9: TrackEvalResult Dataclass Refactor)
 - [ ] Support for multiple Sonos rooms without env var mapping (future)
 
 ### Deferred (v2+)
@@ -56,7 +57,7 @@ Songs that violate family-safe rules are skipped automatically before children h
 
 ## Context
 
-- **Shipped v1.3** on 2026-04-04: 13 phases total, drug/sexual reference detection + incident log + dashboard badge variants complete
+- **Shipped v1.3** on 2026-04-04: 13 phases total, 8 plans (v1.3), drug/sexual reference detection pipeline + incident log propagation + dashboard badge variants; title-fallback scan added as quick task
 - **Shipped v1.2** on 2026-04-03: 9 phases total, 23 plans, ~1,754 lines (Python + HTML/CSS/JS + tests)
 - Tech stack: Python 3.12, asyncio, spotipy, SoCo, FastAPI, SSE, LRCLIB, better-profanity, Docker, pytest; vanilla JS frontend (no framework)
 - Sonos SSDP auto-discovery via `probe_sonos_speakers()` at startup; `SONOS_SPEAKER_IPS=Name=IP,...` is explicit escape hatch for LXC/Proxmox hosts
@@ -86,17 +87,12 @@ Songs that violate family-safe rules are skipped automatically before children h
 | severity=0 sentinel for non-profanity-scan branches | eval_result always includes severity field; frontend can rely on it always being present | ✓ Good — frontend never gets KeyError |
 | Multi-badge flex container (badge-group) | Additive badge pattern: eval_state badge + criteria badges; extensible for v1.3 drug/sexual badges | ✓ Good — groundwork laid for v1.3 |
 | OAuth scope missing user-read-playback-state | setup_auth.py originally requested wrong scope; sp.current_playback() requires user-read-playback-state not user-read-currently-playing | ⚠ Fixed — update setup_auth.py and re-run make auth on existing installs |
-
-## Current Milestone: v1.3 Drug & Sexual Reference Detection
-
-**Goal:** Extend the filter pipeline with two new discrete content signals — drug references and sexual content — detected from lyrics already fetched by LRCLIB, sitting alongside the existing explicit flag and profanity layers.
-
-**Target features:**
-- Drug reference detection against LRCLIB lyrics (boolean signal)
-- Sexual content detection against LRCLIB lyrics (boolean signal)
-- Both signals logged in incident log alongside existing flags
-- Independent named booleans on track evaluation result (structured for per-category UI toggles next milestone)
-- Detection method within existing pipeline — no LLM integration required
+| TrackEvalResult frozen dataclass | Positional 3-tuple is fragile as fields grow; named dataclass with keyword-only construction prevents positional errors | ✓ Good — zero positional unpacks remain |
+| No-short-circuit scan contract | All three scanners (profanity, drug, sexual) always run before priority decision; prevents false "all-clear" when multiple signals fire | ✓ Good — enforced by test_all_signals_fire_all_scans_run |
+| SEXUAL_TERMS disjoint from SEVERITY_MAP | Overlap would cause terms to be counted twice and produce incorrect severity scores | ✓ Good — enforced by first-position unit test |
+| severity=0 sentinel for drug/sexual skip branches | eval_result always includes severity field; frontend never gets KeyError regardless of which scanner fired | ✓ Good — consistent with profanity sentinel pattern |
+| Title+artist fallback scan when lyrics unavailable | Tracks with no lyrics (e.g., "Cocaine") bypassed all scanning; title scan catches obvious cases before returning lyrics_unavailable | ✓ Good — catches high-signal titles at zero lyric cost |
+| Drug/sexual badge labels: no "Flagged:" prefix | "Drug reference" and "Sexual content" are self-explanatory; prefix adds noise without clarity | ✓ Good — consistent with explicit badge label pattern |
 
 ## Evolution
 
@@ -107,4 +103,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-04 after Phase 13 complete — v1.3 milestone complete: drug/sexual reference detection, incident log propagation, and dashboard badge variants (purple "Drug reference", pink "Sexual content") all shipped. UI-01 validated. All v1.3 requirements complete.*
+*Last updated: 2026-04-04 after v1.3 milestone — all 11 v1.3 requirements complete; requirements moved to Validated; v1.3 Key Decisions logged.*

@@ -1,5 +1,22 @@
 # Milestones
 
+## v1.3 Drug & Sexual Reference Detection (Shipped: 2026-04-04)
+
+**Phases completed:** 5 phases, 8 plans, 16 tasks
+
+**Key accomplishments:**
+
+- Replaced positional `(action, reason, severity)` 3-tuple with frozen `TrackEvalResult` dataclass across all 5 return sites, 1 call site, and 10 test mocks — zero bare tuples remain.
+- DrugScanner standalone module with 19-term conservative keyword set, word-boundary regex matching, and 13 passing unit tests covering DRUG-01 and DRUG-02
+- SexualContentScanner with 36-term SEXUAL_TERMS set (act words + anatomicals), disjoint from SEVERITY_MAP, enforced by a first-position unit test — all 10 tests pass green
+- 5 async integration tests defining drug_reference and sexual_content skip contracts for ContentChecker, failing with TypeError confirming RED phase before Plan 02
+- Five-tier ContentChecker pipeline with drug_scanner and sexual_content_scanner injection; all three scanners run unconditionally before priority decision tree; daemon.py wires real DrugScanner and SexualContentScanner at startup
+- TrackEvalResult extended to 7 fields with explicit/profanity/drug_reference/sexual_content booleans, all five return sites updated, and test assertions added with deliberate RED test for Plan 02
+- _emit_eval_result helper extracts all four eval_result emit paths in daemon.py, propagating explicit/profanity/drug_reference/sexual_content booleans to events.jsonl and now_playing.json on every path; [SCAN] logs demoted to DEBUG; nine xfail markers cleaned up
+- Purple 'Drug reference' and pink/magenta 'Sexual content' CSS badge classes plus JS detection branches in setBadgeClass/badgeLabel completing the v1.3 dashboard surface
+
+---
+
 ## v1.2 Now Playing Status (Shipped: 2026-04-03)
 
 **Phases completed:** 7 phases, 23 plans, 45 tasks
