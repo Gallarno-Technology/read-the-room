@@ -44,6 +44,36 @@ EVENTS_PATH = os.environ.get("EVENTS_PATH", "data/events.jsonl")
 NOW_PLAYING_PATH = os.path.join(os.path.dirname(EVENTS_PATH) or ".", "now_playing.json")
 
 # ---------------------------------------------------------------------------
+# Monotonic event ID counter (HIST-03, Phase 15)
+# ---------------------------------------------------------------------------
+_event_counter = 0
+
+
+def _init_event_counter() -> None:
+    """Seed _event_counter from the last event's id in events.jsonl.
+
+    Called at daemon startup so new events continue from the last known id.
+    Sets counter to 0 if the file does not exist or has no valid events.
+    """
+    global _event_counter
+    _event_counter = 0
+    try:
+        with open(EVENTS_PATH) as f:
+            lines = f.readlines()
+        for line in reversed(lines):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                evt = json.loads(line)
+                _event_counter = evt.get("id", 0)
+                return
+            except json.JSONDecodeError:
+                continue
+    except FileNotFoundError:
+        pass
+
+# ---------------------------------------------------------------------------
 # Logging — plain text with timestamps to stdout (D-08, D-09)
 # Docker captures stdout; use `docker compose logs -f daemon` to monitor.
 # ---------------------------------------------------------------------------
@@ -93,7 +123,13 @@ def save_state(daemon_fields: dict) -> None:
 
 
 def _append_event(event: dict) -> None:
-    """Append a JSON line to the events log (all daemon event types)."""
+    """Append a JSON line to the events log (all daemon event types).
+
+    Assigns a monotonic integer id to every event (HIST-03).
+    """
+    global _event_counter
+    _event_counter += 1
+    event["id"] = _event_counter
     try:
         os.makedirs(os.path.dirname(EVENTS_PATH) or ".", exist_ok=True)
         with open(EVENTS_PATH, "a") as f:
@@ -514,6 +550,8 @@ async def main() -> None:
     )
     soco_skip = SocoSkipClient()
     spotify_skip = SpotifySkipClient(sp)
+
+    _init_event_counter()  # HIST-03: seed event counter from last known id
 
     await probe_sonos_speakers(soco_skip)   # D-01: eager startup probe, non-blocking (D-03)
 
