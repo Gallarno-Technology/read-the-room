@@ -155,6 +155,56 @@
 
 ---
 
+## Milestone: v1.3 — Drug & Sexual Reference Detection
+
+**Shipped:** 2026-04-04
+**Phases:** 5 (9–13) | **Plans:** 8 | **Tasks:** 16 | **Quick Tasks:** 1
+
+### What Was Built
+
+- `TrackEvalResult` frozen dataclass replacing positional 3-tuple — named attribute access at all 5 return sites and 10 test mocks
+- `DrugScanner` with 19-term conservative keyword set, word-boundary regex; `SexualContentScanner` with 36-term set strictly disjoint from profanity `SEVERITY_MAP`
+- Five-tier `ContentChecker` pipeline — explicit → profanity → drug → sexual → allow, with no short-circuit (all three scanners always called)
+- `_emit_eval_result` helper propagating four boolean signals through all eval_result SSE events, skip_events.jsonl, and now_playing.json
+- Purple "Drug reference" and pink "Sexual content" CSS badge classes + JS detection branches in dashboard skip feed
+- Title+artist fallback scan when lyrics unavailable (quick task — catches "Cocaine" et al before returning lyrics_unavailable)
+
+### What Worked
+
+- **TDD RED/GREEN discipline** — RED tests in Plans 11-01 and 12-01 precisely defined the integration contracts before wiring; GREEN plans were surgical 1-2 file changes
+- **No-short-circuit scan contract** — running all three scanners unconditionally before the priority decision tree prevented a class of bugs where early-exit would mask simultaneous signals
+- **Disjoint keyword set enforced by test** — placing `test_sexual_terms_disjoint_from_severity_map` as the first test in the file made overlap impossible to ship accidentally
+- **Decimal phase pattern mature** — Phase 9 (dataclass refactor) inserted cleanly before the scanner phases with no numbering friction; the pattern has become routine
+- **Quick task for hotfix scope** — title-fallback scan was a focused change (1 file, 6 tests) that didn't warrant a full phase; `/gsd:quick` handled it in ~4 min with atomic commits and STATE.md tracking
+
+### What Was Inefficient
+
+- **UAT file pre-created but empty** — the `13-HUMAN-UAT.md` file was created with `[awaiting human testing]` status rather than a pending test list; the verify-work workflow had to be resumed rather than started fresh, adding a small friction point
+- **`milestone complete` CLI didn't delete originals** — ROADMAP.md and REQUIREMENTS.md were archived but not removed by the CLI; required manual deletion. The CLI contract should complete the full archival cycle
+- **STATE.md progress percent always 0** — the progress percent field stays at 0 across the milestone; the state-snapshot tool returns nulls for current position once all phases complete; routing logic works around it but the display is misleading
+
+### Patterns Established
+
+- **Five-tier scan with no short-circuit** — profanity → drug → sexual all run before the priority decision; the `_all_signals` pattern scales to N scanners without changing the decision tree structure
+- **`severity=0` sentinel for non-profanity scanners** — any scanner that fires without a profanity score returns `severity=0` in `TrackEvalResult`; consumers never need null checks
+- **Title-fallback scan as zero-cost lyric gate** — when LRCLIB returns no lyrics, scan `f"{track} {artist}"` through all active scanners before returning `lyrics_unavailable`; catches high-signal titles at negligible cost
+- **Four-boolean schema in all event paths** — explicit, profanity, drug_reference, sexual_content propagated to every event emission and file write; adding a fifth signal in v1.4 requires one field addition, not a schema migration
+
+### Key Lessons
+
+1. **Define the multi-scanner contract before the first scanner ships** — the no-short-circuit rule and boolean schema were established in Phase 9's dataclass; retrofitting them after Phase 10 would have required touching all call sites twice
+2. **Keyword disjointness is a test, not a code review** — overlapping terms between scanners produce incorrect severity scores silently; a unit test is the only reliable guard
+3. **Quick task scope belongs in GSD, not ad-hoc patches** — the title-fallback was a one-file change but got atomic commits, a SUMMARY.md, and STATE.md tracking; same guarantees as a full phase, at a fraction of the overhead
+4. **Badge label wording is a UX decision, not a formatting choice** — "Drug reference" vs "Flagged: Drug reference" affects how parents read the skip feed; make it explicit in the design context, not implicitly in the JS
+
+### Cost Observations
+
+- Model mix: Sonnet 4.6 (GSD balanced profile throughout)
+- Sessions: ~4 sessions (2026-04-03 → 2026-04-04, 2 days)
+- Notable: 8 plans in 2 days; TDD RED/GREEN split (Plans 01 + 02 per phase) kept each plan to a single behavioral change; quick task added zero session overhead
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -164,6 +214,7 @@
 | v1.0 | ~8 | 3 | First milestone; GSD coarse granularity established |
 | v1.1 | ~3 | 2 | TDD RED/GREEN discipline adopted; parallel wave execution |
 | v1.2 | ~6 | 4 | Dual delivery (SSE + snapshot) pattern; decimal phase insertion; additive badge model |
+| v1.3 | ~4 | 5 | No-short-circuit multi-scanner contract; four-boolean schema; quick task scope for hotfixes |
 
 ### Cumulative Quality
 
@@ -172,6 +223,7 @@
 | v1.0 | manual UAT | — | 0 (all deps intentional) |
 | v1.1 | pytest (healthcheck + Sonos probe) | targeted | pytest, pytest-asyncio |
 | v1.2 | pytest (13 daemon event tests, 4 web_ui endpoint tests) | targeted | spotipy (web_ui container) |
+| v1.3 | pytest (13 content_checker + 13 drug + 10 sexual + 23 daemon = 59+ tests) | targeted | 0 (no new deps) |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -180,3 +232,5 @@
 3. Test runner must be in the container image — verify with `docker compose run` before writing tests
 4. OAuth scope must match the Spotipy method signature, not the Spotify docs endpoint name — verify against Spotipy source
 5. Snapshot file + SSE is more resilient than SSE-only for dashboard state — hydration on reconnect is free
+6. Define the multi-scanner integration contract (no short-circuit, boolean schema) before the first scanner ships — retrofitting is expensive
+7. Keyword disjointness between scanner term sets is a unit test, not a code review — silent overlap produces wrong severity scores
