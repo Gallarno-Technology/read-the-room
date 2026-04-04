@@ -150,8 +150,11 @@ Plans:
   1. When Spotify reports no active playback, the now-playing card shows a "Nothing playing" (idle) view within ~5 seconds
   2. When playback resumes after an idle period, the now-playing card restores the current track without a page refresh
   3. Daemon writes idle state to now_playing.json so the web_ui can read it on reconnect
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 2 plans
+
+Plans:
+- [ ] 14-01-PLAN.md — Idle test scaffold: _run_n_empty_cycles helper and five RED idle tests
+- [ ] 14-02-PLAN.md — Idle implementation: daemon.py debounce counter + es.onmessage idle branch
 
 #### Phase 15: Skip History
 **Goal**: Skip feed history survives page refresh and SSE reconnect
@@ -197,6 +200,6 @@ Phases execute in numeric order: 14 → 15 → 16
 | 11. ContentChecker Pipeline Integration | v1.3 | 2/2 | Complete | 2026-04-04 |
 | 12. Event Propagation & Incident Log | v1.3 | 2/2 | Complete | 2026-04-04 |
 | 13. Dashboard Badge Variants | v1.3 | 1/1 | Complete | 2026-04-04 |
-| 14. Idle Detection | v1.4 | 0/TBD | Not started | - |
+| 14. Idle Detection | v1.4 | 0/2 | Not started | - |
 | 15. Skip History | v1.4 | 0/TBD | Not started | - |
 | 16. Filter Profiles | v1.4 | 0/TBD | Not started | - |
