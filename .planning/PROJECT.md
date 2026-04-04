@@ -94,6 +94,21 @@ Songs that violate family-safe rules are skipped automatically before children h
 | Title+artist fallback scan when lyrics unavailable | Tracks with no lyrics (e.g., "Cocaine") bypassed all scanning; title scan catches obvious cases before returning lyrics_unavailable | ✓ Good — catches high-signal titles at zero lyric cost |
 | Drug/sexual badge labels: no "Flagged:" prefix | "Drug reference" and "Sexual content" are self-explanatory; prefix adds noise without clarity | ✓ Good — consistent with explicit badge label pattern |
 
+## Current Milestone: v1.4 Dashboard Polish & Filter Profiles
+
+**Goal:** Make the dashboard accurately reflect real playback state, preserve skip history across reconnects, and replace the hardcoded filter with named UI-selectable profiles.
+
+**Target features:**
+- Skip history survives page refresh and SSE reconnect (SEED-007)
+- Now-playing card clears to idle when playback stops (SEED-008)
+- Filter profile selector in dashboard — 4 named presets; FSM toggle still gates on/off, profile controls which rules apply (SEED-005)
+
+**Filter profiles:**
+- Family Friendly: explicit skip, profanity ≥ severity 2, drug skip, sexual skip
+- Adult but Wholesome: explicit skip, profanity ≥ severity 3, drug allow, sexual skip
+- Adult, No Sexual: explicit allow, profanity allow, drug allow, sexual skip
+- Not Explicit: explicit skip only, all lyric scanning off
+
 ## Evolution
 
 **After each milestone** (via `/gsd:complete-milestone`):
@@ -103,4 +118,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-04 after v1.3 milestone — all 11 v1.3 requirements complete; requirements moved to Validated; v1.3 Key Decisions logged.*
+*Last updated: 2026-04-04 after v1.4 milestone start — Current Milestone section added.*
