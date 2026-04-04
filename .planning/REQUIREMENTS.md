@@ -53,7 +53,7 @@ Requirements for milestone v1.3: Drug & Sexual Reference Detection.
 
 ### Logging
 
-- [ ] **LOG-01**: Skip events in `skip_events.jsonl` include boolean fields for all four signals: `explicit`, `profanity`, `drug_reference`, `sexual_content`
+- [x] **LOG-01**: Skip events in `skip_events.jsonl` include boolean fields for all four signals: `explicit`, `profanity`, `drug_reference`, `sexual_content`
 - [ ] **LOG-02**: Matched terms from drug/sexual scanners are logged to Python logger only — not written to `skip_events.jsonl`
 
 ### Dashboard
@@ -110,7 +110,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEXL-02 | Phase 10 | Complete |
 | SEXL-03 | Phase 10 | Complete |
 | SEXL-04 | Phase 11 | Complete |
-| LOG-01 | Phase 12 | Pending |
+| LOG-01 | Phase 12 | Complete |
 | LOG-02 | Phase 12 | Pending |
 | UI-01 | Phase 13 | Pending |
 

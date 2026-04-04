@@ -112,7 +112,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 12-01-PLAN.md — Extend TrackEvalResult with four boolean fields; update all ContentChecker return sites; add boolean assertions to test_content_checker.py
+- [x] 12-01-PLAN.md — Extend TrackEvalResult with four boolean fields; update all ContentChecker return sites; add boolean assertions to test_content_checker.py
 - [ ] 12-02-PLAN.md — Extract _emit_eval_result helper; update skip event payload; demote [SCAN] to DEBUG; clean xfail markers; add daemon event boolean assertions
 
 ### Phase 13: Dashboard Badge Variants
@@ -143,5 +143,5 @@ Plans:
 | 9. TrackEvalResult Dataclass Refactor | v1.3 | 1/1 | Complete    | 2026-04-03 |
 | 10. Scanner Modules | v1.3 | 2/2 | Complete    | 2026-04-04 |
 | 11. ContentChecker Pipeline Integration | v1.3 | 2/2 | Complete    | 2026-04-04 |
-| 12. Event Propagation & Incident Log | v1.3 | 0/2 | Not started | - |
+| 12. Event Propagation & Incident Log | v1.3 | 1/2 | In Progress|  |
 | 13. Dashboard Badge Variants | v1.3 | 0/TBD | Not started | - |

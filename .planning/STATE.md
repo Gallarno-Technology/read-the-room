@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Drug & Sexual Reference Detection
-status: verifying
-stopped_at: Phase 12 context gathered (discuss mode)
-last_updated: "2026-04-04T04:22:46.006Z"
+status: executing
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-04-04T04:54:01.323Z"
 last_activity: 2026-04-04
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 7
+  completed_plans: 6
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-03)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Phase 11 — contentchecker-pipeline-integration
+**Current focus:** Phase 12 — event-propagation-incident-log
 
 ## Current Position
 
-Phase: 12
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 12 (event-propagation-incident-log) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-04-04
 
 Progress: [░░░░░░░░░░] 0%
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 10-scanner-modules P02 | 5 | 2 tasks | 2 files |
 | Phase 11-contentchecker-pipeline-integration P01 | 3 | 1 tasks | 1 files |
 | Phase 11-contentchecker-pipeline-integration P02 | 2 | 2 tasks | 2 files |
+| Phase 12-event-propagation-incident-log P01 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,8 @@ Recent decisions affecting current work:
 - [Phase 11-contentchecker-pipeline-integration]: No-short-circuit contract: test_all_signals_fire_all_scans_run asserts all three scan() methods called even when profanity fires first
 - [Phase 11-contentchecker-pipeline-integration]: No short-circuit: all three scan() methods always called before reason is decided — enforced by test_all_signals_fire_all_scans_run
 - [Phase 11-contentchecker-pipeline-integration]: Drug/sexual skip returns severity=0 — consistent with severity=0 sentinel for non-profanity branches
+- [Phase 12-event-propagation-incident-log]: profanity boolean reflects detection (severity >= min_severity) not skip reason — track can have profanity=True AND drug_reference=True simultaneously (D-02)
+- [Phase 12-event-propagation-incident-log]: test_scan_lines_logged_at_debug_not_info planted as intentional RED — Plan 02 closes by demoting [SCAN] log.info to log.debug
 
 ### Pending Todos
 
@@ -95,6 +98,6 @@ None at roadmap creation.
 
 ## Session Continuity
 
-Last session: 2026-04-04T04:22:46.004Z
-Stopped at: Phase 12 context gathered (discuss mode)
-Resume file: .planning/phases/12-event-propagation-incident-log/12-CONTEXT.md
+Last session: 2026-04-04T04:54:01.322Z
+Stopped at: Completed 12-01-PLAN.md
+Resume file: None
