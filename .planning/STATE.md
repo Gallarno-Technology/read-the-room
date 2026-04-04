@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Dashboard Polish & Filter Profiles
 status: executing
-stopped_at: Completed 14-01-PLAN.md
-last_updated: "2026-04-04T18:09:10.278Z"
+stopped_at: Completed 14-02-PLAN.md
+last_updated: "2026-04-04T19:00:13.088Z"
 last_activity: 2026-04-04
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | v1.3 Phase 12 | 2 | ~4 min | ~2 min |
 | v1.3 Phase 13 | 1 | ~2 min | ~2 min |
 | Phase 14-idle-detection P01 | 1 | 1 tasks | 1 files |
+| Phase 14-idle-detection P02 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,8 @@ Recent decisions affecting current work:
 - [v1.4 Roadmap]: Filter profiles stored in state.json with read-merge-write pattern (consistent with existing FSM toggle)
 - [v1.4 Roadmap]: Profile selector gates on FSM toggle — FSM on/off still controls whether filtering runs; profile controls which rules apply when it does
 - [Phase 14-idle-detection]: test_idle_debounce passes vacuously vs no-implementation: absence assertion is correctly satisfied by no-op; threshold=3 will be enforced by Plan 02 implementation
+- [Phase 14-idle-detection]: idle_counter reset at top of else branch to handle same-track continuation polls
+- [Phase 14-idle-detection]: currentTrackId nulled on idle to prevent stale eval_result badge updates
 
 ### Pending Todos
 
@@ -94,6 +97,6 @@ None at roadmap creation.
 
 ## Session Continuity
 
-Last session: 2026-04-04T18:09:10.277Z
-Stopped at: Completed 14-01-PLAN.md
+Last session: 2026-04-04T19:00:13.086Z
+Stopped at: Completed 14-02-PLAN.md
 Resume file: None

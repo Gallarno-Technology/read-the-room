@@ -154,7 +154,7 @@ Plans:
 
 Plans:
 - [x] 14-01-PLAN.md — Idle test scaffold: _run_n_empty_cycles helper and five RED idle tests
-- [ ] 14-02-PLAN.md — Idle implementation: daemon.py debounce counter + es.onmessage idle branch
+- [x] 14-02-PLAN.md — Idle implementation: daemon.py debounce counter + es.onmessage idle branch
 
 #### Phase 15: Skip History
 **Goal**: Skip feed history survives page refresh and SSE reconnect
@@ -200,6 +200,6 @@ Phases execute in numeric order: 14 → 15 → 16
 | 11. ContentChecker Pipeline Integration | v1.3 | 2/2 | Complete | 2026-04-04 |
 | 12. Event Propagation & Incident Log | v1.3 | 2/2 | Complete | 2026-04-04 |
 | 13. Dashboard Badge Variants | v1.3 | 1/1 | Complete | 2026-04-04 |
-| 14. Idle Detection | v1.4 | 1/2 | In Progress|  |
+| 14. Idle Detection | v1.4 | 2/2 | Complete   | 2026-04-04 |
 | 15. Skip History | v1.4 | 0/TBD | Not started | - |
 | 16. Filter Profiles | v1.4 | 0/TBD | Not started | - |
