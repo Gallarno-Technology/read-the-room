@@ -124,8 +124,11 @@ Plans:
   2. A skip caused by sexual content displays a distinct "Sexual content" badge in the skip feed (not a generic "Skipped" badge)
   3. Existing badge variants (explicit, profanity, passed, mild language) render identically to v1.2 — no visual regression
   4. Dashboard loads without JS errors when the skip event log contains pre-v1.3 entries that lack `drug_reference` and `sexual_content` fields
-**Plans**: TBD
+**Plans**: 1 plan
 **UI hint**: yes
+
+Plans:
+- [ ] 13-01-PLAN.md — Add badge--drug-reference and badge--sexual-content CSS classes; extend setBadgeClass/badgeLabel JS functions
 
 ## Progress
 
@@ -144,4 +147,4 @@ Plans:
 | 10. Scanner Modules | v1.3 | 2/2 | Complete    | 2026-04-04 |
 | 11. ContentChecker Pipeline Integration | v1.3 | 2/2 | Complete    | 2026-04-04 |
 | 12. Event Propagation & Incident Log | v1.3 | 2/2 | Complete    | 2026-04-04 |
-| 13. Dashboard Badge Variants | v1.3 | 0/TBD | Not started | - |
+| 13. Dashboard Badge Variants | v1.3 | 0/1 | Not started | - |
