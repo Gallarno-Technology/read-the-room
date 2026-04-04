@@ -118,4 +118,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-04 after v1.4 milestone start — Current Milestone section added.*
+*Last updated: 2026-04-04 after Phase 14 (idle-detection) complete — dashboard now shows idle state when nothing is playing.*
