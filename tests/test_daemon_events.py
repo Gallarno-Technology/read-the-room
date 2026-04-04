@@ -89,7 +89,6 @@ async def _run_one_cycle(sp, checker, state_override=None):
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=False, reason="DAEM-01 implementation pending")
 async def test_track_change_emitted_before_check(data_dir):
     """track_change must be written to events.jsonl BEFORE check() is called."""
     check_called_before = []
@@ -115,7 +114,6 @@ async def test_track_change_emitted_before_check(data_dir):
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=False, reason="DAEM-01 implementation pending")
 async def test_track_change_schema(data_dir):
     """track_change line must contain all required fields with correct values."""
     checker = MagicMock()
@@ -143,7 +141,6 @@ async def test_track_change_schema(data_dir):
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=False, reason="DAEM-02 implementation pending")
 async def test_eval_result_passed(data_dir):
     """eval_result with eval_state='passed' emitted after check() returns allow/clean."""
     checker = MagicMock()
@@ -160,14 +157,17 @@ async def test_eval_result_passed(data_dir):
     assert eval_result_lines[0]["eval_state"] == "passed"
     assert eval_result_lines[0]["track_id"] == "spotify:track:abc123"
     assert eval_result_lines[0]["severity"] == 0
+    assert eval_result_lines[0]["drug_reference"] == False
+    assert eval_result_lines[0]["sexual_content"] == False
+    assert eval_result_lines[0]["explicit"] == False
+    assert eval_result_lines[0]["profanity"] == False
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=False, reason="DAEM-02 implementation pending")
 async def test_eval_result_skipped(data_dir):
     """eval_result with eval_state='skipped' emitted after check() returns skip/explicit."""
     checker = MagicMock()
-    checker.check = AsyncMock(return_value=TrackEvalResult(action="skip", reason="explicit", severity=3))
+    checker.check = AsyncMock(return_value=TrackEvalResult(action="skip", reason="explicit", severity=3, explicit=True))
     track = _make_track(explicit=True)
     sp = _mock_sp(track)
 
@@ -202,10 +202,13 @@ async def test_eval_result_skipped(data_dir):
     assert len(eval_result_lines) >= 1, "eval_result must be emitted after skip"
     assert eval_result_lines[0]["eval_state"] == "skipped"
     assert eval_result_lines[0]["severity"] == 3
+    assert eval_result_lines[0]["explicit"] == True
+    assert eval_result_lines[0]["profanity"] == False
+    assert eval_result_lines[0]["drug_reference"] == False
+    assert eval_result_lines[0]["sexual_content"] == False
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=False, reason="DAEM-02 implementation pending")
 async def test_eval_result_fsm_off(data_dir):
     """eval_result with eval_state='fsm-off' emitted even when family_safe_mode=False."""
     checker = MagicMock()
@@ -222,10 +225,13 @@ async def test_eval_result_fsm_off(data_dir):
     assert len(eval_result_lines) >= 1, "eval_result must be emitted even when FSM is off"
     assert eval_result_lines[0]["eval_state"] == "fsm-off"
     assert eval_result_lines[0]["severity"] == 0
+    assert eval_result_lines[0]["explicit"] == False
+    assert eval_result_lines[0]["profanity"] == False
+    assert eval_result_lines[0]["drug_reference"] == False
+    assert eval_result_lines[0]["sexual_content"] == False
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=False, reason="DAEM-02 implementation pending")
 async def test_eval_result_not_emitted_on_skip_failure(data_dir):
     """eval_result must NOT be written when skip() returns False."""
     checker = MagicMock()
@@ -266,7 +272,6 @@ async def test_eval_result_not_emitted_on_skip_failure(data_dir):
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=False, reason="DAEM-03 implementation pending")
 async def test_now_playing_evaluating(data_dir):
     """now_playing.json must be written with eval_state='evaluating' BEFORE check() runs."""
     now_playing_snapshots = []
@@ -294,7 +299,6 @@ async def test_now_playing_evaluating(data_dir):
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=False, reason="DAEM-03 implementation pending")
 async def test_now_playing_final_state(data_dir):
     """now_playing.json must be overwritten with final eval_state after check() completes."""
     checker = MagicMock()
@@ -311,10 +315,17 @@ async def test_now_playing_final_state(data_dir):
         f"now_playing.json must have final eval_state='passed', got {data['eval_state']!r}"
     )
     assert data["track_id"] == "spotify:track:abc123"
+    assert "drug_reference" in data, "now_playing.json must carry drug_reference field (D-10)"
+    assert "sexual_content" in data, "now_playing.json must carry sexual_content field (D-10)"
+    assert "explicit" in data, "now_playing.json must carry explicit field (D-10)"
+    assert "profanity" in data, "now_playing.json must carry profanity field (D-10)"
+    assert data["drug_reference"] == False
+    assert data["sexual_content"] == False
+    assert data["explicit"] == False
+    assert data["profanity"] == False
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=False, reason="D-01 regression — EVENTS_PATH rename pending")
 async def test_existing_events_unaffected(data_dir):
     """After a skip cycle, events.jsonl must still contain a 'skip' event (D-01 regression)."""
     checker = MagicMock()
@@ -353,6 +364,102 @@ async def test_existing_events_unaffected(data_dir):
     assert len(skip_lines) >= 1, (
         "events.jsonl must contain a 'skip' event — rename must not break existing event types"
     )
+
+
+@pytest.mark.asyncio
+async def test_skip_event_includes_four_booleans(data_dir):
+    """skip event in events.jsonl must carry all four boolean fields (LOG-01 / D-07)."""
+    checker = MagicMock()
+    checker.check = AsyncMock(return_value=TrackEvalResult(
+        action="skip", reason="explicit", severity=3, explicit=True
+    ))
+    track = _make_track(explicit=True)
+    sp = _mock_sp(track)
+
+    soco_skip = AsyncMock()
+    soco_skip.skip.return_value = True
+    soco_skip.pause.return_value = True
+    spotify_skip = AsyncMock()
+    spotify_skip.skip.return_value = True
+
+    daemon.stop_event.clear()
+    call_count = 0
+    original_sleep = asyncio.sleep
+
+    async def _one_shot_sleep(t):
+        nonlocal call_count
+        call_count += 1
+        if call_count >= 1:
+            daemon.stop_event.set()
+        await original_sleep(0)
+
+    state = {"last_track_id": None, "family_safe_mode": True, "consecutive_skips": 0}
+    with patch("daemon.load_state", side_effect=[state, state]):
+        with patch("daemon.save_state"):
+            with patch("asyncio.sleep", side_effect=_one_shot_sleep):
+                with patch("pathlib.Path.touch"):
+                    await daemon.poll_loop(sp, checker, soco_skip, spotify_skip)
+
+    events_file = data_dir / "events.jsonl"
+    assert events_file.exists()
+    lines = [json.loads(l) for l in events_file.read_text().strip().splitlines() if l.strip()]
+    skip_lines = [l for l in lines if l.get("type") == "skip"]
+    assert len(skip_lines) >= 1, "events.jsonl must contain a skip event"
+    skip = skip_lines[0]
+    assert "explicit" in skip, "skip event must have explicit field (LOG-01)"
+    assert "profanity" in skip, "skip event must have profanity field (LOG-01)"
+    assert "drug_reference" in skip, "skip event must have drug_reference field (LOG-01)"
+    assert "sexual_content" in skip, "skip event must have sexual_content field (LOG-01)"
+    assert skip["explicit"] == True
+    assert skip["profanity"] == False
+    assert skip["drug_reference"] == False
+    assert skip["sexual_content"] == False
+
+
+@pytest.mark.asyncio
+async def test_eval_result_drug_reference_boolean(data_dir):
+    """eval_result event sets drug_reference=True when checker returns drug_reference reason (LOG-01)."""
+    checker = MagicMock()
+    checker.check = AsyncMock(return_value=TrackEvalResult(
+        action="skip", reason="drug_reference", severity=0,
+        drug_reference=True
+    ))
+    track = _make_track(explicit=True)
+    sp = _mock_sp(track)
+
+    soco_skip = AsyncMock()
+    soco_skip.skip.return_value = True
+    soco_skip.pause.return_value = True
+    spotify_skip = AsyncMock()
+    spotify_skip.skip.return_value = True
+
+    daemon.stop_event.clear()
+    call_count = 0
+    original_sleep = asyncio.sleep
+
+    async def _one_shot_sleep(t):
+        nonlocal call_count
+        call_count += 1
+        if call_count >= 1:
+            daemon.stop_event.set()
+        await original_sleep(0)
+
+    state = {"last_track_id": None, "family_safe_mode": True, "consecutive_skips": 0}
+    with patch("daemon.load_state", side_effect=[state, state]):
+        with patch("daemon.save_state"):
+            with patch("asyncio.sleep", side_effect=_one_shot_sleep):
+                with patch("pathlib.Path.touch"):
+                    await daemon.poll_loop(sp, checker, soco_skip, spotify_skip)
+
+    events_file = data_dir / "events.jsonl"
+    assert events_file.exists()
+    lines = [json.loads(l) for l in events_file.read_text().strip().splitlines() if l.strip()]
+    eval_result_lines = [l for l in lines if l.get("type") == "eval_result"]
+    assert len(eval_result_lines) >= 1
+    assert eval_result_lines[0]["drug_reference"] == True
+    assert eval_result_lines[0]["sexual_content"] == False
+    assert eval_result_lines[0]["explicit"] == False
+    assert eval_result_lines[0]["profanity"] == False
 
 
 @pytest.mark.asyncio
