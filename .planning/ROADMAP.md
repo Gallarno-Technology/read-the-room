@@ -93,8 +93,12 @@ Plans:
   2. A track whose lyrics contain sexual content is auto-skipped when Family Safe Mode is active
   3. Both scans run on every track with lyrics — detection does not short-circuit when profanity fires first
   4. `ContentChecker` integration tests cover all combinations: clean, profanity-only, drug-only, sexual-only, and multiple signals simultaneously
-**Plans**: TBD
+**Plans**: 2 plans
 **UI hint**: no
+
+Plans:
+- [ ] 11-01-PLAN.md — TDD RED: Create failing integration tests for ContentChecker pipeline (drug_scanner + sexual_content_scanner constructor args)
+- [ ] 11-02-PLAN.md — TDD GREEN: Extend ContentChecker to five-tier pipeline; wire DrugScanner + SexualContentScanner into daemon.py main()
 
 ### Phase 12: Event Propagation & Incident Log
 **Goal**: Every eval_result event and skip_events.jsonl entry carries the complete four-signal record including drug_reference and sexual_content
@@ -134,6 +138,6 @@ Plans:
 | 8.1. Allow-reason Context | v1.2 | 2/2 | Complete | 2026-04-03 |
 | 9. TrackEvalResult Dataclass Refactor | v1.3 | 1/1 | Complete    | 2026-04-03 |
 | 10. Scanner Modules | v1.3 | 2/2 | Complete    | 2026-04-04 |
-| 11. ContentChecker Pipeline Integration | v1.3 | 0/TBD | Not started | - |
+| 11. ContentChecker Pipeline Integration | v1.3 | 0/2 | Not started | - |
 | 12. Event Propagation & Incident Log | v1.3 | 0/TBD | Not started | - |
 | 13. Dashboard Badge Variants | v1.3 | 0/TBD | Not started | - |
