@@ -13,7 +13,7 @@ Tiers 2 and 3 are stubbed in this plan (Plan 01) — the conditional check on
 LyricsService and ProfanityScanner.
 """
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 log = logging.getLogger(__name__)
@@ -25,12 +25,18 @@ class TrackEvalResult:
 
     Replaces the positional (action, reason, severity) 3-tuple (PIPE-01).
     frozen=True enforces immutability and value-object semantics.
+    The four boolean fields default to False for backward compatibility with
+    existing test mocks that omit them (D-01, D-03).
     """
     action: str    # 'skip' | 'allow'
     reason: str    # 'explicit' | 'profanity' | 'instrumental' | 'clean'
                    # | 'lyrics_unavailable' | 'no_lyrics_service'
                    # | 'drug_reference' | 'sexual_content'
     severity: int  # 0-3 (0=none, 1=mild, 2=moderate, 3=severe)
+    explicit: bool = field(default=False)
+    profanity: bool = field(default=False)
+    drug_reference: bool = field(default=False)
+    sexual_content: bool = field(default=False)
 
 
 class ContentChecker:
@@ -85,7 +91,7 @@ class ContentChecker:
                 track_name,
                 artist_name,
             )
-            return TrackEvalResult(action="skip", reason="explicit", severity=3)
+            return TrackEvalResult(action="skip", reason="explicit", severity=3, explicit=True)
 
         # Tier 2 & 3: Lyrics fetch + profanity scan (Plan 02)
         # Only runs when both services are wired in — Plan 02 will inject them.
@@ -146,7 +152,15 @@ class ContentChecker:
                 sexual_matched,
                 action,
             )
-            return TrackEvalResult(action=action, reason=reason, severity=severity)
+            return TrackEvalResult(
+                action=action,
+                reason=reason,
+                severity=severity,
+                explicit=False,
+                profanity=(severity >= self.min_severity),
+                drug_reference=drug_detected,
+                sexual_content=sexual_detected,
+            )
 
         # No lyrics service configured yet (or failed to initialize) — allow non-explicit tracks.
         log.warning(
