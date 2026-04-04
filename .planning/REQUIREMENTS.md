@@ -16,8 +16,8 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 ### Idle Detection
 
-- [ ] **IDLE-01**: Daemon writes idle state to now_playing.json when Spotify reports no active playback
-- [ ] **IDLE-02**: Dashboard now-playing card transitions to "Nothing playing" view within ~5s of playback stopping
+- [x] **IDLE-01**: Daemon writes idle state to now_playing.json when Spotify reports no active playback
+- [x] **IDLE-02**: Dashboard now-playing card transitions to "Nothing playing" view within ~5s of playback stopping
 
 ### Filter Profiles
 
@@ -48,8 +48,8 @@ Requirements for this milestone. Each maps to a roadmap phase.
 | HIST-01 | Phase 15 | Pending |
 | HIST-02 | Phase 15 | Pending |
 | HIST-03 | Phase 15 | Pending |
-| IDLE-01 | Phase 14 | Pending |
-| IDLE-02 | Phase 14 | Pending |
+| IDLE-01 | Phase 14 | Complete |
+| IDLE-02 | Phase 14 | Complete |
 | PROF-01 | Phase 16 | Pending |
 | PROF-02 | Phase 16 | Pending |
 | PROF-03 | Phase 16 | Pending |

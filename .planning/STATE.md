@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Dashboard Polish & Filter Profiles
-status: planning
-stopped_at: Phase 14 context gathered
-last_updated: "2026-04-04T16:05:39.282Z"
-last_activity: 2026-04-04 — v1.4 roadmap created (Phases 14-16)
+status: executing
+stopped_at: Completed 14-01-PLAN.md
+last_updated: "2026-04-04T18:09:10.278Z"
+last_activity: 2026-04-04
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 2
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Phase 14 — Idle Detection
+**Current focus:** Phase 14 — idle-detection
 
 ## Current Position
 
-Phase: 14 of 16 (Idle Detection)
-Plan: — of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-04-04 — v1.4 roadmap created (Phases 14-16)
+Phase: 14 (idle-detection) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-04-04
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 | v1.3 Phase 11 | 2 | ~4 min | ~2 min |
 | v1.3 Phase 12 | 2 | ~4 min | ~2 min |
 | v1.3 Phase 13 | 1 | ~2 min | ~2 min |
+| Phase 14-idle-detection P01 | 1 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,7 @@ Recent decisions affecting current work:
 - [Phase 13]: New badge variant pattern: CSS class after .badge--fsm-off, JS branch in setBadgeClass/badgeLabel before adult check
 - [v1.4 Roadmap]: Filter profiles stored in state.json with read-merge-write pattern (consistent with existing FSM toggle)
 - [v1.4 Roadmap]: Profile selector gates on FSM toggle — FSM on/off still controls whether filtering runs; profile controls which rules apply when it does
+- [Phase 14-idle-detection]: test_idle_debounce passes vacuously vs no-implementation: absence assertion is correctly satisfied by no-op; threshold=3 will be enforced by Plan 02 implementation
 
 ### Pending Todos
 
@@ -92,6 +94,6 @@ None at roadmap creation.
 
 ## Session Continuity
 
-Last session: 2026-04-04T16:05:39.281Z
-Stopped at: Phase 14 context gathered
-Resume file: .planning/phases/14-idle-detection/14-CONTEXT.md
+Last session: 2026-04-04T18:09:10.277Z
+Stopped at: Completed 14-01-PLAN.md
+Resume file: None
