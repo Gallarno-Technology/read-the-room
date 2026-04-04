@@ -614,6 +614,9 @@
           if (evt.track_id === currentTrackId) {
             setEvalBadge(evt.eval_state, evt.severity || 0);
           }
+        } else if (evt.type === 'idle') {
+          renderIdle();
+          currentTrackId = null;
         }
       } catch (err) {
         // Ignore malformed events
