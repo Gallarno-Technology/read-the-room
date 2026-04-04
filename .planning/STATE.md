@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Drug & Sexual Reference Detection
 status: verifying
-stopped_at: Phase 10 context gathered
-last_updated: "2026-04-04T00:59:32.437Z"
-last_activity: 2026-04-03
+stopped_at: Completed 10-02-PLAN.md
+last_updated: "2026-04-04T01:19:05.199Z"
+last_activity: 2026-04-04
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  completed_phases: 2
+  total_plans: 3
+  completed_plans: 3
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-03)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Phase 09 — TrackEvalResult Dataclass Refactor
+**Current focus:** Phase 10 — scanner-modules
 
 ## Current Position
 
-Phase: 10
-Plan: Not started
+Phase: 10 (scanner-modules) — EXECUTING
+Plan: 2 of 2
 Status: Phase complete — ready for verification
-Last activity: 2026-04-03
+Last activity: 2026-04-04
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -54,6 +54,8 @@ Progress: [░░░░░░░░░░] 0%
 | v1.2 Phase 08 | 1 | ~3 min | ~3 min |
 | v1.2 Phase 8.1 | 2 | ~4 min | ~2 min |
 | Phase 09-trackevalresult-dataclass-refactor P01 | 3 | 2 tasks | 3 files |
+| Phase 10-scanner-modules P01 | 5 | 2 tasks | 2 files |
+| Phase 10-scanner-modules P02 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -72,6 +74,10 @@ Recent decisions affecting current work:
 - Phase 12: Extract `_emit_eval_result` helper first so all 4 daemon emit sites are covered in one change; helper must call both `_append_event` and `_write_now_playing` to keep events.jsonl and now_playing.json in sync
 - [Phase 09-trackevalresult-dataclass-refactor]: TrackEvalResult frozen dataclass replaces positional 3-tuple; callers use attribute access (result.action, result.reason, result.severity)
 - [Phase 09-trackevalresult-dataclass-refactor]: frozen=True enforces immutability on TrackEvalResult; keyword-only construction at all return sites
+- [Phase 10-scanner-modules]: Pre-compile regex patterns at module level for DrugScanner — dict keyed by term string, re.IGNORECASE on all patterns
+- [Phase 10-scanner-modules]: DrugScanner has no __init__ args — boolean-only scanner, returns tuple[bool, list[str]] not tuple[int, list[str]]
+- [Phase 10-scanner-modules]: SEXUAL_TERMS (36 terms) is strictly disjoint from SEVERITY_MAP — enforced by test_sexual_terms_disjoint_from_severity_map as first test in file
+- [Phase 10-scanner-modules]: naked and nude excluded from SEXUAL_TERMS per D-09 — too many innocent lyric uses
 
 ### Pending Todos
 
@@ -83,6 +89,6 @@ None at roadmap creation.
 
 ## Session Continuity
 
-Last session: 2026-04-04T00:59:32.436Z
-Stopped at: Phase 10 context gathered
-Resume file: .planning/phases/10-scanner-modules/10-CONTEXT.md
+Last session: 2026-04-04T01:19:05.197Z
+Stopped at: Completed 10-02-PLAN.md
+Resume file: None

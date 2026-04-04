@@ -40,15 +40,15 @@ Requirements for milestone v1.3: Drug & Sexual Reference Detection.
 
 ### Drug Detection
 
-- [ ] **DRUG-01**: System detects drug references in song lyrics using word-boundary keyword matching
-- [ ] **DRUG-02**: `DrugScanner.scan()` returns a `(bool, list[str])` tuple — matched terms available for debug logging
+- [x] **DRUG-01**: System detects drug references in song lyrics using word-boundary keyword matching
+- [x] **DRUG-02**: `DrugScanner.scan()` returns a `(bool, list[str])` tuple — matched terms available for debug logging
 - [ ] **DRUG-03**: Skip is triggered when a drug reference is detected and Family Safe Mode is active
 
 ### Sexual Content Detection
 
-- [ ] **SEXL-01**: System detects sexual content in song lyrics using word-boundary keyword matching
-- [ ] **SEXL-02**: `SexualContentScanner.scan()` returns a `(bool, list[str])` tuple — matched terms available for debug logging
-- [ ] **SEXL-03**: Sexual content keyword list has no overlap with terms already in the profanity `SEVERITY_MAP` (enforced by unit test)
+- [x] **SEXL-01**: System detects sexual content in song lyrics using word-boundary keyword matching
+- [x] **SEXL-02**: `SexualContentScanner.scan()` returns a `(bool, list[str])` tuple — matched terms available for debug logging
+- [x] **SEXL-03**: Sexual content keyword list has no overlap with terms already in the profanity `SEVERITY_MAP` (enforced by unit test)
 - [ ] **SEXL-04**: Skip is triggered when sexual content is detected and Family Safe Mode is active
 
 ### Logging
@@ -103,12 +103,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SKIP-03 | Phase 7 | Complete |
 | SKIP-04 | Phase 8 | Complete |
 | PIPE-01 | Phase 9 | Complete |
-| DRUG-01 | Phase 10 | Pending |
-| DRUG-02 | Phase 10 | Pending |
+| DRUG-01 | Phase 10 | Complete |
+| DRUG-02 | Phase 10 | Complete |
 | DRUG-03 | Phase 11 | Pending |
-| SEXL-01 | Phase 10 | Pending |
-| SEXL-02 | Phase 10 | Pending |
-| SEXL-03 | Phase 10 | Pending |
+| SEXL-01 | Phase 10 | Complete |
+| SEXL-02 | Phase 10 | Complete |
+| SEXL-03 | Phase 10 | Complete |
 | SEXL-04 | Phase 11 | Pending |
 | LOG-01 | Phase 12 | Pending |
 | LOG-02 | Phase 12 | Pending |

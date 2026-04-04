@@ -47,7 +47,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full phase details.
 **Milestone Goal:** Extend the filter pipeline with drug reference and sexual content detection signals, both derived from existing LRCLIB lyrics with no new dependencies, logged to the incident file, and visible in the dashboard.
 
 - [x] **Phase 9: TrackEvalResult Dataclass Refactor** — Replace positional 3-tuple return from ContentChecker.check() with a named frozen dataclass; no behavior change (completed 2026-04-03)
-- [ ] **Phase 10: Scanner Modules** — DrugScanner and SexualContentScanner as standalone pure functions with word-boundary regex matching; disjoint keyword sets
+- [x] **Phase 10: Scanner Modules** — DrugScanner and SexualContentScanner as standalone pure functions with word-boundary regex matching; disjoint keyword sets (completed 2026-04-04)
 - [ ] **Phase 11: ContentChecker Pipeline Integration** — Wire both scanners into ContentChecker; drug and sexual detection trigger skip when FSM is active
 - [ ] **Phase 12: Event Propagation & Incident Log** — Propagate drug_reference and sexual_content booleans through all daemon event emission and now_playing.json write paths
 - [ ] **Phase 13: Dashboard Badge Variants** — CSS and JS for drug-reference and sexual-content badge variants in the skip feed
@@ -81,8 +81,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 10-01-PLAN.md — DrugScanner: TDD test suite and implementation with DRUG_TERMS keyword set
-- [ ] 10-02-PLAN.md — SexualContentScanner: TDD test suite (disjoint test first) and implementation with SEXUAL_TERMS keyword set
+- [x] 10-01-PLAN.md — DrugScanner: TDD test suite and implementation with DRUG_TERMS keyword set
+- [x] 10-02-PLAN.md — SexualContentScanner: TDD test suite (disjoint test first) and implementation with SEXUAL_TERMS keyword set
 
 ### Phase 11: ContentChecker Pipeline Integration
 **Goal**: Drug and sexual content detections trigger auto-skip alongside the existing explicit flag and profanity signals
@@ -133,7 +133,7 @@ Plans:
 | 8. Dashboard Frontend | v1.2 | 1/1 | Complete | 2026-04-03 |
 | 8.1. Allow-reason Context | v1.2 | 2/2 | Complete | 2026-04-03 |
 | 9. TrackEvalResult Dataclass Refactor | v1.3 | 1/1 | Complete    | 2026-04-03 |
-| 10. Scanner Modules | v1.3 | 0/2 | Not started | - |
+| 10. Scanner Modules | v1.3 | 2/2 | Complete   | 2026-04-04 |
 | 11. ContentChecker Pipeline Integration | v1.3 | 0/TBD | Not started | - |
 | 12. Event Propagation & Incident Log | v1.3 | 0/TBD | Not started | - |
 | 13. Dashboard Badge Variants | v1.3 | 0/TBD | Not started | - |
