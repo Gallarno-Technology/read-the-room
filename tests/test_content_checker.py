@@ -221,3 +221,37 @@ async def test_no_lyrics_scan_text_is_title_plus_artist(checker_with_scanners):
     prof.scan.assert_called_once_with(expected_text)
     drug.scan.assert_called_once_with(expected_text)
     sexual.scan.assert_called_once_with(expected_text)
+
+
+# ---------------------------------------------------------------------------
+# PROF-03: explicit_skip parameter — Phase 16
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_explicit_skip_false_allows_explicit_track():
+    """explicit_skip=False bypasses Tier 1 — explicit tracks are not auto-skipped (D-16)."""
+    checker = ContentChecker(explicit_skip=False)
+    result = await checker.check(_make_track(explicit=True))
+    # With no lyrics service, falls through to no_lyrics_service allow
+    assert result.action == "allow"
+    assert result.reason != "explicit"
+
+
+@pytest.mark.asyncio
+async def test_explicit_skip_true_skips_explicit_track():
+    """explicit_skip=True (explicit) skips explicit-flagged tracks at Tier 1 (FILT-01 preserved)."""
+    checker = ContentChecker(explicit_skip=True)
+    result = await checker.check(_make_track(explicit=True))
+    assert result.action == "skip"
+    assert result.reason == "explicit"
+    assert result.severity == 3
+    assert result.explicit is True
+
+
+@pytest.mark.asyncio
+async def test_explicit_skip_default_is_true():
+    """ContentChecker() without explicit_skip arg defaults to True — no regression on Tier 1 (D-16)."""
+    checker = ContentChecker()
+    result = await checker.check(_make_track(explicit=True))
+    assert result.action == "skip"
+    assert result.reason == "explicit"
