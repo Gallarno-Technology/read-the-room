@@ -23,9 +23,9 @@ The most important correctness invariant: the FSM toggle and profile selection a
 
 **Profile selector UI — Split button design**
 - D-01: The existing FSM button is converted to a split button. Left/main area toggles FSM on/off (same as before). Right area (▾ icon) opens a profile dropdown — clicking it does NOT toggle FSM.
-- D-02: When FSM is on, the button shows the active profile name in gold styling: `[ Family Friendly ▾ ]`
-- D-03: When FSM is off, the button shows the current profile name in grey/fsm-off styling with ▾ still visible: `[ Family Friendly ▾ ]` (grey). This allows pre-selecting a profile while FSM is off.
-- D-04: Exception for fresh install / no profile set: button shows `[ The Library is Closed ▾ ]` in grey. Default profile on first run is **Family Friendly**.
+- D-02: When FSM is on, the button shows the active profile name in gold styling: `[ Kids Present ▾ ]`
+- D-03: When FSM is off, the button shows the current profile name in grey/fsm-off styling with ▾ still visible: `[ Kids Present ▾ ]` (grey). This allows pre-selecting a profile while FSM is off.
+- D-04: Exception for fresh install / no profile set: button shows `[ The Library is Closed ▾ ]` in grey. Default profile on first run is **Kids Present**.
 - D-05: The ▾ trigger occupies the right portion of the button. Clicking anywhere in the left/main area toggles FSM; clicking the ▾ area opens the dropdown. A visual separator (e.g., a faint vertical divider line) can distinguish the two zones.
 
 **Profile dropdown**
@@ -36,18 +36,18 @@ The most important correctness invariant: the FSM toggle and profile selection a
 - D-10: Clicking outside the dropdown (or pressing Escape) closes it without changing selection.
 
 **Profile persistence**
-- D-11: Active profile stored in `state.json` as `active_profile` field using the existing read-merge-write pattern. Example key values: `"family_friendly"`, `"adult_wholesome"`, `"adult_no_sexual"`, `"not_explicit"`.
+- D-11: Active profile stored in `state.json` as `active_profile` field using the existing read-merge-write pattern. Example key values: `"kids_present"`, `"were_all_adults"`, `"above_the_covers"`, `"permissive"`.
 - D-12: Profile survives service restart — state.json is read on daemon startup.
 - D-13: When FSM turns on after being off, the profile that was stored (last-used or pre-selected) is restored automatically. No reset to a default.
 
 **ContentChecker profile application**
 - D-14: Daemon reads `active_profile` from state.json each poll cycle (alongside `family_safe_mode`). When profile changes, daemon reconstructs ContentChecker with new settings for the next poll.
 - D-15: Profile-to-ContentChecker mapping:
-  - `family_friendly`: `min_severity=2`, drug_scanner active, sexual_content_scanner active, explicit check ON
-  - `adult_wholesome`: `min_severity=3`, drug_scanner=None, sexual_content_scanner active, explicit check ON
-  - `adult_no_sexual`: explicit check OFF (skip Tier 1), `min_severity=99` (never fires), drug_scanner=None, sexual_content_scanner active
-  - `not_explicit`: explicit check ON, lyrics_service=None / profanity_scanner=None / drug_scanner=None / sexual_content_scanner=None (all lyric scanning off)
-- D-16: "Explicit check OFF" for `adult_no_sexual` means ContentChecker skips Tier 1 (the `if track.get("explicit")` skip). This requires a new `explicit_skip: bool` parameter on ContentChecker.
+  - `kids_present`: `min_severity=2`, drug_scanner active, sexual_content_scanner active, explicit check ON
+  - `were_all_adults`: explicit check OFF, `min_severity=3`, drug_scanner=None, sexual_content_scanner active
+  - `above_the_covers`: explicit check OFF, profanity_scanner=None, drug_scanner=None, sexual_content_scanner active
+  - `permissive`: explicit check ON, lyrics_service=None / profanity_scanner=None / drug_scanner=None / sexual_content_scanner=None (all lyric scanning off)
+- D-16: "Explicit check OFF" for `were_all_adults` and `above_the_covers` means ContentChecker skips Tier 1 (the `if track.get("explicit")` skip). This requires a new `explicit_skip: bool` parameter on ContentChecker.
 
 **Dashboard profile display (PROF-04)**
 - D-17: The split button itself satisfies PROF-04 — the active profile name is always visible as the button label when FSM is on (and even when off). No separate display element needed.
@@ -56,7 +56,7 @@ The most important correctness invariant: the FSM toggle and profile selection a
 - Exact CSS for the split button divider between toggle zone and ▾ zone
 - Dropdown animation (fade-in vs instant appear)
 - Whether profile mismatch between state.json and ContentChecker is detected by comparing the profile key vs re-reading each cycle
-- `POST /profile` endpoint shape — suggest `{"profile": "family_friendly"}` matching existing verb-noun route conventions
+- `POST /profile` endpoint shape — suggest `{"profile": "kids_present"}` matching existing verb-noun route conventions
 - Web UI initial state injection pattern for profile (extend existing `__FSM_INITIAL__` pattern)
 
 ### Deferred Ideas (OUT OF SCOPE)
@@ -140,18 +140,20 @@ state = load_state()   # re-read disk so family_safe_mode and future keys are fr
 ```python
 # daemon.py main() — PROFILE_MAP replaces hardcoded scanner args
 PROFILE_MAP = {
-    "family_friendly":  {"explicit_skip": True,  "min_severity": 2,  "drug": True,  "sexual": True},
-    "adult_wholesome":  {"explicit_skip": True,  "min_severity": 3,  "drug": False, "sexual": True},
-    "adult_no_sexual":  {"explicit_skip": False, "min_severity": 99, "drug": False, "sexual": True},
-    "not_explicit":     {"explicit_skip": True,  "min_severity": 99, "drug": False, "sexual": False, "lyrics": False},
+    "kids_present":     {"explicit_skip": True,  "min_severity": 2,  "drug": True,  "sexual": True,  "profanity": True},
+    "were_all_adults":  {"explicit_skip": False, "min_severity": 3,  "drug": False, "sexual": True,  "profanity": True},
+    "above_the_covers": {"explicit_skip": False, "min_severity": 99, "drug": False, "sexual": True,  "profanity": False},
+    "permissive":       {"explicit_skip": True,  "min_severity": 99, "drug": False, "sexual": False, "profanity": False, "lyrics": False},
 }
 
 def _build_content_checker(profile_key: str, lyrics_service, profanity_scanner,
                             drug_scanner, sexual_content_scanner) -> ContentChecker:
-    cfg = PROFILE_MAP.get(profile_key, PROFILE_MAP["family_friendly"])
+    cfg = PROFILE_MAP.get(profile_key, PROFILE_MAP["kids_present"])
+    use_lyrics = cfg.get("lyrics", True)
+    use_profanity = cfg.get("profanity", True) and use_lyrics
     return ContentChecker(
-        lyrics_service=lyrics_service if cfg.get("lyrics", True) else None,
-        profanity_scanner=profanity_scanner if cfg.get("lyrics", True) else None,
+        lyrics_service=lyrics_service if use_lyrics else None,
+        profanity_scanner=profanity_scanner if use_profanity else None,
         drug_scanner=drug_scanner if cfg["drug"] else None,
         sexual_content_scanner=sexual_content_scanner if cfg["sexual"] else None,
         min_severity=cfg["min_severity"],
@@ -174,7 +176,7 @@ async def set_fsm(body: FSMRequest) -> JSONResponse:
     return JSONResponse({"family_safe_mode": body.enabled})
 
 # NEW — follows identical shape
-VALID_PROFILES = {"family_friendly", "adult_wholesome", "adult_no_sexual", "not_explicit"}
+VALID_PROFILES = {"kids_present", "were_all_adults", "above_the_covers", "permissive"}
 
 class ProfileRequest(BaseModel):
     profile: str
@@ -196,7 +198,7 @@ fsm_on = str(state.get("family_safe_mode", False)).lower()
 html = html.replace("__FSM_INITIAL__", fsm_on)
 
 # EXTEND — add after existing injection
-active_profile = state.get("active_profile", "family_friendly")
+active_profile = state.get("active_profile", "kids_present")
 html = html.replace("__PROFILE_INITIAL__", active_profile)
 ```
 
@@ -241,10 +243,10 @@ if self.explicit_skip and track.get("explicit", False):
   <button id="profile-dropdown-trigger" class="fsm-dropdown-zone" aria-haspopup="listbox" aria-expanded="false">&#9660;</button>
 </div>
 <div id="profile-dropdown" class="profile-dropdown" hidden role="listbox">
-  <div class="profile-option" data-profile="family_friendly">Family Friendly</div>
-  <div class="profile-option" data-profile="adult_wholesome">Adult but Wholesome</div>
-  <div class="profile-option" data-profile="adult_no_sexual">Adult, No Sexual</div>
-  <div class="profile-option" data-profile="not_explicit">Not Explicit</div>
+  <div class="profile-option" data-profile="kids_present">Kids Present</div>
+  <div class="profile-option" data-profile="were_all_adults">We're All Adults</div>
+  <div class="profile-option" data-profile="above_the_covers">Above The Covers</div>
+  <div class="profile-option" data-profile="permissive">Permissive</div>
 </div>
 <div id="fsm-error"></div>
 ```
@@ -289,8 +291,8 @@ The key structural point: `#fsm-toggle` becomes the left zone child button (FSM 
 
 ### Pitfall 3: `min_severity=99` breaks profanity scanner initialization
 **What goes wrong:** `ProfanityScanner(min_severity=99)` may not validate the range — check whether the scanner constructor enforces a max.
-**Why it happens:** `adult_no_sexual` profile uses `min_severity=99` as a "never fires" sentinel. If `ProfanityScanner` validates the range as 1–3, instantiation will fail.
-**How to avoid:** Review `ProfanityScanner.__init__` before using `min_severity=99`. If it validates, pass the scanner as `None` for `adult_no_sexual` instead. The `not_explicit` profile already sets `profanity_scanner=None` — the same pattern can apply.
+**Why it happens:** `were_all_adults` uses `min_severity=3` (safe). `above_the_covers` and `permissive` use `profanity_scanner=None` directly, so the sentinel `min_severity=99` is only used in the PROFILE_MAP for completeness but the scanner itself is never instantiated with it.
+**How to avoid:** The PROFILE_MAP for `above_the_covers` should pass `profanity_scanner=None` (not `min_severity=99`) — the `_build_content_checker()` helper already handles this via the `"lyrics"` flag pattern. Confirm before Plan 16-01.
 **Warning signs:** Daemon startup exception from ProfanityScanner.
 
 ### Pitfall 4: Existing tests break when ContentChecker Tier 1 changes
@@ -306,9 +308,9 @@ The key structural point: `#fsm-toggle` becomes the left zone child button (FSM 
 **Warning signs:** Dropdown lingers after reconnect with wrong ✓ indicator.
 
 ### Pitfall 6: Fresh install — no `active_profile` in state.json
-**What goes wrong:** `state.get("active_profile")` returns `None`; button label shows `None ▾` instead of `The Library is Closed ▾` or `Family Friendly ▾`.
+**What goes wrong:** `state.get("active_profile")` returns `None`; button label shows `None ▾` instead of `The Library is Closed ▾` or `Kids Present ▾`.
 **Why it happens:** D-04 specifies a special "fresh install" case — profile not yet stored means button shows "The Library is Closed" text.
-**How to avoid:** In JS, `PROFILE_INITIAL` defaults to `"family_friendly"` from server injection. In `web_ui/main.py`, `state.get("active_profile", "family_friendly")` ensures the placeholder is always a valid key. The "Library is Closed" text only shows when `active_profile` is `None` AND `family_safe_mode` is False — implement as a special label case in `setFsmUI()`.
+**How to avoid:** In JS, `PROFILE_INITIAL` defaults to `"kids_present"` from server injection. In `web_ui/main.py`, `state.get("active_profile", "kids_present")` ensures the placeholder is always a valid key. The "Library is Closed" text only shows when `active_profile` is `None` AND `family_safe_mode` is False — implement as a special label case in `setFsmUI()`.
 **Warning signs:** Button shows "null ▾" or "undefined ▾" on fresh installs.
 
 ---
@@ -330,10 +332,10 @@ if self.explicit_skip and track.get("explicit", False):
 ### Daemon Profile Change Detection
 ```python
 # poll_loop() — add alongside prev_fsm tracking
-prev_profile: str = state.get("active_profile", "family_friendly")
+prev_profile: str = state.get("active_profile", "kids_present")
 
 # Inside track-change branch, after state = load_state():
-current_profile = state.get("active_profile", "family_friendly")
+current_profile = state.get("active_profile", "kids_present")
 if current_profile != prev_profile:
     content_checker = _build_content_checker(
         current_profile, lyrics_service, profanity_scanner, drug_scanner, sexual_content_scanner
@@ -345,7 +347,7 @@ if current_profile != prev_profile:
 ### POST /profile Endpoint
 ```python
 # web_ui/main.py
-VALID_PROFILES = frozenset({"family_friendly", "adult_wholesome", "adult_no_sexual", "not_explicit"})
+VALID_PROFILES = frozenset({"kids_present", "were_all_adults", "above_the_covers", "permissive"})
 
 class ProfileRequest(BaseModel):
     profile: str
@@ -406,16 +408,16 @@ document.addEventListener('keydown', function(e) {
 ### setFsmUI — Extended for Profile Label
 ```javascript
 const PROFILE_DISPLAY_NAMES = {
-  'family_friendly':  'Family Friendly',
-  'adult_wholesome':  'Adult but Wholesome',
-  'adult_no_sexual':  'Adult, No Sexual',
-  'not_explicit':     'Not Explicit',
+  'kids_present':     'Kids Present',
+  'were_all_adults':  "We're All Adults",
+  'above_the_covers': 'Above The Covers',
+  'permissive':       'Permissive',
 };
 
 function setFsmUI(enabled, profile) {
   fsmEnabled = enabled;
   activeProfile = profile || activeProfile;
-  const label = PROFILE_DISPLAY_NAMES[activeProfile] || 'Family Friendly';
+  const label = PROFILE_DISPLAY_NAMES[activeProfile] || 'Kids Present';
   const isFresh = !activeProfile && !enabled;
 
   fsmSplitBtn.className = 'fsm-split ' + (enabled ? 'fsm-on' : 'fsm-off');
@@ -493,16 +495,10 @@ Step 2.5: NOT a rename/refactor/migration phase. Skipped.
 ## Open Questions
 
 1. **`ProfanityScanner` constructor — does it validate min_severity range?**
-   - What we know: `adult_no_sexual` profile uses `min_severity=99`. `ProfanityScanner(min_severity=PROFANITY_MIN_SEVERITY)` currently only receives values 1–3 (env var).
-   - What's unclear: Whether `ProfanityScanner.__init__` has a range assertion that would raise on 99.
-   - Recommendation: Check `profanity_scanner.py` before Plan 16-01. If it validates, use `profanity_scanner=None` instead of `min_severity=99` for `adult_no_sexual` (equivalent behavior — no profanity skip when scanner is None).
+   - What we know: `were_all_adults` uses `min_severity=3`, `above_the_covers` and `permissive` use `profanity_scanner=None`. The sentinel `min_severity=99` is no longer used for `above_the_covers` — the PROFILE_MAP passes `profanity_scanner=None` directly (via `"drug": False` + scanner=None pattern) so this is no longer a risk.
+   - Recommendation: Confirm `profanity_scanner.py` has no range assertion before Plan 16-01, but the `above_the_covers` profile now avoids the issue entirely by using `profanity_scanner=None`.
 
-2. **`adult_no_sexual` — sexual_content_scanner still active with explicit_skip=False**
-   - What we know: D-15 specifies sexual_content_scanner is active for `adult_no_sexual`, but explicit check is off. So explicit tracks are allowed, but sexual content in lyrics still triggers a skip.
-   - What's unclear: `adult_no_sexual` with `min_severity=99` means profanity never fires. If `profanity_scanner` is still wired but `min_severity=99`, the scanner runs and produces results that are silently discarded. This is wasteful but harmless.
-   - Recommendation: Wire `profanity_scanner=None` for `adult_no_sexual` (profanity never fires anyway at severity 99); this avoids the unnecessary scan cost. The locked decision D-15 says `min_severity=99` but doesn't prohibit also setting `profanity_scanner=None` — both achieve the same outcome.
-
-3. **Daemon profile change detection — per-cycle vs per-track-change**
+2. **Daemon profile change detection — per-cycle vs per-track-change**
    - What we know: D-14 says daemon reads `active_profile` each poll cycle. `load_state()` is called on each new track detection (line 303). Between track changes, the daemon uses the ContentChecker from the last track change.
    - What's unclear: Should profile changes take effect mid-track (i.e., every poll cycle) or only on next track change?
    - Recommendation: Per-track-change is sufficient — the current architecture already re-evaluates on track change. Profile changes don't apply retroactively to the currently playing track. Keep detection in the track-change branch alongside `prev_fsm` tracking.

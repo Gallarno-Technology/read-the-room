@@ -21,9 +21,9 @@ Four profiles (defined in PROJECT.md):
 
 ### Profile selector UI — Split button design
 - **D-01:** The existing FSM button is converted to a split button. Left/main area toggles FSM on/off (same as before). Right area (▾ icon) opens a profile dropdown — clicking it does NOT toggle FSM.
-- **D-02:** When FSM is on, the button shows the active profile name in gold styling: `[ Family Friendly ▾ ]`
-- **D-03:** When FSM is off, the button shows the current profile name in grey/fsm-off styling with ▾ still visible: `[ Family Friendly ▾ ]` (grey). This allows pre-selecting a profile while FSM is off.
-- **D-04:** Exception for fresh install / no profile set: button shows `[ The Library is Closed ▾ ]` in grey. Default profile on first run is **Family Friendly**.
+- **D-02:** When FSM is on, the button shows the active profile name in gold styling: `[ Kids Present ▾ ]`
+- **D-03:** When FSM is off, the button shows the current profile name in grey/fsm-off styling with ▾ still visible: `[ Kids Present ▾ ]` (grey). This allows pre-selecting a profile while FSM is off.
+- **D-04:** Exception for fresh install / no profile set: button shows `[ The Library is Closed ▾ ]` in grey. Default profile on first run is **Kids Present**.
 - **D-05:** The ▾ trigger occupies the right portion of the button. Clicking anywhere in the left/main area toggles FSM; clicking the ▾ area opens the dropdown. A visual separator (e.g., a faint vertical divider line) can distinguish the two zones.
 
 ### Profile dropdown
@@ -34,18 +34,18 @@ Four profiles (defined in PROJECT.md):
 - **D-10:** Clicking outside the dropdown (or pressing Escape) closes it without changing selection.
 
 ### Profile persistence
-- **D-11:** Active profile stored in `state.json` as `active_profile` field using the existing read-merge-write pattern. Example key values: `"family_friendly"`, `"adult_wholesome"`, `"adult_no_sexual"`, `"not_explicit"`.
+- **D-11:** Active profile stored in `state.json` as `active_profile` field using the existing read-merge-write pattern. Example key values: `"kids_present"`, `"were_all_adults"`, `"above_the_covers"`, `"permissive"`.
 - **D-12:** Profile survives service restart — state.json is read on daemon startup.
 - **D-13:** When FSM turns on after being off, the profile that was stored (last-used or pre-selected) is restored automatically. No reset to a default.
 
 ### ContentChecker profile application
 - **D-14:** Daemon reads `active_profile` from state.json each poll cycle (alongside `family_safe_mode`). When profile changes, daemon reconstructs ContentChecker with new settings for the next poll.
 - **D-15:** Profile-to-ContentChecker mapping:
-  - `family_friendly`: `min_severity=2`, drug_scanner active, sexual_content_scanner active, explicit check ON
-  - `adult_wholesome`: `min_severity=3`, drug_scanner=None, sexual_content_scanner active, explicit check ON
-  - `adult_no_sexual`: explicit check OFF (skip Tier 1), `min_severity=99` (never fires), drug_scanner=None, sexual_content_scanner active
-  - `not_explicit`: explicit check ON, lyrics_service=None / profanity_scanner=None / drug_scanner=None / sexual_content_scanner=None (all lyric scanning off)
-- **D-16:** "Explicit check OFF" for `adult_no_sexual` means ContentChecker skips Tier 1 (the `if track.get("explicit")` skip). This requires a new `explicit_skip: bool` parameter on ContentChecker.
+  - `kids_present`: `min_severity=2`, drug_scanner active, sexual_content_scanner active, explicit check ON
+  - `were_all_adults`: explicit check OFF, `min_severity=3`, drug_scanner=None, sexual_content_scanner active
+  - `above_the_covers`: explicit check OFF, profanity_scanner=None, drug_scanner=None, sexual_content_scanner active
+  - `permissive`: explicit check ON, lyrics_service=None / profanity_scanner=None / drug_scanner=None / sexual_content_scanner=None (all lyric scanning off)
+- **D-16:** "Explicit check OFF" for `were_all_adults` and `above_the_covers` means ContentChecker skips Tier 1 (the `if track.get("explicit")` skip). This requires a new `explicit_skip: bool` parameter on ContentChecker.
 
 ### Dashboard profile display (PROF-04)
 - **D-17:** The split button itself satisfies PROF-04 — the active profile name is always visible as the button label when FSM is on (and even when off). No separate display element needed.
@@ -54,7 +54,7 @@ Four profiles (defined in PROJECT.md):
 - Exact CSS for the split button divider between toggle zone and ▾ zone
 - Dropdown animation (fade-in vs instant appear)
 - Whether profile mismatch between state.json and ContentChecker is detected by comparing the profile key vs re-reading each cycle
-- `POST /profile` endpoint shape — suggest `{"profile": "family_friendly"}` matching existing verb-noun route conventions
+- `POST /profile` endpoint shape — suggest `{"profile": "kids_present"}` matching existing verb-noun route conventions
 - Web UI initial state injection pattern for profile (extend existing `__FSM_INITIAL__` pattern)
 
 </decisions>

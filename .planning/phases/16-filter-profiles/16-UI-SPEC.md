@@ -115,7 +115,7 @@ This is the primary new component in Phase 16. It replaces the single `<button i
 ```
 #fsm-split-btn  (div, position: relative, display: flex, width: 100%, height: 44px)
 ├── #fsm-toggle  (button, flex: 1, left zone — FSM toggle action)
-│     Label: "{Profile Display Name}"  (e.g. "Family Friendly")
+│     Label: "{Profile Display Name}"  (e.g. "Kids Present")
 │     When FSM fresh-install and off: "The Library is Closed"
 └── #profile-dropdown-trigger  (button, width: 40px, right zone — dropdown trigger)
       Label: ▾  (U+25BE)
@@ -123,10 +123,10 @@ This is the primary new component in Phase 16. It replaces the single `<button i
       aria-expanded="false" | "true"
 
 #profile-dropdown  (div, position: absolute, top: 100%, left: 0, width: 100%, hidden attr)
-├── .profile-option[data-profile="family_friendly"]     "Family Friendly"
-├── .profile-option[data-profile="adult_wholesome"]     "Adult but Wholesome"
-├── .profile-option[data-profile="adult_no_sexual"]     "Adult, No Sexual"
-└── .profile-option[data-profile="not_explicit"]        "Not Explicit"
+├── .profile-option[data-profile="kids_present"]        "Kids Present"
+├── .profile-option[data-profile="were_all_adults"]     "We're All Adults"
+├── .profile-option[data-profile="above_the_covers"]    "Above The Covers"
+└── .profile-option[data-profile="permissive"]          "Permissive"
       Active profile gets ✓ prefix and bold weight
 ```
 
@@ -184,7 +184,7 @@ Dropdown z-index: `z-index: 10` — above cards, below nothing (cards are not st
 | Action | Endpoint | Method | Body | On Success | On Error |
 |--------|----------|--------|------|-----------|---------|
 | Toggle FSM | `/fsm` | POST | `{"enabled": bool}` | Update `fsmEnabled`, call `setFsmUI` | Revert, show `#fsm-error` for 3s |
-| Select profile | `/profile` | POST | `{"profile": "family_friendly"}` | Update `activeProfile`, call `setFsmUI` | Revert, show `#fsm-error` for 3s |
+| Select profile | `/profile` | POST | `{"profile": "kids_present"}` | Update `activeProfile`, call `setFsmUI` | Revert, show `#fsm-error` for 3s |
 
 Error message format for profile failure: "Could not save profile — try again."
 Error message format for FSM failure (unchanged): "Could not update — try again."
@@ -195,12 +195,12 @@ Error message format for FSM failure (unchanged): "Could not update — try agai
 
 | Element | Copy |
 |---------|------|
-| Primary CTA (FSM on) | Profile display name (e.g. "Family Friendly") |
+| Primary CTA (FSM on) | Profile display name (e.g. "Kids Present") |
 | Primary CTA (FSM off) | Profile display name in grey; "The Library is Closed" only on fresh install |
-| Dropdown option — Family Friendly | "Family Friendly" |
-| Dropdown option — Adult but Wholesome | "Adult but Wholesome" |
-| Dropdown option — Adult, No Sexual | "Adult, No Sexual" |
-| Dropdown option — Not Explicit | "Not Explicit" |
+| Dropdown option — Kids Present | "Kids Present" |
+| Dropdown option — We're All Adults | "We're All Adults" |
+| Dropdown option — Above The Covers | "Above The Covers" |
+| Dropdown option — Permissive | "Permissive" |
 | Active profile indicator | "✓" (U+2713) prepended to the active option label |
 | Profile save error | "Could not save profile — try again." |
 | FSM toggle error (unchanged) | "Could not update — try again." |
@@ -209,7 +209,7 @@ Error message format for FSM failure (unchanged): "Could not update — try agai
 
 No destructive actions in this phase. Profile switching is non-destructive and immediately reversible by selecting a different profile.
 
-Profile display names are the canonical human-readable labels. Key values in state.json and API calls use snake_case (`family_friendly`, `adult_wholesome`, `adult_no_sexual`, `not_explicit`). These two representations must never be mixed in the UI.
+Profile display names are the canonical human-readable labels. Key values in state.json and API calls use snake_case (`kids_present`, `were_all_adults`, `above_the_covers`, `permissive`). These two representations must never be mixed in the UI.
 
 Source: CONTEXT.md D-02, D-03, D-04, D-06, D-08; RESEARCH.md `PROFILE_DISPLAY_NAMES` mapping.
 
