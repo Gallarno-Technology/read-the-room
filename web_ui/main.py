@@ -30,6 +30,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from skip_client import SocoSkipClient
 
 load_dotenv()
 
@@ -55,7 +56,13 @@ NOW_PLAYING_PATH = os.path.join(os.path.dirname(EVENTS_PATH) or ".", "now_playin
 
 
 def _sp_init() -> "spotipy.Spotify | None":
-    """Initialize spotipy using shared token cache (D-07). Returns None if env vars absent."""
+    """Create a fresh spotipy client reading the latest token from the shared cache.
+
+    Called per-request (not cached at module level) so the auth manager always
+    reads the current token from disk.  The daemon keeps the cache file fresh
+    via its own refresh cycle; a stale module-level client would hold an expired
+    token in memory and fail after ~60 min (D-07).
+    """
     cache_path = os.environ.get("SPOTIFY_CACHE_PATH")
     client_id = os.environ.get("SPOTIFY_CLIENT_ID")
     client_secret = os.environ.get("SPOTIFY_CLIENT_SECRET")
@@ -78,9 +85,6 @@ def _sp_init() -> "spotipy.Spotify | None":
         cache_handler=cache_handler,
     )
     return spotipy.Spotify(auth_manager=auth_manager)
-
-
-sp = _sp_init()
 
 # Each SSE client gets its own subscriber queue (maxsize=100).
 _subscribers: list[asyncio.Queue] = []
@@ -239,9 +243,9 @@ async def now_playing() -> JSONResponse:
     try:
         with open(NOW_PLAYING_PATH) as f:
             data = json.load(f)
-        return JSONResponse(data)
+        return JSONResponse(data, headers={"Cache-Control": "no-store"})
     except (FileNotFoundError, json.JSONDecodeError):
-        return JSONResponse({"status": "idle"})
+        return JSONResponse({"status": "idle"}, headers={"Cache-Control": "no-store"})
 
 
 # ---------------------------------------------------------------------------
@@ -250,12 +254,17 @@ async def now_playing() -> JSONResponse:
 
 @app.get("/feed")
 async def feed() -> JSONResponse:
-    """Return last 20 skip/five_skip_warning events, newest-first (HIST-03, D-01)."""
+    """Return last 20 skip/five_skip_warning events, newest-first (HIST-03, D-01).
+
+    Cache-Control: no-store prevents browsers from serving stale feed data on
+    page refresh (fetch() default cache mode uses heuristic caching when no
+    explicit directives are present).
+    """
     try:
         with open(EVENTS_PATH) as f:
             lines = f.readlines()
     except FileNotFoundError:
-        return JSONResponse([])
+        return JSONResponse([], headers={"Cache-Control": "no-store"})
 
     events = []
     for line in reversed(lines):
@@ -270,35 +279,66 @@ async def feed() -> JSONResponse:
             events.append(evt)
             if len(events) >= 20:
                 break
-    return JSONResponse(events)
+    return JSONResponse(events, headers={"Cache-Control": "no-store"})
 
 
 # ---------------------------------------------------------------------------
-# Manual Skip — calls Spotify API directly (Phase 7, SKIP-02, SKIP-03)
+# Manual Skip — Spotify API with SoCo UPnP fallback for restricted devices
+# (Phase 7, SKIP-02, SKIP-03)
 # ---------------------------------------------------------------------------
+
+_soco_skip = SocoSkipClient()
+
 
 @app.post("/skip")
 async def skip_track() -> JSONResponse:
-    """Skip the current track by calling sp.next_track() (Spotify /me/player/next).
+    """Skip the current track.
+
+    Tries Spotify Web API first.  If the active device is restricted (Sonos
+    returns 403), falls back to SoCo UPnP — the same strategy the daemon uses.
 
     SKIP-03: does NOT increment consecutive_skips — that counter lives in daemon
-    memory and is only touched by the daemon's own skip logic. This is architecturally
-    guaranteed; no special implementation needed (D-06).
+    memory and is only touched by the daemon's own skip logic.
 
     Returns {"ok": true} on success (HTTP 200).
     Returns HTTP 503 with {"detail": "skip_failed", "reason": "..."} on any error.
     """
-    if sp is None:
+    client = _sp_init()
+    if client is None:
         return JSONResponse(
             status_code=503,
             content={"detail": "skip_failed", "reason": "Spotify client not configured"},
         )
     try:
-        sp.next_track()
+        client.next_track()
         return JSONResponse({"ok": True})
     except spotipy.SpotifyException as exc:
-        log.warning("POST /skip failed: %s", exc)
-        return JSONResponse(
-            status_code=503,
-            content={"detail": "skip_failed", "reason": str(exc)},
-        )
+        if exc.http_status != 403:
+            log.warning("POST /skip failed: %s", exc)
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "skip_failed", "reason": str(exc)},
+            )
+        # 403 Restricted device — fall back to SoCo UPnP (same as daemon)
+        log.info("POST /skip: Spotify API returned 403 (restricted device), trying SoCo fallback")
+        try:
+            playback = client.current_playback()
+            if not playback or not playback.get("device"):
+                return JSONResponse(
+                    status_code=503,
+                    content={"detail": "skip_failed", "reason": "No active playback device"},
+                )
+            device = playback["device"]
+            success = await _soco_skip.skip(device["name"], device.get("id", ""))
+            if success:
+                return JSONResponse({"ok": True})
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "skip_failed", "reason": "SoCo fallback failed — check Sonos network"},
+            )
+        except Exception as fallback_exc:
+            log.warning("POST /skip SoCo fallback failed: %s", fallback_exc)
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "skip_failed", "reason": str(fallback_exc)},
+            )
