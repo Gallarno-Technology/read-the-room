@@ -487,12 +487,16 @@
   <script>
     // FSM initial state injected by web_ui/main.py at serve time
     const FSM_INITIAL = "__FSM_INITIAL__";
-    let fsmEnabled = FSM_INITIAL === "true";
     // Active profile initial state injected by web_ui/main.py at serve time (PROF-04)
     const PROFILE_INITIAL = "__PROFILE_INITIAL__";
+    let fsmEnabled = FSM_INITIAL === "true";
+    let activeProfile = PROFILE_INITIAL || "kids_present";
     let currentTrackId = null;
 
-    const fsmBtn = document.getElementById('fsm-toggle');
+    const fsmSplitBtn = document.getElementById('fsm-split-btn');
+    const fsmMainZone = document.getElementById('fsm-toggle');
+    const profileTrigger = document.getElementById('profile-dropdown-trigger');
+    const profileDropdown = document.getElementById('profile-dropdown');
     const fsmError = document.getElementById('fsm-error');
     const skipFeed = document.getElementById('skip-feed');
     const banner = document.getElementById('skip-banner');
@@ -509,22 +513,38 @@
     const skipBtn = document.getElementById('skip-btn');
     const skipError = document.getElementById('skip-error');
 
-    function setFsmUI(enabled) {
+    const PROFILE_DISPLAY_NAMES = {
+      'kids_present':     'Kids Present',
+      'were_all_adults':  "We're All Adults",
+      'above_the_covers': 'Above The Covers',
+      'permissive':       'Permissive',
+    };
+
+    function setFsmUI(enabled, profile) {
       fsmEnabled = enabled;
-      if (enabled) {
-        fsmBtn.className = 'fsm-on';
-        fsmBtn.textContent = 'The Library is Open';
-      } else {
-        fsmBtn.className = 'fsm-off';
-        fsmBtn.textContent = 'The Library is Closed';
+      if (profile !== undefined) {
+        activeProfile = profile;
       }
+      const label = PROFILE_DISPLAY_NAMES[activeProfile] || 'Kids Present';
+      // D-04: fresh install — no profile stored AND FSM off shows special label
+      const isFresh = !activeProfile && !enabled;
+
+      fsmSplitBtn.className = 'fsm-split ' + (enabled ? 'fsm-on' : 'fsm-off');
+      fsmMainZone.textContent = isFresh ? 'The Library is Closed' : label;
+
+      // Update ✓ indicator in dropdown (D-08)
+      document.querySelectorAll('.profile-option').forEach(function(opt) {
+        const isActive = opt.dataset.profile === activeProfile;
+        opt.classList.toggle('profile-option--active', isActive);
+        opt.setAttribute('aria-selected', String(isActive));
+      });
     }
 
     // Apply initial FSM state on page load
-    setFsmUI(fsmEnabled);
+    setFsmUI(fsmEnabled, activeProfile);
 
-    // FSM toggle click handler
-    fsmBtn.addEventListener('click', async function() {
+    // FSM toggle — left zone only (D-05: stopPropagation not needed here; right zone handles its own)
+    fsmMainZone.addEventListener('click', async function() {
       const newState = !fsmEnabled;
       setFsmUI(newState);
       fsmError.textContent = '';
@@ -539,8 +559,64 @@
         }
       } catch (err) {
         setFsmUI(!newState);
-        fsmError.textContent = 'Could not update — try again.';
+        fsmError.textContent = 'Could not update \u2014 try again.';
         setTimeout(function() { fsmError.textContent = ''; }, 3000);
+      }
+    });
+
+    // ▾ dropdown trigger — right zone (D-05: stopPropagation prevents FSM toggle)
+    profileTrigger.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const isOpen = !profileDropdown.hidden;
+      profileDropdown.hidden = isOpen;
+      profileTrigger.setAttribute('aria-expanded', String(!isOpen));
+    });
+
+    // Profile option selection (D-09: saves to state.json, updates label, closes dropdown, no FSM change)
+    profileDropdown.addEventListener('click', async function(e) {
+      const opt = e.target.closest('.profile-option');
+      if (!opt) return;
+      const newProfile = opt.dataset.profile;
+      if (!newProfile) return;
+
+      const prevProfile = activeProfile;
+      setFsmUI(fsmEnabled, newProfile);
+      profileDropdown.hidden = true;
+      profileTrigger.setAttribute('aria-expanded', 'false');
+      fsmError.textContent = '';
+
+      try {
+        const resp = await fetch('/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profile: newProfile })
+        });
+        if (!resp.ok) {
+          throw new Error('HTTP ' + resp.status);
+        }
+      } catch (err) {
+        setFsmUI(fsmEnabled, prevProfile);
+        fsmError.textContent = 'Could not save profile \u2014 try again.';
+        setTimeout(function() { fsmError.textContent = ''; }, 3000);
+      }
+    });
+
+    // Close dropdown on outside click (D-10)
+    document.addEventListener('click', function(e) {
+      if (!profileDropdown.hidden &&
+          !profileDropdown.contains(e.target) &&
+          e.target !== profileTrigger) {
+        profileDropdown.hidden = true;
+        profileTrigger.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    // Close dropdown on Escape (D-10)
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && !profileDropdown.hidden) {
+        profileDropdown.hidden = true;
+        profileTrigger.setAttribute('aria-expanded', 'false');
+        profileTrigger.focus();
       }
     });
 
@@ -744,6 +820,11 @@
     const es = new EventSource('/events');
 
     es.onopen = function() {
+      // Close profile dropdown on SSE reconnect (Pitfall 5)
+      if (profileDropdown && !profileDropdown.hidden) {
+        profileDropdown.hidden = true;
+        profileTrigger.setAttribute('aria-expanded', 'false');
+      }
       sseDot.className = 'sse-dot connected';
       sseLabel.textContent = '';
       hydrateNowPlaying();
