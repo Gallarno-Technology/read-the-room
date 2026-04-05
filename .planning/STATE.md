@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Dashboard Polish & Filter Profiles
 status: executing
-stopped_at: Completed 16-01-PLAN.md
-last_updated: "2026-04-05T11:41:32.688Z"
+stopped_at: Completed 16-filter-profiles-02-PLAN.md
+last_updated: "2026-04-05T11:47:43.899Z"
 last_activity: 2026-04-05
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 16 (filter-profiles) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-04-05
 
@@ -63,6 +63,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 15-skip-history P01 | 2min | 1 tasks | 4 files |
 | Phase 15-skip-history P02 | 1min | 2 tasks | 1 files |
 | Phase 16-filter-profiles P01 | 2m17s | 3 tasks | 3 files |
+| Phase 16-filter-profiles P02 | 9min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,7 @@ Recent decisions affecting current work:
 - [Phase 16-filter-profiles]: explicit_skip defaults True so all existing Tier 1 behavior is preserved by default
 - [Phase 16-filter-profiles]: PROFILE_MAP maps profile keys to ContentChecker kwargs; scanner objects are long-lived, only ContentChecker wrapper is rebuilt on profile change
 - [Phase 16-filter-profiles]: _build_content_checker falls back to kids_present for unknown profile keys (safest default)
+- [Phase 16-filter-profiles]: VALID_PROFILES frozenset with 4 presets; POST /profile mirrors FSM pattern; __PROFILE_INITIAL__ placeholder added to index.html in plan 16-02 to satisfy PROF-04 injection test
 
 ### Pending Todos
 
@@ -104,6 +106,6 @@ None at roadmap creation.
 
 ## Session Continuity
 
-Last session: 2026-04-05T11:41:32.687Z
-Stopped at: Completed 16-01-PLAN.md
+Last session: 2026-04-05T11:47:43.898Z
+Stopped at: Completed 16-filter-profiles-02-PLAN.md
 Resume file: None
