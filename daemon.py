@@ -44,6 +44,46 @@ EVENTS_PATH = os.environ.get("EVENTS_PATH", "data/events.jsonl")
 NOW_PLAYING_PATH = os.path.join(os.path.dirname(EVENTS_PATH) or ".", "now_playing.json")
 
 # ---------------------------------------------------------------------------
+# Filter Profile Map (Phase 16, PROF-03)
+# Maps active_profile state.json keys to ContentChecker constructor kwargs.
+# Scanner objects are long-lived; only the ContentChecker wrapper is rebuilt on change.
+# ---------------------------------------------------------------------------
+PROFILE_MAP: dict = {
+    "kids_present": {
+        "explicit_skip": True,
+        "min_severity": 2,
+        "drug": True,
+        "sexual": True,
+        "profanity": True,
+        "lyrics": True,
+    },
+    "were_all_adults": {
+        "explicit_skip": False,
+        "min_severity": 3,
+        "drug": False,
+        "sexual": True,
+        "profanity": True,
+        "lyrics": True,
+    },
+    "above_the_covers": {
+        "explicit_skip": False,
+        "min_severity": 2,
+        "drug": False,
+        "sexual": True,
+        "profanity": False,
+        "lyrics": True,
+    },
+    "permissive": {
+        "explicit_skip": True,
+        "min_severity": 2,
+        "drug": False,
+        "sexual": False,
+        "profanity": False,
+        "lyrics": False,
+    },
+}
+
+# ---------------------------------------------------------------------------
 # Monotonic event ID counter (HIST-03, Phase 15)
 # ---------------------------------------------------------------------------
 _event_counter = 0
@@ -199,6 +239,36 @@ def _emit_eval_result(
     })
 
 
+def _build_content_checker(
+    profile_key: str,
+    lyrics_service,
+    profanity_scanner,
+    drug_scanner,
+    sexual_content_scanner,
+) -> ContentChecker:
+    """Construct ContentChecker from the active profile config (D-14, D-15, PROF-03).
+
+    Scanner objects (lyrics_service, profanity_scanner, etc.) are long-lived instances
+    created once in main(). Only the ContentChecker wrapper is rebuilt when profile changes.
+    Passing None for a scanner disables that scan tier.
+
+    Args:
+        profile_key: Key from PROFILE_MAP (e.g. "kids_present"). Falls back to
+            "kids_present" if unknown.
+    """
+    cfg = PROFILE_MAP.get(profile_key, PROFILE_MAP["kids_present"])
+    use_lyrics = cfg.get("lyrics", True)
+    use_profanity = cfg.get("profanity", True) and use_lyrics
+    return ContentChecker(
+        lyrics_service=lyrics_service if use_lyrics else None,
+        profanity_scanner=profanity_scanner if use_profanity else None,
+        drug_scanner=drug_scanner if cfg["drug"] else None,
+        sexual_content_scanner=sexual_content_scanner if cfg["sexual"] else None,
+        min_severity=cfg["min_severity"],
+        explicit_skip=cfg["explicit_skip"],
+    )
+
+
 # ---------------------------------------------------------------------------
 # Sonos startup probe (Phase 4, D-01 through D-07)
 # ---------------------------------------------------------------------------
@@ -247,11 +317,16 @@ async def poll_loop(
     content_checker: ContentChecker,
     soco_skip: SocoSkipClient,
     spotify_skip: SpotifySkipClient,
+    lyrics_service=None,
+    profanity_scanner=None,
+    drug_scanner=None,
+    sexual_content_scanner=None,
 ) -> None:
     """Main polling coroutine. Runs until stop_event is set."""
     state = load_state()
     consecutive_skips: int = 0
     prev_fsm: bool = False
+    prev_profile: str = state.get("active_profile", "kids_present")
     idle_counter: int = 0      # consecutive empty-playback polls (D-04)
     was_idle: bool = False     # dedup flag — gates idle write to once per transition (D-05)
     last_heartbeat = time.monotonic()
@@ -309,6 +384,18 @@ async def poll_loop(
                         consecutive_skips = 0
                         log.info("[FSM] consecutive_skips reset — FSM re-enabled")
                     prev_fsm = fsm_now
+
+                    current_profile = state.get("active_profile", "kids_present")
+                    if current_profile != prev_profile:
+                        content_checker = _build_content_checker(
+                            current_profile,
+                            lyrics_service,
+                            profanity_scanner,
+                            drug_scanner,
+                            sexual_content_scanner,
+                        )
+                        prev_profile = current_profile
+                        log.info("[PROFILE] switched to %r", current_profile)
 
                     # DAEM-01: emit track_change immediately on detection, before evaluation
                     images = track.get("album", {}).get("images", [])
@@ -537,18 +624,17 @@ async def main() -> None:
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, stop_event.set)
 
-    # Phase 2: Instantiate lyrics pipeline and content filter
+    # Phase 2 + Phase 16: Build scanner instances once; ContentChecker is profile-aware
     lyrics_service = LyricsService(db_path=LYRICS_DB_PATH)
     profanity_scanner = ProfanityScanner(min_severity=PROFANITY_MIN_SEVERITY)
     drug_scanner = DrugScanner()
     sexual_content_scanner = SexualContentScanner()
-    content_checker = ContentChecker(
-        lyrics_service=lyrics_service,
-        profanity_scanner=profanity_scanner,
-        drug_scanner=drug_scanner,
-        sexual_content_scanner=sexual_content_scanner,
-        min_severity=PROFANITY_MIN_SEVERITY,
+    startup_state = load_state()
+    startup_profile = startup_state.get("active_profile", "kids_present")
+    content_checker = _build_content_checker(
+        startup_profile, lyrics_service, profanity_scanner, drug_scanner, sexual_content_scanner
     )
+    log.info("[PROFILE] startup profile: %r", startup_profile)
     soco_skip = SocoSkipClient()
     spotify_skip = SpotifySkipClient(sp)
 
@@ -556,7 +642,16 @@ async def main() -> None:
 
     await probe_sonos_speakers(soco_skip)   # D-01: eager startup probe, non-blocking (D-03)
 
-    await poll_loop(sp, content_checker, soco_skip, spotify_skip)
+    await poll_loop(
+        sp,
+        content_checker,
+        soco_skip,
+        spotify_skip,
+        lyrics_service,
+        profanity_scanner,
+        drug_scanner,
+        sexual_content_scanner,
+    )
     await lyrics_service.close()
     log.info("Daemon stopped cleanly")
 
