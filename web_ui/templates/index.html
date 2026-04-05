@@ -140,13 +140,20 @@
     }
 
     /* Split button container — Phase 16 */
+    .fsm-btn-wrapper {
+      position: relative;
+    }
+
     .fsm-split {
       display: flex;
       width: 100%;
       height: 44px;
       border-radius: 6px;
       overflow: hidden;
-      position: relative;
+    }
+
+    .fsm-split.dropdown-open {
+      border-radius: 6px 6px 0 0;
     }
 
     /* Left zone: FSM toggle action */
@@ -155,6 +162,7 @@
       height: 100%;
       border: none;
       background: transparent;
+      color: inherit;
       cursor: pointer;
       font-family: 'Courier Prime', monospace;
       font-size: 13px;
@@ -171,6 +179,7 @@
       border: none;
       border-left: 1px solid var(--border);
       background: transparent;
+      color: inherit;
       cursor: pointer;
       font-family: 'Courier Prime', monospace;
       font-size: 13px;
@@ -220,7 +229,7 @@
       width: 100%;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: 0 0 6px 6px;
       z-index: 10;
       font-family: 'Courier Prime', monospace;
       font-size: 13px;
@@ -437,15 +446,17 @@
     </div>
 
     <div class="card" style="position: relative">
-      <div id="fsm-split-btn" class="fsm-split fsm-off">
-        <button id="fsm-toggle" class="fsm-main-zone">The Library is Closed</button>
-        <button id="profile-dropdown-trigger" class="fsm-dropdown-zone" aria-haspopup="listbox" aria-expanded="false">&#9660;</button>
-      </div>
-      <div id="profile-dropdown" class="profile-dropdown" hidden role="listbox">
-        <div class="profile-option" data-profile="kids_present" role="option" aria-selected="false">Kids Present</div>
-        <div class="profile-option" data-profile="were_all_adults" role="option" aria-selected="false">We're All Adults</div>
-        <div class="profile-option" data-profile="above_the_covers" role="option" aria-selected="false">Above The Covers</div>
-        <div class="profile-option" data-profile="permissive" role="option" aria-selected="false">Permissive</div>
+      <div class="fsm-btn-wrapper">
+        <div id="fsm-split-btn" class="fsm-split fsm-off">
+          <button id="fsm-toggle" class="fsm-main-zone">The Library is Closed</button>
+          <button id="profile-dropdown-trigger" class="fsm-dropdown-zone" aria-haspopup="listbox" aria-expanded="false">&#9660;</button>
+        </div>
+        <div id="profile-dropdown" class="profile-dropdown" hidden role="listbox">
+          <div class="profile-option" data-profile="kids_present" role="option" aria-selected="false">Kids Present</div>
+          <div class="profile-option" data-profile="were_all_adults" role="option" aria-selected="false">We're All Adults</div>
+          <div class="profile-option" data-profile="above_the_covers" role="option" aria-selected="false">Above The Covers</div>
+          <div class="profile-option" data-profile="permissive" role="option" aria-selected="false">Permissive</div>
+        </div>
       </div>
       <div id="fsm-error"></div>
     </div>
@@ -564,12 +575,22 @@
       }
     });
 
+    function openDropdown() {
+      profileDropdown.hidden = false;
+      profileTrigger.setAttribute('aria-expanded', 'true');
+      fsmSplitBtn.classList.add('dropdown-open');
+    }
+
+    function closeDropdown() {
+      profileDropdown.hidden = true;
+      profileTrigger.setAttribute('aria-expanded', 'false');
+      fsmSplitBtn.classList.remove('dropdown-open');
+    }
+
     // ▾ dropdown trigger — right zone (D-05: stopPropagation prevents FSM toggle)
     profileTrigger.addEventListener('click', function(e) {
       e.stopPropagation();
-      const isOpen = !profileDropdown.hidden;
-      profileDropdown.hidden = isOpen;
-      profileTrigger.setAttribute('aria-expanded', String(!isOpen));
+      if (profileDropdown.hidden) { openDropdown(); } else { closeDropdown(); }
     });
 
     // Profile option selection (D-09: saves to state.json, updates label, closes dropdown, no FSM change)
@@ -581,8 +602,7 @@
 
       const prevProfile = activeProfile;
       setFsmUI(fsmEnabled, newProfile);
-      profileDropdown.hidden = true;
-      profileTrigger.setAttribute('aria-expanded', 'false');
+      closeDropdown();
       fsmError.textContent = '';
 
       try {
@@ -606,16 +626,14 @@
       if (!profileDropdown.hidden &&
           !profileDropdown.contains(e.target) &&
           e.target !== profileTrigger) {
-        profileDropdown.hidden = true;
-        profileTrigger.setAttribute('aria-expanded', 'false');
+        closeDropdown();
       }
     });
 
     // Close dropdown on Escape (D-10)
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape' && !profileDropdown.hidden) {
-        profileDropdown.hidden = true;
-        profileTrigger.setAttribute('aria-expanded', 'false');
+        closeDropdown();
         profileTrigger.focus();
       }
     });
@@ -822,8 +840,7 @@
     es.onopen = function() {
       // Close profile dropdown on SSE reconnect (Pitfall 5)
       if (profileDropdown && !profileDropdown.hidden) {
-        profileDropdown.hidden = true;
-        profileTrigger.setAttribute('aria-expanded', 'false');
+        closeDropdown();
       }
       sseDot.className = 'sse-dot connected';
       sseLabel.textContent = '';
