@@ -211,4 +211,4 @@ Phases execute in numeric order: 14 → 15 → 16
 | 13. Dashboard Badge Variants | v1.3 | 1/1 | Complete | 2026-04-04 |
 | 14. Idle Detection | v1.4 | 2/2 | Complete    | 2026-04-04 |
 | 15. Skip History | v1.4 | 2/2 | Complete    | 2026-04-04 |
-| 16. Filter Profiles | v1.4 | 3/3 | Complete   | 2026-04-05 |
+| 16. Filter Profiles | v1.4 | 3/3 | Complete    | 2026-04-05 |
