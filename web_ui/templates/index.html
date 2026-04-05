@@ -395,6 +395,8 @@
     // FSM initial state injected by web_ui/main.py at serve time
     const FSM_INITIAL = "__FSM_INITIAL__";
     let fsmEnabled = FSM_INITIAL === "true";
+    // Active profile initial state injected by web_ui/main.py at serve time (PROF-04)
+    const PROFILE_INITIAL = "__PROFILE_INITIAL__";
     let currentTrackId = null;
 
     const fsmBtn = document.getElementById('fsm-toggle');

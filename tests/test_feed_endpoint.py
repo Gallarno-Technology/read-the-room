@@ -24,7 +24,7 @@ def events_path(tmp_path, monkeypatch):
 def client(events_path):
     """TestClient with mocked sp (same pattern as test_web_ui_endpoints.py)."""
     mock_sp = MagicMock()
-    monkeypatch_sp = patch.object(web_ui_main, "sp", mock_sp)
+    monkeypatch_sp = patch.object(web_ui_main, "_sp_init", return_value=mock_sp)
     with monkeypatch_sp:
         with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
             yield c
