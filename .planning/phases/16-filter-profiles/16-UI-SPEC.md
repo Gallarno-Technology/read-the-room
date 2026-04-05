@@ -1,7 +1,8 @@
 ---
 phase: 16
 slug: filter-profiles
-status: draft
+status: approved
+reviewed_at: 2026-04-05
 shadcn_initialized: false
 preset: none
 created: 2026-04-04
@@ -86,7 +87,8 @@ Source: `index.html` body/button/badge styles. Confirmed 2 weights only (400 + 6
 Accent (`--accent: #c9a84c`) is reserved for:
 - Split button background when FSM is **on** (`fsm-on` class on `#fsm-split-btn`)
 - SSE connected dot (`sse-dot.connected`)
-- No other elements — do not use `--accent` for dropdown items, ✓ indicator, or button hover states
+- Active profile ✓ glyph in the dropdown
+- No other elements — do not use `--accent` for inactive dropdown items or button hover states
 
 Semantic colors for Phase 16 UI:
 
