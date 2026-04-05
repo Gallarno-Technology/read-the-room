@@ -1,5 +1,21 @@
 # Milestones
 
+## v1.4 Dashboard Polish & Filter Profiles (Shipped: 2026-04-05)
+
+**Phases completed:** 3 phases, 7 plans, 6 tasks
+
+**Key accomplishments:**
+
+- Five failing idle-detection tests + _run_n_empty_cycles helper scaffolding daemon.poll_loop idle behavior contracts (IDLE-01, IDLE-02)
+- Idle state machine with 3-poll debounce in daemon.py + idle SSE branch in dashboard es.onmessage
+- Monotonic event IDs on all daemon events + GET /feed endpoint returning last 20 skip/warning events newest-first from events.jsonl
+- Feed hydration on page load and SSE reconnect with event-ID dedup, warning item rendering, and 20-item DOM cap
+- One-liner:
+- 1. [Rule 1 - Bug] Fixed broken test fixture: `patch.object(web_ui_main, "sp", ...)` failed because `main.py` has no module-level `sp` attribute
+- CSS changes (`web_ui/templates/index.html`):
+
+---
+
 ## v1.3 Drug & Sexual Reference Detection (Shipped: 2026-04-04)
 
 **Phases completed:** 5 phases, 8 plans, 16 tasks
