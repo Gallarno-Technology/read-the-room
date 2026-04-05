@@ -49,6 +49,8 @@ class ContentChecker:
         sexual_content_scanner: SexualContentScanner instance (SEXL-04). None disables sexual scan.
         min_severity: Minimum profanity severity level to trigger skip (D-10).
             1=mild, 2=moderate (default), 3=severe only.
+        explicit_skip: When True (default), tracks with Spotify's explicit=True flag are
+            immediately skipped (Tier 1). When False, Tier 1 is bypassed (D-16).
     """
 
     def __init__(
@@ -58,12 +60,14 @@ class ContentChecker:
         drug_scanner=None,
         sexual_content_scanner=None,
         min_severity: int = 2,
+        explicit_skip: bool = True,   # D-16: when False, Tier 1 explicit check is bypassed
     ) -> None:
         self.lyrics_service = lyrics_service
         self.profanity_scanner = profanity_scanner
         self.drug_scanner = drug_scanner
         self.sexual_content_scanner = sexual_content_scanner
         self.min_severity = min_severity
+        self.explicit_skip = explicit_skip
 
     async def check(self, track: dict) -> "TrackEvalResult":
         """Check a track against content filter rules.
@@ -85,7 +89,7 @@ class ContentChecker:
 
         # Tier 1: Spotify explicit flag (FILT-01)
         # Instant check — no network call required.
-        if track.get("explicit", False):
+        if self.explicit_skip and track.get("explicit", False):
             log.debug(
                 "[SCAN] track=%r artist=%r severity=3 matched=[] action=skip",
                 track_name,
