@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Dashboard Polish & Filter Profiles
-status: executing
-stopped_at: Completed 16-filter-profiles-02-PLAN.md
-last_updated: "2026-04-05T11:47:43.899Z"
+status: verifying
+stopped_at: Completed 16-filter-profiles-03-PLAN.md — awaiting human-verify checkpoint
+last_updated: "2026-04-05T11:52:07.134Z"
 last_activity: 2026-04-05
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 7
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 
 Phase: 16 (filter-profiles) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-05
 
 Progress: [░░░░░░░░░░] 0%
@@ -64,6 +64,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 15-skip-history P02 | 1min | 2 tasks | 1 files |
 | Phase 16-filter-profiles P01 | 2m17s | 3 tasks | 3 files |
 | Phase 16-filter-profiles P02 | 9min | 2 tasks | 4 files |
+| Phase 16-filter-profiles P03 | 157s | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,8 @@ Recent decisions affecting current work:
 - [Phase 16-filter-profiles]: PROFILE_MAP maps profile keys to ContentChecker kwargs; scanner objects are long-lived, only ContentChecker wrapper is rebuilt on profile change
 - [Phase 16-filter-profiles]: _build_content_checker falls back to kids_present for unknown profile keys (safest default)
 - [Phase 16-filter-profiles]: VALID_PROFILES frozenset with 4 presets; POST /profile mirrors FSM pattern; __PROFILE_INITIAL__ placeholder added to index.html in plan 16-02 to satisfy PROF-04 injection test
+- [Phase 16-filter-profiles]: Profile dropdown uses position:absolute on .card (position:relative) for full-width alignment — no JS measurement needed
+- [Phase 16-filter-profiles]: FSM toggle listener on #fsm-toggle (left zone) only — prevents right zone from triggering FSM toggle without needing stopPropagation on main zone
 
 ### Pending Todos
 
@@ -106,6 +109,6 @@ None at roadmap creation.
 
 ## Session Continuity
 
-Last session: 2026-04-05T11:47:43.898Z
-Stopped at: Completed 16-filter-profiles-02-PLAN.md
+Last session: 2026-04-05T11:52:07.133Z
+Stopped at: Completed 16-filter-profiles-03-PLAN.md — awaiting human-verify checkpoint
 Resume file: None
