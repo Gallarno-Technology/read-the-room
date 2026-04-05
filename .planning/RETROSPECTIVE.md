@@ -205,6 +205,56 @@
 
 ---
 
+## Milestone: v1.4 — Dashboard Polish & Filter Profiles
+
+**Shipped:** 2026-04-05
+**Phases:** 3 (14–16) | **Plans:** 7 | **Tasks:** ~17
+
+### What Was Built
+
+- Idle detection — 3-poll debounce counter + dedup flag in `poll_loop`; daemon writes idle state to `now_playing.json`; dashboard now-playing card transitions to "Nothing playing" within ~5s
+- `GET /feed` endpoint returning last 20 skip/five_skip_warning events from `events.jsonl` with monotonic integer IDs; `_init_event_counter()` recovers counter on restart
+- `hydrateFeed()` in dashboard — fetches history on page load and SSE reconnect with event-ID dedup via Set, `prependWarningItem()` for five_skip_warning rendering, 20-item DOM cap
+- `ContentChecker` profile awareness — `explicit_skip: bool = True` param; `PROFILE_MAP` with 4 named presets; `_build_content_checker()` reconstructs only the wrapper (not scanners) on profile change
+- `POST /profile` and `GET /profile` endpoints — frozenset validation, read-merge-write `_save_state_merge({'active_profile': ...})`; `__PROFILE_INITIAL__` injected into HTML by `dashboard()` route
+- Split-button FSM/profile compound element — left zone toggles FSM, right zone ▾ opens CSS custom dropdown with active-profile checkmark; attached corner styling via `dropdown-open` class; closes on outside-click, Escape, and SSE disconnect
+
+### What Worked
+
+- **TDD RED/GREEN discipline consistent** — both backend plans (16-01, 16-02) used RED-first TDD; tests precisely defined the API contract before wiring, making GREEN phase surgical
+- **PROFILE_MAP + _build_content_checker() separation** — scanner objects (heavy) are long-lived; only the ContentChecker wrapper is rebuilt on profile change. This made the implementation simple and zero-regression by default
+- **Split-button human checkpoint** — the checkpoint caught two real issues (button text color not inheriting, dropdown too wide and unattached) that wouldn't have been caught by automated tests. The checkpoint paid for itself immediately
+- **`_save_state_merge` pattern** — reusing the existing read-merge-write helper for `active_profile` meant profile persistence required ~3 lines of new code and zero risk of clobbering other state keys
+- **Monotonic event IDs + Set-based dedup** — simpler than UUIDs, survives restart via file scan, and the Set dedup on reconnect merge is O(1) per event
+
+### What Was Inefficient
+
+- **Web UI test fixtures were broken before this milestone** — the `client` fixture was patching a non-existent `sp` attribute; 16-02 executor had to fix this as a deviation. A regression test on the fixture shape would have caught this in v1.3
+- **`__PROFILE_INITIAL__` placeholder missed in plan's `files_modified`** — plan 16-02 listed `web_ui/main.py` as the only file but the injection code is useless without the placeholder in `index.html`; executor had to add it as an unlisted deviation. Plan checker should flag "injection of X requires X's container file to be listed"
+- **Post-checkpoint UI fixes not in plan** — color inheritance (`color: inherit` on `<button>`) and dropdown width/corner attachment were discovered only during human verification. These are predictable CSS pitfalls that could have been in the plan's acceptance criteria
+
+### Patterns Established
+
+- **Debounce counter + dedup flag for SSE state transitions** — `idle_counter` tracks consecutive empty polls; `was_idle` prevents re-emitting idle on already-idle polls; pattern generalizes to any debounced dashboard state change
+- **Feed hydration pattern** — `fetch /feed → build Set of existing data-event-id → filter+reverse → render via prepend functions`; reusable for any paginated event feed backed by JSONL
+- **Split-button compound element** — `fsm-btn-wrapper` (position:relative) contains `.fsm-split` + `.profile-dropdown`; `dropdown-open` class on `.fsm-split` drives corner-radius transition; `openDropdown()`/`closeDropdown()` helper functions centralize all state mutation (hidden, aria-expanded, class toggle)
+- **`color: inherit` on `<button>`** — browsers don't inherit color into `<button>` elements; any compound element that sets color on a container and uses `<button>` children needs `color: inherit` explicitly
+
+### Key Lessons
+
+1. **`<button>` doesn't inherit color — always add `color: inherit`** — this is a browser default that bites compound elements; should be in every plan that introduces a new `<button>` inside a styled container
+2. **Injection code requires the injection target to be listed in `files_modified`** — if plan N injects a placeholder into file F, F must be in `files_modified`; otherwise the plan's acceptance criteria can't verify the injection
+3. **Human checkpoints are most valuable for visual state interactions** — automated tests couldn't have caught the `dropdown-open` corner attachment issue or the color inheritance bug; the checkpoint discovered both in under 2 minutes
+4. **Profile map + wrapper reconstruction is the right pattern for swappable rule engines** — separating the profile selection concern (which rules?) from the scanner concern (how to scan?) keeps both simple; profile change is O(1) ContentChecker rebuild, not O(N) scanner teardown
+
+### Cost Observations
+
+- Model mix: Sonnet 4.6 (GSD balanced profile throughout)
+- Sessions: ~2 sessions (2026-04-04 → 2026-04-05, 2 days)
+- Notable: 7 plans in 2 days; Wave 1 parallelization (16-01 + 16-02) saved ~10 min of sequential wait; human checkpoint on 16-03 caught 2 real UI bugs that would have required a gap-closure phase otherwise
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -215,6 +265,7 @@
 | v1.1 | ~3 | 2 | TDD RED/GREEN discipline adopted; parallel wave execution |
 | v1.2 | ~6 | 4 | Dual delivery (SSE + snapshot) pattern; decimal phase insertion; additive badge model |
 | v1.3 | ~4 | 5 | No-short-circuit multi-scanner contract; four-boolean schema; quick task scope for hotfixes |
+| v1.4 | ~2 | 3 | Profile map + wrapper reconstruction pattern; human checkpoint for visual state interactions |
 
 ### Cumulative Quality
 
@@ -224,6 +275,7 @@
 | v1.1 | pytest (healthcheck + Sonos probe) | targeted | pytest, pytest-asyncio |
 | v1.2 | pytest (13 daemon event tests, 4 web_ui endpoint tests) | targeted | spotipy (web_ui container) |
 | v1.3 | pytest (13 content_checker + 13 drug + 10 sexual + 23 daemon = 59+ tests) | targeted | 0 (no new deps) |
+| v1.4 | pytest (82 passing — 16 content_checker, 8 web_ui profile, 13 feed endpoint, 45 others) | targeted | 0 (no new deps) |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -234,3 +286,5 @@
 5. Snapshot file + SSE is more resilient than SSE-only for dashboard state — hydration on reconnect is free
 6. Define the multi-scanner integration contract (no short-circuit, boolean schema) before the first scanner ships — retrofitting is expensive
 7. Keyword disjointness between scanner term sets is a unit test, not a code review — silent overlap produces wrong severity scores
+8. `<button>` elements don't inherit color from parent — always add `color: inherit` on compound button children
+9. Plan `files_modified` must include any file that receives an injected placeholder — otherwise acceptance criteria can't verify the injection
