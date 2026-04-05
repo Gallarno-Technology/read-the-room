@@ -19,9 +19,9 @@ decisions:
   - "Dropdown close added to es.onopen (SSE reconnect) to prevent stale open dropdown after reconnect"
   - "FSM toggle listener on #fsm-toggle (left zone only), not on container — prevents right zone click from toggling FSM without needing stopPropagation on the main zone"
 metrics:
-  duration: "2m37s"
+  duration: "~25min (including human verification + post-checkpoint fixes)"
   completed: "2026-04-05"
-  tasks_completed: 2
+  tasks_completed: 3
   files_modified: 1
 ---
 
@@ -35,6 +35,8 @@ Split-button FSM/profile control with CSS dropdown; left zone toggles FSM on/off
 |------|------|--------|-------|
 | 1 | Replace FSM CSS + HTML with split-button structure | 2b8c114 | web_ui/templates/index.html |
 | 2 | Replace FSM JS with split-button JS (click zones, dropdown, profile selection) | 1cd4952 | web_ui/templates/index.html |
+| 3 | Human verification checkpoint — APPROVED | — | — |
+| 4 (post-checkpoint) | Fix button text color + dropdown width/corner attachment | c4214fa | web_ui/templates/index.html |
 
 ## What Was Built
 
@@ -69,7 +71,28 @@ Split-button FSM/profile control with CSS dropdown; left zone toggles FSM on/off
 
 ## Deviations from Plan
 
-None — plan executed exactly as written.
+### Post-Checkpoint Visual Fixes (human-approved)
+
+After the human checkpoint was approved, two additional visual fixes were applied and committed as `c4214fa`:
+
+**1. [Post-checkpoint - Visual Fix] Added `color: inherit` to child button zones**
+- **Found during:** Human verification (checkpoint)
+- **Issue:** `.fsm-main-zone` and `.fsm-dropdown-zone` had `background: transparent` but no explicit `color`, so browser default button color overrode the container's color in some states — button text appeared wrong color (black instead of gold or var(--text))
+- **Fix:** Added `color: inherit` to both `.fsm-main-zone` and `.fsm-dropdown-zone` CSS rules
+- **Files modified:** `web_ui/templates/index.html`
+- **Committed in:** `c4214fa`
+
+**2. [Post-checkpoint - Visual Fix] Introduced `.fsm-btn-wrapper` for dropdown width + corner attachment**
+- **Found during:** Human verification (checkpoint)
+- **Issue:** Dropdown was positioned relative to `.card` (wider than button) — dropdown appeared wider than the button; also had `border-radius: 6px` on all corners even when attached to open button
+- **Fix:** Introduced `.fsm-btn-wrapper` div (position: relative) wrapping `#fsm-split-btn` + `#profile-dropdown`. Added `dropdown-open` class on `#fsm-split-btn` for corner-radius attachment (6px 6px 0 0 on button, 0 0 6px 6px on dropdown). Added `openDropdown()`/`closeDropdown()` helpers managing `hidden`, `aria-expanded`, and `dropdown-open` atomically. Refactored all open/close call sites to use helpers
+- **Files modified:** `web_ui/templates/index.html`
+- **Committed in:** `c4214fa`
+
+---
+
+**Total deviations:** 2 post-checkpoint visual fixes
+**Impact on plan:** Both fixes improve visual correctness. No behavior or API surface changes. All plan success criteria remain satisfied.
 
 ## Deferred Issues
 
@@ -89,16 +112,9 @@ The pre-existing `test_soco_pause_uses_cached_ip` failure was present before pla
 
 None — the `PROFILE_INITIAL` placeholder is consumed server-side via `html.replace("__PROFILE_INITIAL__", active_profile)` in `web_ui/main.py` (implemented in plan 16-02). The value is always a valid profile key from `state.json`.
 
-## Checkpoint: Awaiting Human Verification
+## Checkpoint: APPROVED
 
-The plan includes a `checkpoint:human-verify` gate (Task 3) requiring browser visual inspection:
-1. Start web_ui: `cd /home/cgallarno/Development/spotify-sentiment/web_ui && uvicorn main:app --port 8080 --reload`
-2. Open http://localhost:8080
-3. Verify split button renders with profile name + ▾
-4. Test click zone separation (left = FSM toggle, right = dropdown only)
-5. Test profile selection (POST /profile, label update, dropdown close)
-6. Test outside-click and Escape dismiss
-7. Test FSM on/off color states
+The `checkpoint:human-verify` gate (Task 3) was completed and approved by the human. All 11 verification checks passed. Two post-checkpoint visual fixes were applied and committed as `c4214fa` following approval.
 
 ## Self-Check: PASSED
 
@@ -106,3 +122,4 @@ The plan includes a `checkpoint:human-verify` gate (Task 3) requiring browser vi
 - FOUND: .planning/phases/16-filter-profiles/16-03-SUMMARY.md
 - FOUND commit: 2b8c114 (Task 1 — CSS + HTML)
 - FOUND commit: 1cd4952 (Task 2 — JS)
+- FOUND commit: c4214fa (post-checkpoint fixes — color + dropdown wrapper)

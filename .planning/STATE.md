@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Dashboard Polish & Filter Profiles
 status: verifying
-stopped_at: Completed 16-filter-profiles-03-PLAN.md — awaiting human-verify checkpoint
-last_updated: "2026-04-05T11:52:07.134Z"
+stopped_at: Completed 16-filter-profiles-03-PLAN.md
+last_updated: "2026-04-05T20:17:17.431Z"
 last_activity: 2026-04-05
 progress:
   total_phases: 3
@@ -65,6 +65,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 16-filter-profiles P01 | 2m17s | 3 tasks | 3 files |
 | Phase 16-filter-profiles P02 | 9min | 2 tasks | 4 files |
 | Phase 16-filter-profiles P03 | 157s | 2 tasks | 1 files |
+| Phase 16-filter-profiles P03 | 25min | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,7 @@ Recent decisions affecting current work:
 - [Phase 16-filter-profiles]: VALID_PROFILES frozenset with 4 presets; POST /profile mirrors FSM pattern; __PROFILE_INITIAL__ placeholder added to index.html in plan 16-02 to satisfy PROF-04 injection test
 - [Phase 16-filter-profiles]: Profile dropdown uses position:absolute on .card (position:relative) for full-width alignment — no JS measurement needed
 - [Phase 16-filter-profiles]: FSM toggle listener on #fsm-toggle (left zone) only — prevents right zone from triggering FSM toggle without needing stopPropagation on main zone
+- [Phase 16-filter-profiles]: .fsm-btn-wrapper (position:relative) scopes dropdown to button width; dropdown-open class on split btn drives attached corner-radius; color:inherit on child zones ensures text color inheritance from container
 
 ### Pending Todos
 
@@ -109,6 +111,6 @@ None at roadmap creation.
 
 ## Session Continuity
 
-Last session: 2026-04-05T11:52:07.133Z
-Stopped at: Completed 16-filter-profiles-03-PLAN.md — awaiting human-verify checkpoint
+Last session: 2026-04-05T20:17:17.429Z
+Stopped at: Completed 16-filter-profiles-03-PLAN.md
 Resume file: None
