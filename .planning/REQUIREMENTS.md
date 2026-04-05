@@ -23,7 +23,7 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 - [ ] **PROF-01**: User can select one of four named filter profiles from the dashboard UI
 - [ ] **PROF-02**: Active profile persists in state.json and survives service restart
-- [ ] **PROF-03**: ContentChecker applies the active profile's per-scanner rules (explicit_skip, min_severity, drug_enabled, sexual_enabled)
+- [x] **PROF-03**: ContentChecker applies the active profile's per-scanner rules (explicit_skip, min_severity, drug_enabled, sexual_enabled)
 - [ ] **PROF-04**: Dashboard displays the currently active profile name
 
 ## Future Requirements
@@ -52,7 +52,7 @@ Requirements for this milestone. Each maps to a roadmap phase.
 | IDLE-02 | Phase 14 | Complete |
 | PROF-01 | Phase 16 | Pending |
 | PROF-02 | Phase 16 | Pending |
-| PROF-03 | Phase 16 | Pending |
+| PROF-03 | Phase 16 | Complete |
 | PROF-04 | Phase 16 | Pending |
 
 **Coverage:**

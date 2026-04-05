@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Dashboard Polish & Filter Profiles
-status: verifying
-stopped_at: Phase 16 context gathered
-last_updated: "2026-04-05T03:46:42.209Z"
-last_activity: 2026-04-04
+status: executing
+stopped_at: Completed 16-01-PLAN.md
+last_updated: "2026-04-05T11:41:32.688Z"
+last_activity: 2026-04-05
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 7
+  completed_plans: 5
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Phase 15 — skip-history
+**Current focus:** Phase 16 — filter-profiles
 
 ## Current Position
 
-Phase: 16
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-04-04
+Phase: 16 (filter-profiles) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-04-05
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -62,6 +62,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 14-idle-detection P02 | 2min | 2 tasks | 2 files |
 | Phase 15-skip-history P01 | 2min | 1 tasks | 4 files |
 | Phase 15-skip-history P02 | 1min | 2 tasks | 1 files |
+| Phase 16-filter-profiles P01 | 2m17s | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,9 @@ Recent decisions affecting current work:
 - [Phase 14-idle-detection]: idle_counter reset at top of else branch to handle same-track continuation polls
 - [Phase 14-idle-detection]: currentTrackId nulled on idle to prevent stale eval_result badge updates
 - [Phase 15-skip-history]: _init_event_counter resets to 0 on missing/empty file rather than preserving stale counter value
+- [Phase 16-filter-profiles]: explicit_skip defaults True so all existing Tier 1 behavior is preserved by default
+- [Phase 16-filter-profiles]: PROFILE_MAP maps profile keys to ContentChecker kwargs; scanner objects are long-lived, only ContentChecker wrapper is rebuilt on profile change
+- [Phase 16-filter-profiles]: _build_content_checker falls back to kids_present for unknown profile keys (safest default)
 
 ### Pending Todos
 
@@ -100,6 +104,6 @@ None at roadmap creation.
 
 ## Session Continuity
 
-Last session: 2026-04-05T03:46:42.207Z
-Stopped at: Phase 16 context gathered
-Resume file: .planning/phases/16-filter-profiles/16-CONTEXT.md
+Last session: 2026-04-05T11:41:32.687Z
+Stopped at: Completed 16-01-PLAN.md
+Resume file: None

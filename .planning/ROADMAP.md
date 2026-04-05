@@ -184,7 +184,7 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 16-01-PLAN.md — ContentChecker explicit_skip param + daemon PROFILE_MAP + _build_content_checker + poll_loop profile wiring
+- [x] 16-01-PLAN.md — ContentChecker explicit_skip param + daemon PROFILE_MAP + _build_content_checker + poll_loop profile wiring
 - [ ] 16-02-PLAN.md — POST /profile API + __PROFILE_INITIAL__ injection in dashboard route
 - [ ] 16-03-PLAN.md — Split-button HTML/CSS/JS: left zone = FSM toggle, right zone = profile dropdown
 
@@ -211,4 +211,4 @@ Phases execute in numeric order: 14 → 15 → 16
 | 13. Dashboard Badge Variants | v1.3 | 1/1 | Complete | 2026-04-04 |
 | 14. Idle Detection | v1.4 | 2/2 | Complete    | 2026-04-04 |
 | 15. Skip History | v1.4 | 2/2 | Complete    | 2026-04-04 |
-| 16. Filter Profiles | v1.4 | 0/3 | Not started | - |
+| 16. Filter Profiles | v1.4 | 1/3 | In Progress|  |
