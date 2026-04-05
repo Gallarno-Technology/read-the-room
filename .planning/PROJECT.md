@@ -121,4 +121,4 @@ Songs that violate family-safe rules are skipped automatically before children h
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-04 after Phase 15 (skip-history) complete — skip feed history persists across page refresh and SSE reconnect.*
+*Last updated: 2026-04-05 after Phase 16 (filter-profiles) complete — parent can select named filter profiles from dashboard; active profile controls ContentChecker rules and persists across restarts.*
