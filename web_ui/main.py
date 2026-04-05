@@ -169,6 +169,8 @@ async def dashboard(request: Request) -> HTMLResponse:
     state = _load_state()
     fsm_on = str(state.get("family_safe_mode", False)).lower()
     html = html.replace("__FSM_INITIAL__", fsm_on)
+    active_profile = state.get("active_profile", "kids_present")
+    html = html.replace("__PROFILE_INITIAL__", active_profile)
     return HTMLResponse(content=html)
 
 
@@ -226,6 +228,45 @@ async def set_fsm(body: FSMRequest) -> JSONResponse:
         log.error("POST /fsm write failed: %s", exc)
         raise HTTPException(status_code=500, detail="Could not write state.json")
     return JSONResponse({"family_safe_mode": body.enabled})
+
+
+# ---------------------------------------------------------------------------
+# Filter Profile — PROF-01, PROF-02 (Phase 16)
+# ---------------------------------------------------------------------------
+
+VALID_PROFILES: frozenset = frozenset({
+    "kids_present",
+    "were_all_adults",
+    "above_the_covers",
+    "permissive",
+})
+
+
+class ProfileRequest(BaseModel):
+    profile: str
+
+
+@app.get("/profile")
+async def get_profile() -> JSONResponse:
+    """Return current active profile from state.json."""
+    state = _load_state()
+    return JSONResponse({"active_profile": state.get("active_profile", "kids_present")})
+
+
+@app.post("/profile")
+async def set_profile(body: ProfileRequest) -> JSONResponse:
+    """Save active profile to state.json via read-merge-write pattern (D-11, PROF-02).
+
+    Returns 400 for unknown profile keys. Does NOT modify family_safe_mode (D-09, D-13).
+    """
+    if body.profile not in VALID_PROFILES:
+        raise HTTPException(status_code=400, detail=f"Unknown profile: {body.profile!r}")
+    try:
+        _save_state_merge({"active_profile": body.profile})
+    except OSError as exc:
+        log.error("POST /profile write failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Could not write state.json")
+    return JSONResponse({"active_profile": body.profile})
 
 
 # ---------------------------------------------------------------------------
