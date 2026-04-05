@@ -838,10 +838,6 @@
     const es = new EventSource('/events');
 
     es.onopen = function() {
-      // Close profile dropdown on SSE reconnect (Pitfall 5)
-      if (profileDropdown && !profileDropdown.hidden) {
-        closeDropdown();
-      }
       sseDot.className = 'sse-dot connected';
       sseLabel.textContent = '';
       hydrateNowPlaying();
@@ -849,6 +845,10 @@
     };
 
     es.onerror = function() {
+      // Close profile dropdown when connection drops (start of reconnect)
+      if (profileDropdown && !profileDropdown.hidden) {
+        closeDropdown();
+      }
       sseDot.className = 'sse-dot reconnecting';
       sseLabel.textContent = 'Reconnecting\u2026';
     };
