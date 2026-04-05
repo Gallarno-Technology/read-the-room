@@ -134,6 +134,7 @@ def _append_event(event: dict) -> None:
         os.makedirs(os.path.dirname(EVENTS_PATH) or ".", exist_ok=True)
         with open(EVENTS_PATH, "a") as f:
             f.write(json.dumps(event) + "\n")
+            f.flush()
     except OSError as exc:
         log.error("[EVENTS] failed to write event log: %s", exc)
 
