@@ -263,6 +263,69 @@
       color: var(--accent);
     }
 
+    /* ── Info icon button ─────────────────────────────────────────── */
+    .info-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 17px;
+      line-height: 1;
+      padding: 4px;
+      z-index: 5;
+    }
+
+    .info-btn:hover {
+      color: var(--text);
+    }
+
+    /* ── Info panel (desktop popover default) ─────────────────────── */
+    .info-panel {
+      position: absolute;
+      top: 38px;
+      right: 10px;
+      width: 260px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 14px;
+      z-index: 20;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    }
+
+    .info-panel[hidden] { display: none; }
+
+    .info-heading {
+      font-family: 'Playfair Display', serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .info-body {
+      font-family: 'Source Sans 3', sans-serif;
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    /* ── Mobile backdrop (visible only when .active) ──────────────── */
+    .info-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 199;
+    }
+
+    .info-backdrop.active {
+      display: block;
+    }
+
     #fsm-error {
       margin-top: 8px;
       font-size: 12px;
@@ -420,6 +483,34 @@
       to { opacity: 1; }
     }
 
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+
+    /* ── Mobile bottom sheet (≤640px overrides) ───────────────────── */
+    @media (max-width: 640px) {
+      .info-panel {
+        position: fixed;
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        border-radius: 12px 12px 0 0;
+        padding: 20px 20px 32px;
+        z-index: 200;
+        box-shadow: none;
+        /* transitions controlled via .info-panel--open class (Pitfall 1 workaround) */
+        transform: translateY(100%);
+        transition: transform 0.25s ease;
+      }
+
+      .info-panel.info-panel--open {
+        transform: translateY(0);
+      }
+    }
+
     .feed-new {
       animation: fadeIn 0.2s ease-in;
     }
@@ -445,6 +536,7 @@
       <button id="banner-dismiss" aria-label="Dismiss warning">&#x2715;</button>
     </div>
 
+    <div id="info-backdrop" class="info-backdrop"></div>
     <div class="card" style="position: relative">
       <div class="fsm-btn-wrapper">
         <div id="fsm-split-btn" class="fsm-split fsm-off">
@@ -459,6 +551,11 @@
         </div>
       </div>
       <div id="fsm-error"></div>
+      <button id="info-btn" class="info-btn" aria-label="Filter profile info" aria-expanded="false">&#9432;</button>
+      <div id="info-panel" class="info-panel" hidden role="tooltip">
+        <p id="info-heading" class="info-heading"></p>
+        <p id="info-body" class="info-body"></p>
+      </div>
     </div>
 
     <div class="card" id="now-playing-card" aria-live="polite">
