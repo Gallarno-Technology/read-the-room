@@ -89,7 +89,9 @@ Plans:
   1. An info icon (ⓘ) is visible on the FSM control card at all times, regardless of FSM state
   2. Tapping or clicking the icon reveals a readable breakdown of what the active profile skips (profanity level, drug refs, sexual content, explicit flag)
   3. The breakdown updates when the active profile changes
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 18-01-PLAN.md — Add ⓘ info button to FSM card with responsive desktop popover and mobile bottom-sheet reveal
 **UI hint**: yes
 
 ### Phase 19: Mobile Polish
