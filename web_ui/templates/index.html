@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1">
   <title>Read the Room</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -34,6 +34,27 @@
       font-family: 'Source Sans 3', sans-serif;
       font-size: 14px;
       line-height: 1.5;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* MOB-01: Prevent double-tap zoom on interactive elements (Android Chrome) */
+    button,
+    .profile-option {
+      touch-action: manipulation;
+    }
+
+    /* MOB-02 carve-outs: track title and artist text remain selectable */
+    #now-playing-name,
+    #now-playing-artist {
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    /* Feed history track + artist spans (classless; .feed-sep/.badge/.feed-timestamp have classes) */
+    #skip-feed li span:not(.feed-sep):not(.badge):not(.feed-timestamp) {
+      -webkit-user-select: text;
+      user-select: text;
     }
 
     .page-wrap {
@@ -263,11 +284,16 @@
       color: var(--accent);
     }
 
+    /* ── Profile card header ──────────────────────────────────────── */
+    .profile-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+    }
+
     /* ── Info icon button ─────────────────────────────────────────── */
     .info-btn {
-      position: absolute;
-      top: 10px;
-      right: 10px;
       background: none;
       border: none;
       color: var(--text-dim);
@@ -275,7 +301,7 @@
       font-size: 17px;
       line-height: 1;
       padding: 4px;
-      z-index: 5;
+      flex-shrink: 0;
     }
 
     .info-btn:hover {
@@ -285,9 +311,9 @@
     /* ── Info panel (desktop popover default) ─────────────────────── */
     .info-panel {
       position: absolute;
-      top: 38px;
-      right: 10px;
-      width: 260px;
+      top: 100%;
+      right: 0;
+      width: 280px;
       background: var(--surface-raised);
       border: 1px solid var(--border);
       border-radius: 6px;
@@ -298,19 +324,35 @@
 
     .info-panel[hidden] { display: none; }
 
-    .info-heading {
-      font-family: 'Playfair Display', serif;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 6px;
+    .info-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
     }
 
-    .info-body {
+    .info-entry {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .info-entry:last-child { border-bottom: none; padding-bottom: 0; }
+    .info-entry:first-child { padding-top: 0; }
+
+    .info-entry-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .info-entry-desc {
       font-family: 'Source Sans 3', sans-serif;
-      font-size: 13px;
+      font-size: 12px;
       color: var(--text-dim);
-      line-height: 1.5;
+      line-height: 1.4;
     }
 
     /* ── Mobile backdrop (visible only when .active) ──────────────── */
@@ -537,7 +579,15 @@
     </div>
 
     <div id="info-backdrop" class="info-backdrop"></div>
-    <div class="card" style="position: relative">
+    <div class="card">
+      <div class="profile-card-header">
+        <h2 class="card-heading">House Rules</h2>
+        <button id="info-btn" class="info-btn" aria-label="House Rules info" aria-expanded="false">&#9432;</button>
+        <div id="info-panel" class="info-panel" hidden role="tooltip">
+          <ul id="info-list" class="info-list"></ul>
+        </div>
+      </div>
+      <hr class="section-divider">
       <div class="fsm-btn-wrapper">
         <div id="fsm-split-btn" class="fsm-split fsm-off">
           <button id="fsm-toggle" class="fsm-main-zone">The Library is Closed</button>
@@ -551,11 +601,6 @@
         </div>
       </div>
       <div id="fsm-error"></div>
-      <button id="info-btn" class="info-btn" aria-label="Filter profile info" aria-expanded="false">&#9432;</button>
-      <div id="info-panel" class="info-panel" hidden role="tooltip">
-        <p id="info-heading" class="info-heading"></p>
-        <p id="info-body" class="info-body"></p>
-      </div>
     </div>
 
     <div class="card" id="now-playing-card" aria-live="polite">
@@ -622,8 +667,7 @@
     const skipError = document.getElementById('skip-error');
     const infoBtn      = document.getElementById('info-btn');
     const infoPanel    = document.getElementById('info-panel');
-    const infoHeading  = document.getElementById('info-heading');
-    const infoBody     = document.getElementById('info-body');
+    const infoList     = document.getElementById('info-list');
     const infoBackdrop = document.getElementById('info-backdrop');
     const isMobile     = () => window.matchMedia('(max-width: 640px)').matches;
 
@@ -660,12 +704,6 @@
         opt.setAttribute('aria-selected', String(isActive));
       });
 
-      // D-05: refresh info panel content if it's currently open
-      if (infoPanel && !infoPanel.hasAttribute('hidden')) {
-        const info = PROFILE_INFO[activeProfile] || PROFILE_INFO['kids_present'];
-        infoHeading.textContent = info.name;
-        infoBody.textContent    = info.desc;
-      }
     }
 
     // Apply initial FSM state on page load
@@ -705,9 +743,21 @@
     }
 
     function openInfo() {
-      const info = PROFILE_INFO[activeProfile] || PROFILE_INFO['kids_present'];
-      infoHeading.textContent = info.name;
-      infoBody.textContent    = info.desc;
+      if (!infoList.hasChildNodes()) {
+        Object.values(PROFILE_INFO).forEach(function(info) {
+          const li   = document.createElement('li');
+          li.className = 'info-entry';
+          const name = document.createElement('span');
+          name.className   = 'info-entry-name';
+          name.textContent = info.name;
+          const desc = document.createElement('span');
+          desc.className   = 'info-entry-desc';
+          desc.textContent = info.desc;
+          li.appendChild(name);
+          li.appendChild(desc);
+          infoList.appendChild(li);
+        });
+      }
       infoBtn.setAttribute('aria-expanded', 'true');
       if (isMobile()) {
         // Mobile: class-based show (avoids hidden/transition conflict — Pitfall 1)
