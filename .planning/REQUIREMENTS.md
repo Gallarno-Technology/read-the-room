@@ -10,8 +10,8 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 ### Rebrand
 
-- [ ] **RBR-01**: Dashboard `<title>` tag and visible app heading display "Read the Room"
-- [ ] **RBR-02**: README.md header and introduction updated to "Read the Room"
+- [x] **RBR-01**: Dashboard `<title>` tag and visible app heading display "Read the Room"
+- [x] **RBR-02**: README.md header and introduction updated to "Read the Room"
 
 ### Profile Info
 
@@ -41,8 +41,8 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| RBR-01 | Phase 17 | Pending |
-| RBR-02 | Phase 17 | Pending |
+| RBR-01 | Phase 17 | Complete |
+| RBR-02 | Phase 17 | Complete |
 | INFO-01 | Phase 18 | Pending |
 | INFO-02 | Phase 18 | Pending |
 | MOB-01 | Phase 19 | Pending |
