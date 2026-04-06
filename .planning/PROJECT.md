@@ -45,7 +45,7 @@ Songs that violate family-safe rules are skipped automatically before children h
 ### Active
 
 - ✓ Rebrand app display name to "Read the Room" across UI, README, and project docs — v1.5 Phase 17
-- [ ] Info icon on each filter profile showing what content it skips
+- ✓ Info icon (ⓘ) on FSM card showing what the active profile skips — v1.5 Phase 18
 - [ ] Mobile dashboard: disable pinch-zoom, limit text selection on UI chrome
 - [ ] Support for multiple Sonos rooms without env var mapping (future)
 
@@ -139,4 +139,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-05 after Phase 17 (Rebrand) — app now displays as "Read the Room" in UI and README.*
+*Last updated: 2026-04-06 after Phase 18 (Profile Info Icon) — ⓘ icon on FSM card shows what active profile skips; responsive popover (desktop) and bottom-sheet (mobile).*
