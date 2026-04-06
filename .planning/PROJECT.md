@@ -44,6 +44,9 @@ Songs that violate family-safe rules are skipped automatically before children h
 
 ### Active
 
+- [ ] Rebrand app display name to "Read the Room" across UI, README, and project docs
+- [ ] Info icon on each filter profile showing what content it skips
+- [ ] Mobile dashboard: disable pinch-zoom, limit text selection on UI chrome
 - [ ] Support for multiple Sonos rooms without env var mapping (future)
 
 ### Deferred (v2+)
@@ -109,4 +112,31 @@ Songs that violate family-safe rules are skipped automatically before children h
 | Dropdown closes on SSE disconnect (not reconnect) | User expects dropdown to close when connection drops, not after it restores — avoids stale open state | ✓ Good — user-verified |
 
 ---
-*Last updated: 2026-04-05 after v1.4 milestone (Dashboard Polish & Filter Profiles) — idle detection, skip history persistence, and filter profiles with split-button UI shipped.*
+## Current Milestone: v1.5 Dashboard Polish & Mobile UX
+
+**Goal:** Polish the dashboard with mobile-friendly behavior, per-profile transparency, and a rebrand to "Read the Room."
+
+**Target features:**
+- Rebrand to "Read the Room" (UI strings, README, project docs)
+- Info icon per filter profile showing what content each one skips
+- Mobile friendliness: disable zoom, limit text selection on UI chrome
+
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd:transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd:complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
+---
+*Last updated: 2026-04-05 after v1.5 milestone start — Dashboard Polish & Mobile UX.*
