@@ -64,7 +64,7 @@
 
 - [x] **Phase 17: Rebrand** — Update app display name to "Read the Room" in UI and README (completed 2026-04-06)
 - [x] **Phase 18: Profile Info Icon** — Add info icon revealing what the active profile skips (completed 2026-04-06)
-- [ ] **Phase 19: Mobile Polish** — Prevent pinch-zoom and restrict text selection on UI chrome
+- [x] **Phase 19: Mobile Polish** — Prevent pinch-zoom and restrict text selection on UI chrome (completed 2026-04-06)
 
 ## Phase Details
 
@@ -104,7 +104,7 @@ Plans:
   3. Track title and artist text remain selectable (not affected by selection restriction)
 **Plans**: 1 plan
 Plans:
-- [ ] 19-01-PLAN.md — Viewport meta zoom tokens + CSS user-select/touch-action rules in index.html
+- [x] 19-01-PLAN.md — Viewport meta zoom tokens + CSS user-select/touch-action rules in index.html
 **UI hint**: yes
 
 ## Progress
@@ -130,4 +130,4 @@ Plans:
 | 16. Filter Profiles | v1.4 | 3/3 | Complete | 2026-04-05 |
 | 17. Rebrand | v1.5 | 1/1 | Complete    | 2026-04-06 |
 | 18. Profile Info Icon | v1.5 | 1/1 | Complete    | 2026-04-06 |
-| 19. Mobile Polish | v1.5 | 0/1 | Not started | - |
+| 19. Mobile Polish | v1.5 | 1/1 | Complete   | 2026-04-06 |
