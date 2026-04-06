@@ -102,7 +102,9 @@ Plans:
   1. Pinch-zoom and double-tap zoom are disabled on the dashboard viewport on mobile
   2. Buttons, badges, labels, and profile options cannot be accidentally selected as text
   3. Track title and artist text remain selectable (not affected by selection restriction)
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 19-01-PLAN.md — Viewport meta zoom tokens + CSS user-select/touch-action rules in index.html
 **UI hint**: yes
 
 ## Progress
@@ -128,4 +130,4 @@ Plans:
 | 16. Filter Profiles | v1.4 | 3/3 | Complete | 2026-04-05 |
 | 17. Rebrand | v1.5 | 1/1 | Complete    | 2026-04-06 |
 | 18. Profile Info Icon | v1.5 | 1/1 | Complete    | 2026-04-06 |
-| 19. Mobile Polish | v1.5 | 0/TBD | Not started | - |
+| 19. Mobile Polish | v1.5 | 0/1 | Not started | - |
