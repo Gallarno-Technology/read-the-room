@@ -41,18 +41,18 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| RBR-01 | TBD | Pending |
-| RBR-02 | TBD | Pending |
-| INFO-01 | TBD | Pending |
-| INFO-02 | TBD | Pending |
-| MOB-01 | TBD | Pending |
-| MOB-02 | TBD | Pending |
+| RBR-01 | Phase 17 | Pending |
+| RBR-02 | Phase 17 | Pending |
+| INFO-01 | Phase 18 | Pending |
+| INFO-02 | Phase 18 | Pending |
+| MOB-01 | Phase 19 | Pending |
+| MOB-02 | Phase 19 | Pending |
 
 **Coverage:**
 - v1.5 requirements: 6 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 6 ⚠
+- Mapped to phases: 6
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-05*
-*Last updated: 2026-04-05 after initial definition*
+*Last updated: 2026-04-05 after roadmap creation (phases 17-19 assigned)*
