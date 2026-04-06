@@ -76,7 +76,9 @@
   1. Browser tab shows "Read the Room" as the page title
   2. Dashboard heading displays "Read the Room" (not "Spotify Family Safe Mode")
   3. README.md header and opening paragraph reference "Read the Room"
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 17-01-PLAN.md — Rename all user-visible display strings to "Read the Room" in index.html and README.md
 **UI hint**: yes
 
 ### Phase 18: Profile Info Icon
@@ -122,6 +124,6 @@
 | 14. Idle Detection | v1.4 | 2/2 | Complete | 2026-04-04 |
 | 15. Skip History | v1.4 | 2/2 | Complete | 2026-04-04 |
 | 16. Filter Profiles | v1.4 | 3/3 | Complete | 2026-04-05 |
-| 17. Rebrand | v1.5 | 0/TBD | Not started | - |
+| 17. Rebrand | v1.5 | 0/1 | Not started | - |
 | 18. Profile Info Icon | v1.5 | 0/TBD | Not started | - |
 | 19. Mobile Polish | v1.5 | 0/TBD | Not started | - |
