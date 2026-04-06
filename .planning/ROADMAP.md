@@ -63,7 +63,7 @@
 **Milestone Goal:** Polish the dashboard with a rebrand to "Read the Room," per-profile transparency via an info icon, and mobile-friendly behavior fixes.
 
 - [x] **Phase 17: Rebrand** — Update app display name to "Read the Room" in UI and README (completed 2026-04-06)
-- [ ] **Phase 18: Profile Info Icon** — Add info icon revealing what the active profile skips
+- [x] **Phase 18: Profile Info Icon** — Add info icon revealing what the active profile skips (completed 2026-04-06)
 - [ ] **Phase 19: Mobile Polish** — Prevent pinch-zoom and restrict text selection on UI chrome
 
 ## Phase Details
@@ -91,7 +91,7 @@ Plans:
   3. The breakdown updates when the active profile changes
 **Plans**: 1 plan
 Plans:
-- [ ] 18-01-PLAN.md — Add ⓘ info button to FSM card with responsive desktop popover and mobile bottom-sheet reveal
+- [x] 18-01-PLAN.md — Add ⓘ info button to FSM card with responsive desktop popover and mobile bottom-sheet reveal
 **UI hint**: yes
 
 ### Phase 19: Mobile Polish
@@ -127,5 +127,5 @@ Plans:
 | 15. Skip History | v1.4 | 2/2 | Complete | 2026-04-04 |
 | 16. Filter Profiles | v1.4 | 3/3 | Complete | 2026-04-05 |
 | 17. Rebrand | v1.5 | 1/1 | Complete    | 2026-04-06 |
-| 18. Profile Info Icon | v1.5 | 0/TBD | Not started | - |
+| 18. Profile Info Icon | v1.5 | 1/1 | Complete   | 2026-04-06 |
 | 19. Mobile Polish | v1.5 | 0/TBD | Not started | - |

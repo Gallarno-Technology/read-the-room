@@ -15,8 +15,8 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 ### Profile Info
 
-- [ ] **INFO-01**: An info icon (ⓘ) is visible on the FSM control card at all times
-- [ ] **INFO-02**: Tapping/clicking the info icon reveals a breakdown of what the active profile skips (profanity, drug refs, sexual content, explicit flag)
+- [x] **INFO-01**: An info icon (ⓘ) is visible on the FSM control card at all times
+- [x] **INFO-02**: Tapping/clicking the info icon reveals a breakdown of what the active profile skips (profanity, drug refs, sexual content, explicit flag)
 
 ### Mobile UX
 
@@ -43,8 +43,8 @@ Requirements for this milestone. Each maps to a roadmap phase.
 |-------------|-------|--------|
 | RBR-01 | Phase 17 | Complete |
 | RBR-02 | Phase 17 | Complete |
-| INFO-01 | Phase 18 | Pending |
-| INFO-02 | Phase 18 | Pending |
+| INFO-01 | Phase 18 | Complete |
+| INFO-02 | Phase 18 | Complete |
 | MOB-01 | Phase 19 | Pending |
 | MOB-02 | Phase 19 | Pending |
 
