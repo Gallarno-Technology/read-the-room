@@ -1,65 +1,58 @@
 # Requirements: Spotify Family Safe Mode
 
-**Defined:** 2026-04-04
-**Milestone:** v1.4 — Dashboard Polish & Filter Profiles
+**Defined:** 2026-04-05
+**Milestone:** v1.5 — Dashboard Polish & Mobile UX
 **Core Value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
 
-## v1.4 Requirements
+## v1.5 Requirements
 
 Requirements for this milestone. Each maps to a roadmap phase.
 
-### Skip History
+### Rebrand
 
-- [x] **HIST-01**: User sees up to 20 most recent session skips in the skip feed on page load
-- [x] **HIST-02**: Skip feed history is preserved after SSE reconnects (no blank-out on reconnect)
-- [x] **HIST-03**: `GET /feed` endpoint returns last N skip/five_skip_warning events from events.jsonl
+- [ ] **RBR-01**: Dashboard `<title>` tag and visible app heading display "Read the Room"
+- [ ] **RBR-02**: README.md header and introduction updated to "Read the Room"
 
-### Idle Detection
+### Profile Info
 
-- [x] **IDLE-01**: Daemon writes idle state to now_playing.json when Spotify reports no active playback
-- [x] **IDLE-02**: Dashboard now-playing card transitions to "Nothing playing" view within ~5s of playback stopping
+- [ ] **INFO-01**: An info icon (ⓘ) is visible on the FSM control card at all times
+- [ ] **INFO-02**: Tapping/clicking the info icon reveals a breakdown of what the active profile skips (profanity, drug refs, sexual content, explicit flag)
 
-### Filter Profiles
+### Mobile UX
 
-- [x] **PROF-01**: User can select one of four named filter profiles from the dashboard UI
-- [x] **PROF-02**: Active profile persists in state.json and survives service restart
-- [x] **PROF-03**: ContentChecker applies the active profile's per-scanner rules (explicit_skip, min_severity, drug_enabled, sexual_enabled)
-- [x] **PROF-04**: Dashboard displays the currently active profile name
+- [ ] **MOB-01**: Dashboard viewport prevents pinch-zoom and double-tap zoom on mobile
+- [ ] **MOB-02**: Buttons, labels, badges, and profile options have `user-select: none` — track title/artist remain selectable
 
 ## Future Requirements
 
-### Filter Profiles (deferred)
+### Rebrand
 
-- **PROF-05**: Per-room profile assignment (Living Room vs. Office)
-- **PROF-06**: Custom profile creation (user-defined thresholds, not just presets)
+- **RBR-03**: Rename repo directory and Python filenames to match new brand
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Per-child profiles | Covered by v1.4 presets; per-child complexity deferred to v2+ |
-| Severity scoring within categories | Boolean per-scanner flags sufficient for v1.4 |
-| Real-time profile preview | Nice-to-have; static profile names sufficient |
+| Rename source files / repo directory | Low value, high churn — display name change sufficient for v1.5 |
+| Info icon inside the dropdown per-option | Card-level icon covers the use case without cluttering the dropdown |
+| Full mobile responsive layout | Small scope — fixing zoom/select is the quick win; full responsive is a future milestone |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HIST-01 | Phase 15 | Complete |
-| HIST-02 | Phase 15 | Complete |
-| HIST-03 | Phase 15 | Complete |
-| IDLE-01 | Phase 14 | Complete |
-| IDLE-02 | Phase 14 | Complete |
-| PROF-01 | Phase 16 | Complete |
-| PROF-02 | Phase 16 | Complete |
-| PROF-03 | Phase 16 | Complete |
-| PROF-04 | Phase 16 | Complete |
+| RBR-01 | TBD | Pending |
+| RBR-02 | TBD | Pending |
+| INFO-01 | TBD | Pending |
+| INFO-02 | TBD | Pending |
+| MOB-01 | TBD | Pending |
+| MOB-02 | TBD | Pending |
 
 **Coverage:**
-- v1.4 requirements: 9 total
-- Mapped to phases: 9
-- Unmapped: 0 ✓
+- v1.5 requirements: 6 total
+- Mapped to phases: 0 (roadmap pending)
+- Unmapped: 6 ⚠
 
 ---
-*Requirements defined: 2026-04-04*
-*Last updated: 2026-04-04 after initial definition*
+*Requirements defined: 2026-04-05*
+*Last updated: 2026-04-05 after initial definition*
