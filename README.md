@@ -1,6 +1,6 @@
-# Spotify Family Safe Mode
+# Read the Room
 
-Automatically skips explicit songs when Family Safe Mode is on. Polls Spotify playback, checks lyrics, and skips via Sonos or the Spotify API.
+Automatically skips explicit songs when Read the Room is on. Polls Spotify playback, checks lyrics, and skips via Sonos or the Spotify API.
 
 ## Quick Start
 
