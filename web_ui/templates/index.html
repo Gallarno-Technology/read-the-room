@@ -620,12 +620,25 @@
     const badgeGroup = document.getElementById('badge-group');
     const skipBtn = document.getElementById('skip-btn');
     const skipError = document.getElementById('skip-error');
+    const infoBtn      = document.getElementById('info-btn');
+    const infoPanel    = document.getElementById('info-panel');
+    const infoHeading  = document.getElementById('info-heading');
+    const infoBody     = document.getElementById('info-body');
+    const infoBackdrop = document.getElementById('info-backdrop');
+    const isMobile     = () => window.matchMedia('(max-width: 640px)').matches;
 
     const PROFILE_DISPLAY_NAMES = {
       'kids_present':     'Kids Present',
       'were_all_adults':  "We're All Adults",
       'above_the_covers': 'Above The Covers',
       'permissive':       'Permissive',
+    };
+
+    const PROFILE_INFO = {
+      'kids_present':     { name: 'Kids Present',     desc: 'Skips profanity, drug references, sexual content, and explicit-flagged tracks.' },
+      'were_all_adults':  { name: "We're All Adults", desc: 'Skips profanity and sexual content.' },
+      'above_the_covers': { name: 'Above The Covers', desc: 'Skips sexual content.' },
+      'permissive':       { name: 'Permissive',       desc: 'Skips explicit-flagged tracks.' },
     };
 
     function setFsmUI(enabled, profile) {
@@ -646,6 +659,13 @@
         opt.classList.toggle('profile-option--active', isActive);
         opt.setAttribute('aria-selected', String(isActive));
       });
+
+      // D-05: refresh info panel content if it's currently open
+      if (infoPanel && !infoPanel.hasAttribute('hidden')) {
+        const info = PROFILE_INFO[activeProfile] || PROFILE_INFO['kids_present'];
+        infoHeading.textContent = info.name;
+        infoBody.textContent    = info.desc;
+      }
     }
 
     // Apply initial FSM state on page load
@@ -684,11 +704,56 @@
       fsmSplitBtn.classList.remove('dropdown-open');
     }
 
+    function openInfo() {
+      const info = PROFILE_INFO[activeProfile] || PROFILE_INFO['kids_present'];
+      infoHeading.textContent = info.name;
+      infoBody.textContent    = info.desc;
+      infoBtn.setAttribute('aria-expanded', 'true');
+      if (isMobile()) {
+        // Mobile: class-based show (avoids hidden/transition conflict — Pitfall 1)
+        infoPanel.removeAttribute('hidden');
+        requestAnimationFrame(function() {
+          infoPanel.classList.add('info-panel--open');
+        });
+        infoBackdrop.classList.add('active');
+      } else {
+        // Desktop: simple hidden toggle (no transition needed)
+        infoPanel.removeAttribute('hidden');
+        infoBackdrop.classList.remove('active');
+      }
+    }
+
+    function closeInfo() {
+      infoBtn.setAttribute('aria-expanded', 'false');
+      if (isMobile()) {
+        infoPanel.classList.remove('info-panel--open');
+        infoBackdrop.classList.remove('active');
+        // Restore hidden after slide-down transition completes (250ms)
+        setTimeout(function() {
+          if (!infoPanel.classList.contains('info-panel--open')) {
+            infoPanel.setAttribute('hidden', '');
+          }
+        }, 260);
+      } else {
+        infoPanel.setAttribute('hidden', '');
+        infoBackdrop.classList.remove('active');
+      }
+    }
+
     // ▾ dropdown trigger — right zone (D-05: stopPropagation prevents FSM toggle)
     profileTrigger.addEventListener('click', function(e) {
       e.stopPropagation();
       if (profileDropdown.hidden) { openDropdown(); } else { closeDropdown(); }
     });
+
+    // ⓘ info button toggle
+    infoBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (infoPanel.hasAttribute('hidden')) { openInfo(); } else { closeInfo(); }
+    });
+
+    // Backdrop tap closes sheet on mobile
+    infoBackdrop.addEventListener('click', closeInfo);
 
     // Profile option selection (D-09: saves to state.json, updates label, closes dropdown, no FSM change)
     profileDropdown.addEventListener('click', async function(e) {
@@ -727,11 +792,23 @@
       }
     });
 
+    // Close info panel on outside click (mirrors dropdown outside-click guard)
+    document.addEventListener('click', function(e) {
+      if (!infoPanel.hasAttribute('hidden') &&
+          !infoPanel.contains(e.target) &&
+          e.target !== infoBtn) {
+        closeInfo();
+      }
+    });
+
     // Close dropdown on Escape (D-10)
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape' && !profileDropdown.hidden) {
         closeDropdown();
         profileTrigger.focus();
+      } else if (e.key === 'Escape' && !infoPanel.hasAttribute('hidden')) {
+        closeInfo();
+        infoBtn.focus();
       }
     });
 
