@@ -20,8 +20,8 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 ### Mobile UX
 
-- [ ] **MOB-01**: Dashboard viewport prevents pinch-zoom and double-tap zoom on mobile
-- [ ] **MOB-02**: Buttons, labels, badges, and profile options have `user-select: none` — track title/artist remain selectable
+- [x] **MOB-01**: Dashboard viewport prevents pinch-zoom and double-tap zoom on mobile
+- [x] **MOB-02**: Buttons, labels, badges, and profile options have `user-select: none` — track title/artist remain selectable
 
 ## Future Requirements
 
@@ -45,8 +45,8 @@ Requirements for this milestone. Each maps to a roadmap phase.
 | RBR-02 | Phase 17 | Complete |
 | INFO-01 | Phase 18 | Complete |
 | INFO-02 | Phase 18 | Complete |
-| MOB-01 | Phase 19 | Pending |
-| MOB-02 | Phase 19 | Pending |
+| MOB-01 | Phase 19 | Complete |
+| MOB-02 | Phase 19 | Complete |
 
 **Coverage:**
 - v1.5 requirements: 6 total
