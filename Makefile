@@ -1,4 +1,4 @@
-.PHONY: setup auth up down logs ui-logs fsm-on fsm-off fsm-status
+.PHONY: setup auth up down restart logs ui-logs fsm-on fsm-off fsm-status
 
 ## Pre-create host-side bind-mount files. Run once before first `make auth`.
 setup:
@@ -24,6 +24,11 @@ up:
 
 down:
 	docker compose down
+
+## Stop containers and rebuild/start with latest code changes.
+restart:
+	docker compose down
+	docker compose up -d --build
 
 logs:
 	docker compose logs -f daemon
