@@ -341,35 +341,23 @@
 
     .info-panel[hidden] { display: none; }
 
-    .info-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    .info-entry {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      padding: 7px 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .info-entry:last-child { border-bottom: none; padding-bottom: 0; }
-    .info-entry:first-child { padding-top: 0; }
-
-    .info-entry-name {
+    .info-panel-heading {
       font-family: 'Playfair Display', serif;
-      font-size: 12px;
-      font-weight: 600;
+      font-size: 13px;
+      font-weight: 700;
       color: var(--text);
+      margin: 0 0 8px 0;
     }
 
-    .info-entry-desc {
+    .info-panel-body {
       font-family: 'Source Sans 3', sans-serif;
       font-size: 12px;
       color: var(--text-dim);
-      line-height: 1.4;
+      margin: 0 0 6px 0;
+    }
+
+    .info-panel-body:last-child {
+      margin-bottom: 0;
     }
 
     /* ── Mobile backdrop (visible only when .active) ──────────────── */
@@ -599,7 +587,10 @@
         <h2 class="card-heading">House Rules</h2>
         <button id="info-btn" class="info-btn" aria-label="House Rules info" aria-expanded="false">&#9432;</button>
         <div id="info-panel" class="info-panel" hidden role="tooltip">
-          <ul id="info-list" class="info-list"></ul>
+          <p class="info-panel-heading">Read the Room</p>
+          <p class="info-panel-body">Your music doesn't change. The filter does.</p>
+          <p class="info-panel-body">Set your House Rules for who's in the room. Read the Room handles the rest — quietly, in the background, without making a scene.</p>
+          <p class="info-panel-body">Your house. Your standards.</p>
         </div>
       </div>
       <hr class="section-divider">
@@ -694,7 +685,6 @@
     const skipError = document.getElementById('skip-error');
     const infoBtn      = document.getElementById('info-btn');
     const infoPanel    = document.getElementById('info-panel');
-    const infoList     = document.getElementById('info-list');
     const infoBackdrop = document.getElementById('info-backdrop');
     const isMobile     = () => window.matchMedia('(max-width: 640px)').matches;
 
@@ -703,13 +693,6 @@
       'were_all_adults':  "We're All Adults",
       'above_the_covers': 'Above The Covers',
       'permissive':       'Permissive',
-    };
-
-    const PROFILE_INFO = {
-      'kids_present':     { name: 'Kids Present',     desc: 'Skips profanity, drug references, sexual content, and explicit-flagged tracks.' },
-      'were_all_adults':  { name: "We're All Adults", desc: 'Skips profanity and sexual content.' },
-      'above_the_covers': { name: 'Above The Covers', desc: 'Skips sexual content.' },
-      'permissive':       { name: 'Permissive',       desc: 'Skips explicit-flagged tracks.' },
     };
 
     function setFsmUI(enabled, profile) {
@@ -770,21 +753,6 @@
     }
 
     function openInfo() {
-      if (!infoList.hasChildNodes()) {
-        Object.values(PROFILE_INFO).forEach(function(info) {
-          const li   = document.createElement('li');
-          li.className = 'info-entry';
-          const name = document.createElement('span');
-          name.className   = 'info-entry-name';
-          name.textContent = info.name;
-          const desc = document.createElement('span');
-          desc.className   = 'info-entry-desc';
-          desc.textContent = info.desc;
-          li.appendChild(name);
-          li.appendChild(desc);
-          infoList.appendChild(li);
-        });
-      }
       infoBtn.setAttribute('aria-expanded', 'true');
       if (isMobile()) {
         // Mobile: class-based show (avoids hidden/transition conflict — Pitfall 1)
