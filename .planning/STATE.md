@@ -82,9 +82,10 @@ None at roadmap creation.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260406-soh | make the incident log card expand to the content instead of having a scrolling section in the card while the page also wants to scroll | 2026-04-07 | bcf1a72 | [260406-soh-make-the-incident-log-card-expand-to-the](.planning/quick/260406-soh-make-the-incident-log-card-expand-to-the/) |
+| 260406-srt | add a make restart target that shuts down all containers and restarts them with --build | 2026-04-06 | ebb0bb6 | [260406-srt-create-a-make-restart-target-that-shuts-](.planning/quick/260406-srt-create-a-make-restart-target-that-shuts-/) |
 
 ## Session Continuity
 
-Last session: 2026-04-06T20:42:10.977Z
-Stopped at: Completed 19-01-PLAN.md
+Last session: 2026-04-06T20:44:52.981Z
+Stopped at: Completed quick task 260406-srt
 Resume file: None
