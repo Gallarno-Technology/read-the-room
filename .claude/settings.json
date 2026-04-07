@@ -20,6 +20,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/gsd-restart-on-execute.js",
+            "timeout": 130
+          }
+        ]
       }
     ],
     "PreToolUse": [

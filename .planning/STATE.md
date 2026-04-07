@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-05)
 Phase: 19
 Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-04-07 - Completed quick task 260406-soh: make the incident log card expand to the content instead of having a scrolling section in the card while the page also wants to scroll
+Last activity: 2026-04-07 - Completed quick task 260406-sut: create a Claude Code hook to execute make restart after every execute phase
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -83,6 +83,7 @@ None at roadmap creation.
 |---|-------------|------|--------|-----------|
 | 260406-soh | make the incident log card expand to the content instead of having a scrolling section in the card while the page also wants to scroll | 2026-04-07 | bcf1a72 | [260406-soh-make-the-incident-log-card-expand-to-the](.planning/quick/260406-soh-make-the-incident-log-card-expand-to-the/) |
 | 260406-srt | add a make restart target that shuts down all containers and restarts them with --build | 2026-04-06 | ebb0bb6 | [260406-srt-create-a-make-restart-target-that-shuts-](.planning/quick/260406-srt-create-a-make-restart-target-that-shuts-/) |
+| 260406-sut | create a Claude Code hook to execute make restart after every execute phase | 2026-04-07 | — | [260406-sut-create-a-claude-code-hook-to-execute-mak](.planning/quick/260406-sut-create-a-claude-code-hook-to-execute-mak/) |
 
 ## Session Continuity
 
