@@ -284,6 +284,23 @@
       color: var(--accent);
     }
 
+    .profile-option-name {
+      display: block;
+      font-weight: inherit;
+    }
+
+    .profile-option-desc {
+      display: block;
+      font-size: 11px;
+      color: var(--text-dim);
+      font-weight: 400;
+      margin-top: 1px;
+    }
+
+    .profile-option--active .profile-option-name {
+      font-weight: 600;
+    }
+
     /* ── Profile card header ──────────────────────────────────────── */
     .profile-card-header {
       display: flex;
@@ -592,10 +609,22 @@
           <button id="profile-dropdown-trigger" class="fsm-dropdown-zone" aria-haspopup="listbox" aria-expanded="false">&#9660;</button>
         </div>
         <div id="profile-dropdown" class="profile-dropdown" hidden role="listbox">
-          <div class="profile-option" data-profile="kids_present" role="option" aria-selected="false">Kids Present</div>
-          <div class="profile-option" data-profile="were_all_adults" role="option" aria-selected="false">We're All Adults</div>
-          <div class="profile-option" data-profile="above_the_covers" role="option" aria-selected="false">Above The Covers</div>
-          <div class="profile-option" data-profile="permissive" role="option" aria-selected="false">Permissive</div>
+          <div class="profile-option" data-profile="kids_present" role="option" aria-selected="false">
+            <span class="profile-option-name">Kids Present</span>
+            <span class="profile-option-desc">Skips profanity, drug references, sexual content, and explicit-flagged tracks.</span>
+          </div>
+          <div class="profile-option" data-profile="were_all_adults" role="option" aria-selected="false">
+            <span class="profile-option-name">We're All Adults</span>
+            <span class="profile-option-desc">Skips profanity and sexual content.</span>
+          </div>
+          <div class="profile-option" data-profile="above_the_covers" role="option" aria-selected="false">
+            <span class="profile-option-name">Above The Covers</span>
+            <span class="profile-option-desc">Skips sexual content.</span>
+          </div>
+          <div class="profile-option" data-profile="permissive" role="option" aria-selected="false">
+            <span class="profile-option-name">Permissive</span>
+            <span class="profile-option-desc">Skips explicit-flagged tracks.</span>
+          </div>
         </div>
       </div>
       <div id="fsm-error"></div>
