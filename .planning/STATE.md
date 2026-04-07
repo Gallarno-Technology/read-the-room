@@ -84,9 +84,10 @@ None at roadmap creation.
 | 260406-soh | make the incident log card expand to the content instead of having a scrolling section in the card while the page also wants to scroll | 2026-04-07 | bcf1a72 | [260406-soh-make-the-incident-log-card-expand-to-the](.planning/quick/260406-soh-make-the-incident-log-card-expand-to-the/) |
 | 260406-srt | add a make restart target that shuts down all containers and restarts them with --build | 2026-04-06 | ebb0bb6 | [260406-srt-create-a-make-restart-target-that-shuts-](.planning/quick/260406-srt-create-a-make-restart-target-that-shuts-/) |
 | 260406-sut | create a Claude Code hook to execute make restart after every execute phase | 2026-04-07 | — | [260406-sut-create-a-claude-code-hook-to-execute-mak](.planning/quick/260406-sut-create-a-claude-code-hook-to-execute-mak/) |
+| 260406-u6c | move the descriptions of each filter from the info icon popout into the dropdown and repurpose the info icon as a static app overview | 2026-04-06 | 49bb927 | [260406-u6c-move-the-descriptions-of-each-filter-fro](.planning/quick/260406-u6c-move-the-descriptions-of-each-filter-fro/) |
 
 ## Session Continuity
 
 Last session: 2026-04-06T20:44:52.981Z
-Stopped at: Completed quick task 260406-srt
+Stopped at: Completed quick task 260406-u6c
 Resume file: None
