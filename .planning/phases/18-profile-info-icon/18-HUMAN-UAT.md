@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: complete
 phase: 18-profile-info-icon
 source: [18-VERIFICATION.md]
 started: 2026-04-06T00:00:00.000Z
@@ -47,3 +47,4 @@ blocked: 0
     - "Remove position:absolute from .info-btn CSS, make it a flex child"
     - "Update openInfo() and #info-panel markup to render all four entries from PROFILE_INFO, not just the active one"
   debug_session: ""
+  resolution: "Fixed outside of GSD workflow — user confirmed resolved"
