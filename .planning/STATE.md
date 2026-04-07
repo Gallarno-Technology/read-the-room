@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-05)
 Phase: 19
 Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-04-06
+Last activity: 2026-04-07 - Completed quick task 260406-soh: make the incident log card expand to the content instead of having a scrolling section in the card while the page also wants to scroll
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -76,6 +76,12 @@ None.
 ### Blockers/Concerns
 
 None at roadmap creation.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260406-soh | make the incident log card expand to the content instead of having a scrolling section in the card while the page also wants to scroll | 2026-04-07 | bcf1a72 | [260406-soh-make-the-incident-log-card-expand-to-the](.planning/quick/260406-soh-make-the-incident-log-card-expand-to-the/) |
 
 ## Session Continuity
 
