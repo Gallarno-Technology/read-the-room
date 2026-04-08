@@ -44,7 +44,7 @@ async def test_probe_logs_discovered_speakers(caplog):
 
     mock_speaker = MagicMock()
     mock_speaker.player_name = "Living Room"
-    mock_speaker.ip_address = "192.168.1.164"
+    mock_speaker.ip_address = "192.168.1.100"
 
     soco_client = SocoSkipClient()
 
@@ -55,7 +55,7 @@ async def test_probe_logs_discovered_speakers(caplog):
             await probe_sonos_speakers(soco_client)
 
     assert any(
-        '[SONOS] Discovered: "Living Room" (192.168.1.164)' in record.message
+        '[SONOS] Discovered: "Living Room" (192.168.1.100)' in record.message
         for record in caplog.records
     ), f"Expected discovery log line not found. Records: {[r.message for r in caplog.records]}"
 
@@ -67,7 +67,7 @@ async def test_probe_seeds_ip_cache():
 
     mock_speaker = MagicMock()
     mock_speaker.player_name = "Living Room"
-    mock_speaker.ip_address = "192.168.1.164"
+    mock_speaker.ip_address = "192.168.1.100"
 
     with patch("daemon.soco.discovery.discover", return_value={mock_speaker}), \
          patch.dict(os.environ, {}, clear=False):
@@ -79,8 +79,8 @@ async def test_probe_seeds_ip_cache():
 
         await probe_sonos_speakers(soco_client)
 
-    assert soco_client._ip_cache.get("Living Room") == "192.168.1.164", (
-        f"Expected _ip_cache['Living Room'] == '192.168.1.164', got {soco_client._ip_cache}"
+    assert soco_client._ip_cache.get("Living Room") == "192.168.1.100", (
+        f"Expected _ip_cache['Living Room'] == '192.168.1.100', got {soco_client._ip_cache}"
     )
 
 
@@ -96,7 +96,7 @@ async def test_probe_skips_ssdp_when_ip_override_set():
     soco_client = SocoSkipClient()
 
     with patch("daemon.soco.discovery.discover") as mock_discover, \
-         patch.dict(os.environ, {"SONOS_SPEAKER_IPS": "Living Room=192.168.1.164"}):
+         patch.dict(os.environ, {"SONOS_SPEAKER_IPS": "Living Room=192.168.1.100"}):
         await probe_sonos_speakers(soco_client)
 
     mock_discover.assert_not_called()
@@ -110,7 +110,7 @@ async def test_probe_logs_ip_override_active(caplog):
     soco_client = SocoSkipClient()
 
     with patch("daemon.soco.discovery.discover"), \
-         patch.dict(os.environ, {"SONOS_SPEAKER_IPS": "Living Room=192.168.1.164"}):
+         patch.dict(os.environ, {"SONOS_SPEAKER_IPS": "Living Room=192.168.1.100"}):
         with caplog.at_level(logging.INFO, logger="daemon"):
             await probe_sonos_speakers(soco_client)
 
