@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Sexual content scanner for Spotify Family Safe Mode.
+"""Read the Room — Sexual content scanner.
 
 Covers explicit sex acts, anatomical terms, and unambiguous act slang (D-06, D-07, D-08).
 'Obvious red flags' only — nuance and euphemisms deferred to future LLM layer.
 
 Excluded terms (D-09): naked, nude — too many innocent lyric uses.
-Terms already in SEVERITY_MAP are NOT included here (D-10, SEXL-03):
-  cock, dick, tit, ass, pussy, cunt, arse, prick, wank, twat, slut, whore, bollocks
+Note: anatomical and act terms previously in SEVERITY_MAP (cock, dick, dicking, tit, pussy,
+prick, twat, wank cluster) have been moved here so they are caught by the sexual scanner
+regardless of whether the profanity scanner is active for the current profile.
 """
 import logging
 import re
@@ -18,6 +19,25 @@ log = logging.getLogger(__name__)
 # Terms already owned by ProfanityScanner are deliberately excluded.
 # ---------------------------------------------------------------------------
 SEXUAL_TERMS: set[str] = {
+    # Anatomical terms moved from SEVERITY_MAP — caught here regardless of profanity scanner state
+    "cock",
+    "cocks",
+    "dick",
+    "dicks",
+    "dicking",
+    "tit",
+    "tits",
+    "pussy",
+    "pussies",
+    "prick",
+    "pricks",
+    "twat",
+    "twats",
+    # Act words — masturbation (wank variants + existing masturbate variants)
+    "wank",
+    "wanker",
+    "wankers",
+    "wanking",
     # Act words — none have innocent uses in lyrics (D-07)
     "fornicate",
     "fornicates",

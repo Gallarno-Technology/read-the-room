@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drug reference scanner for Spotify Family Safe Mode.
+"""Read the Room — Drug reference scanner.
 
 Conservative keyword list — unambiguous terms only (D-01).
 Ambiguous slang ('high', 'weed', 'dope', 'pot', 'joint', 'blunt') excluded

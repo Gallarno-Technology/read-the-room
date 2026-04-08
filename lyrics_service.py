@@ -70,7 +70,7 @@ class LyricsService:
     def __init__(self, db_path: str) -> None:
         self.db_path = db_path
         self._db: aiosqlite.Connection | None = None
-        self._api = LrcLibAPI(user_agent="SpotifyFamilySafe/1.0")
+        self._api = LrcLibAPI(user_agent="ReadTheRoom/1.0")
 
     async def _ensure_db(self) -> aiosqlite.Connection:
         """Lazily open aiosqlite connection and create the lyrics_cache table."""

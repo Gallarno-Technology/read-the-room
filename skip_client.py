@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Skip client abstractions for Spotify Family Safe Mode (Phase 2).
+"""Read the Room — Skip client abstractions.
 
 Provides a SkipClient ABC and two concrete implementations:
 - SpotifySkipClient: skips via Spotify Web API (non-Sonos devices)

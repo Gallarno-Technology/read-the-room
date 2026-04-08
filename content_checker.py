@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Content filtering orchestrator for Spotify Family Safe Mode (Phase 2).
+"""Read the Room — Content filtering orchestrator.
 
 Implements a five-tier filter pipeline:
   Tier 1: Spotify explicit flag (instant — no API call needed)
@@ -97,9 +97,10 @@ class ContentChecker:
             )
             return TrackEvalResult(action="skip", reason="explicit", severity=3, explicit=True)
 
-        # Tier 2 & 3: Lyrics fetch + profanity scan (Plan 02)
-        # Only runs when both services are wired in — Plan 02 will inject them.
-        if self.lyrics_service is not None and self.profanity_scanner is not None:
+        # Tier 2+: Lyrics fetch + content scan pipeline.
+        # Activates whenever lyrics_service is available; individual scanners
+        # (profanity, drug, sexual) are invoked conditionally on their own non-None check.
+        if self.lyrics_service is not None:
             lyrics_result = await self.lyrics_service.get_lyrics(
                 track_id=track["id"],
                 track_name=track_name,
@@ -120,7 +121,9 @@ class ContentChecker:
                 scan_text = f"{track_name} {artist_name}"
 
                 # Run all enabled scanners against the title+artist string (no short-circuit)
-                title_severity, title_prof_matched = self.profanity_scanner.scan(scan_text)
+                title_severity, title_prof_matched = 0, []
+                if self.profanity_scanner is not None:
+                    title_severity, title_prof_matched = self.profanity_scanner.scan(scan_text)
 
                 title_drug_detected, title_drug_matched = False, []
                 if self.drug_scanner is not None:
@@ -156,8 +159,10 @@ class ContentChecker:
                     sexual_content=title_sexual_detected,
                 )
 
-            # Tiers 3-5: Run ALL scanners unconditionally — no short-circuit (Success Criteria 3)
-            severity, prof_matched = self.profanity_scanner.scan(lyrics_result.lyrics)
+            # Tiers 3-5: Run ALL enabled scanners — no short-circuit (Success Criteria 3)
+            severity, prof_matched = 0, []
+            if self.profanity_scanner is not None:
+                severity, prof_matched = self.profanity_scanner.scan(lyrics_result.lyrics)
 
             drug_detected, drug_matched = False, []
             if self.drug_scanner is not None:
