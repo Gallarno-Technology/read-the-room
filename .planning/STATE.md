@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.5
-milestone_name: Dashboard Polish & Mobile UX
-status: verifying
-stopped_at: Completed 19-01-PLAN.md
-last_updated: "2026-04-06T20:44:52.981Z"
-last_activity: 2026-04-06
+milestone: v1.6
+milestone_name: Open Source
+status: planning
+stopped_at: Defining requirements
+last_updated: "2026-04-07T00:00:00.000Z"
+last_activity: 2026-04-07
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 3
-  completed_plans: 3
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-05)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Phase 19 — mobile-polish
+**Current focus:** v1.6 — Open Source milestone, defining requirements
 
 ## Current Position
 
-Phase: 19
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-04-07 - Completed quick task 260406-sut: create a Claude Code hook to execute make restart after every execute phase
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-07 — Milestone v1.6 Open Source started
 
 Progress: [░░░░░░░░░░] 0%
 

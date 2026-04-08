@@ -112,14 +112,17 @@ Songs that violate family-safe rules are skipped automatically before children h
 | Dropdown closes on SSE disconnect (not reconnect) | User expects dropdown to close when connection drops, not after it restores — avoids stale open state | ✓ Good — user-verified |
 
 ---
-## Current Milestone: v1.5 Dashboard Polish & Mobile UX
+## Current Milestone: v1.6 Open Source
 
-**Goal:** Polish the dashboard with mobile-friendly behavior, per-profile transparency, and a rebrand to "Read the Room."
+**Goal:** Prepare the repository for public release so strangers can clone, understand, and run Read the Room.
 
 **Target features:**
-- Rebrand to "Read the Room" (UI strings, README, project docs)
-- Info icon per filter profile showing what content each one skips
-- Mobile friendliness: disable zoom, limit text selection on UI chrome
+- LICENSE file
+- README rewritten for a public audience (clear setup, what it does, what you need)
+- CONTRIBUTING.md — how to file issues, submit PRs, project structure overview
+- Sanitize hardcoded personal details in code and docs (IPs, personal context)
+- GitHub Actions CI — run test suite on push/PR
+- Repository hygiene audit — `.gitignore` complete, no secrets in history
 
 ## Evolution
 
@@ -139,4 +142,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-06 after Phase 18 (Profile Info Icon) — ⓘ icon on FSM card shows what active profile skips; responsive popover (desktop) and bottom-sheet (mobile).*
+*Last updated: 2026-04-07 after v1.6 milestone start — open source preparation.*
