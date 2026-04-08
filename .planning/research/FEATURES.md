@@ -1,260 +1,132 @@
-# Feature Research: Drug Reference and Sexual Content Detection (v1.3)
+# Feature Research
 
-**Domain:** Keyword-based content signal detection for family-safe music filtering
-**Researched:** 2026-04-03
-**Confidence:** HIGH — based on direct code inspection of v1.2 codebase, ESRB/RIAA categorization standards, and analysis of prior FEATURES.md patterns. External research used to validate keyword taxonomy and confirm boolean-vs-severity decision.
-
----
-
-## Scope
-
-This file covers the two new content signals for v1.3:
-
-1. **Drug reference detection** — keyword scan of LRCLIB lyrics; boolean signal with matched terms list
-2. **Sexual content detection** — keyword scan of LRCLIB lyrics; boolean signal with matched terms list
-3. **TrackEvalResult dataclass** — refactor of ContentChecker.check() from positional 3-tuple to named dataclass; enables all future signal additions without positional coupling
-
-The existing explicit flag, profanity scanner (severity 1-3), LRCLIB cache, skip logic, and dashboard infrastructure are unchanged.
+**Domain:** Open source release preparation for a self-hosted Python home automation tool
+**Researched:** 2026-04-06
+**Confidence:** HIGH (based on direct codebase audit + verified OSS community standards)
 
 ---
 
-## Categorization: How These Signals Differ From Profanity
+## Framing: What "Feature" Means Here
 
-Industry content advisory systems (ESRB, RIAA, IMDB Parents Guide) consistently treat drug reference and sexual content as **discrete categories, not severity tiers**, at the detection layer:
+This is not a greenfield product. All runtime functionality already ships. The "features" being researched are the OSS release artifacts — documents, automation, and hygiene changes — that let a stranger successfully clone, understand, run, and contribute to this project.
 
-- ESRB uses "Drug Reference" (boolean presence) vs "Use of Drugs" (active depiction) as separate descriptors — not a severity scale
-- IMDB's "Alcohol/Drugs/Smoking" and "Sex and Nudity" categories can carry Mild/Moderate/Severe intensity votes, but the *detection* question is always binary: is this category present?
-- RIAA's 2002 specific-area labels used three named categories: "strong language", "violent content", "sexual content" — all boolean presence signals, not tiered
-
-**Implication for this project:** Profanity earns severity tiers because parents of 3- and 7-year-olds meaningfully distinguish "damn" from "motherfucker." Drug references and sexual content have no analogous gradient that is actionable at v1.3. A song referencing "weed" in one line is a skip just as surely as one that glorifies heroin. The detection answer is yes/no; the policy answer is skip/allow. Severity tiers for these signals belong in v2+ (per PROJECT.md "Deferred" section).
+The downstream consumer is: someone who finds a link to this repo, has Docker installed, owns a Sonos + Spotify setup, and wants to run it.
 
 ---
 
 ## Feature Landscape
 
-### Table Stakes (Users Expect These)
+### Table Stakes (Day-1 Blockers — Without These, You Cannot Share the Link)
+
+Features a stranger requires before they can even evaluate the project. Missing any of these makes the repo non-viable for public sharing.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Drug reference detection (boolean + matched terms) | Core v1.3 requirement; parents of young children expect "drugs" to be a filter category, just as profanity is | LOW | Word-by-word scan against a static DRUG_TERMS set; same pattern as SEVERITY_MAP in profanity_scanner.py |
-| Sexual content detection (boolean + matched terms) | Core v1.3 requirement; sexual content is the other primary parental concern alongside language | LOW | Word-by-word scan against a static SEXUAL_TERMS set; word boundary matching required |
-| Both signals trigger skip when FSM is active | Without skip enforcement, detection is reporting-only, which violates the core value | LOW | ContentChecker.check() already has skip/allow dispatch; drug and sexual signals feed into it |
-| Both signals logged in skip_events.jsonl | Incident log is the parent's audit trail; a skip with no logged reason is confusing | LOW | _append_skip_event() already handles arbitrary reason strings; new reasons: "drug_reference", "sexual_content" |
-| Dashboard badges for drug-reference and sexual-content skip reasons | v1.2 established the badge-group pattern specifically for extensibility; missing badges break the skip feed UX | LOW | Add two badge variants to index.html matching existing CSS badge pattern |
-| TrackEvalResult named dataclass replacing positional 3-tuple | Required by PROJECT.md v1.3; positional tuple cannot carry two new boolean fields without breaking every caller | MEDIUM | Define `@dataclass class TrackEvalResult` with fields: action, reason, severity, drug_ref, sexual_content, matched_drug_terms, matched_sexual_terms |
+| LICENSE file | Without a license, the code is legally all-rights-reserved by default. Strangers cannot legally fork, use, or modify it. | LOW | MIT is standard for home automation tools. Single file, no code changes. |
+| README rewritten for strangers | Current README is correct but author-centric: no "what is this" lede, opens immediately with `git clone`, uses `cd spotify-sentiment` (internal dir name), references no hardware requirements for a first-time visitor. A public user needs: what it does, what hardware is required, what accounts are needed. | MEDIUM | Existing Quick Start steps are solid — needs a lede section and hardware prerequisites block. Phased content revision, not rewrite from zero. |
+| Old app name sanitized in source files | Six Python source files carry docstring headers referencing "Spotify Family Safe Mode" (the pre-rebrand name). `web_ui/main.py` sets `FastAPI(title="Spotify Family Safe Mode")`. `lyrics_service.py` sends `user_agent="SpotifyFamilySafe/1.0"` to the LRCLIB API. `README.md` still has `cd spotify-sentiment`. | LOW | Find-and-replace across 8 files. No logic changes. Low risk. |
+| Personal IP replaced in test file | `tests/test_sonos_probe.py` hardcodes `192.168.1.164` — the author's actual Living Room Sonos IP — in 7 mock assertions. While harmless (it is mocked), it is a real home LAN address in a public repo. | LOW | 7 occurrences in one file. Replace with RFC 5737 documentation range (`192.0.2.1`) or a clearly fictional value (`192.168.0.10`). Purely cosmetic — no logic change. |
+| Confirm `.env` and runtime files not in git history | `.env` (contains real `SPOTIFY_CLIENT_ID` and `SONOS_SPEAKER_IPS=Living Room=192.168.1.164`) is gitignored. `state.json` (contains real Spotify track ID and FSM state) is gitignored. `data/events.jsonl` (real listen history with track names and album art URLs) is gitignored. All confirmed not present in git history via `git log -S`. | LOW | **Already clean — verification only, no action required.** The gitignore is working. Confirm before first push. |
+| `.gitignore` completeness audit | Current `.gitignore` covers `.env`, `state.json`, `token_cache/`, `data/`, `lyrics_cache.db`, `__pycache__/`, `.venv/`. Missing: `*.db-wal` and `*.db-shm` (SQLite WAL journal files that appear when the DB is open), `.DS_Store` (macOS), `.pytest_cache/` (pytest run cache). | LOW | Three-line addition. Prevents accidental staging of runtime artifacts on macOS hosts. |
 
-### Differentiators (Competitive Advantage)
+### Should-Have (Add Before or Shortly After First Public Link)
 
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| Matched terms included in skip log | Parent sees "Skipped: drug reference (blunt, molly)" rather than just "drug reference" — builds trust in the filter by showing what triggered it | LOW | TrackEvalResult already carries matched_drug_terms list; serialize to skip_events.jsonl entry |
-| Drug and sexual signals as independent named booleans on TrackEvalResult | Enables per-category toggle UI in a future milestone without changing the detection logic or log schema | LOW | Named fields on dataclass cost nothing extra; PROJECT.md "Deferred" section names per-category toggles as v2+ |
-| Word-boundary enforcement for sexual terms | Prevents Scunthorpe-class false positives on innocent substrings (e.g., "bass", "class", "expression") | LOW | Use `re.search(r'\b' + re.escape(term) + r'\b', normalized)` or split-word comparison; profanity_scanner.py already uses word-split approach which implicitly handles boundaries |
+Features that do not block the link going out, but which any informed public user will notice missing within the first day.
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| CONTRIBUTING.md | The first question a contributor asks is "how do I submit a PR?" GitHub automatically surfaces CONTRIBUTING.md in new issue and PR creation flows when it exists. Without it, contributors either send random PRs or give up. | LOW | For a small project: one page covering clone+venv setup, how to run pytest, PR expectations, issue etiquette. No fancy tooling. |
+| GitHub Actions CI (pytest) | A public repo without CI signals "tests may or may not pass on your machine." The pytest suite is already comprehensive (12 test files, all mocked). A push-triggered workflow that installs deps and runs `pytest` is ~20 lines of YAML. No docker-compose complexity needed. | LOW | Tests mock all external dependencies. `ubuntu-latest` + `python 3.12` + `pip install -r requirements.txt` + `pytest` is sufficient. Docker-compose in CI would add 2+ minutes of startup time with no benefit. |
+| SECURITY.md | GitHub surfaces a security policy in the "Security" tab. For a tool that stores Spotify OAuth tokens on a home server, a brief "please use GitHub private vulnerability reporting" file sets appropriate expectations. Not a day-1 blocker, but expected within the first week. | LOW | Two paragraphs. GitHub has built-in private vulnerability reporting that makes the implementation trivial. |
+
+### Nice-to-Have (Post-Launch Polish)
+
+Features experienced OSS contributors expect but new users never notice. Add reactively when the community warrants it.
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| GitHub issue templates | Pre-populate bug reports with "Steps to reproduce / Expected / Actual / Docker version / Platform" fields. Reduces back-and-forth on low-quality issues. Only useful once external issue volume exists. | LOW | YAML frontmatter + markdown in `.github/ISSUE_TEMPLATE/`. One bug-report template and one feature-request template covers all cases. Add when external issues start arriving. |
+| PR template | Prompts contributors to describe what changed and link to an issue. Reduces review back-and-forth. | LOW | Single `.github/pull_request_template.md`. Add when first external PR arrives. |
+| Code of Conduct | Contributor Covenant is the de-facto standard (adopted by 40,000+ projects including Home Assistant). GitHub's "Community Standards" checklist flags its absence. For a solo-maintainer project with no community yet, it is low urgency. | LOW | Copy-paste Contributor Covenant v2.1. Fully boilerplate. Add when first external contributor engages. |
+| Repository topics and description (GitHub UI) | Search discoverability. Topics like "spotify sonos parental-controls home-automation docker python" help the right users find it. | LOW | GitHub UI setting, not a file. Add at launch. Zero code change. |
+| Changelog (CHANGELOG.md or GitHub Releases) | Lets users know what changed across versions. Not useful day-1 for a project with no prior public version history. Expected by the time v2.0 ships. | LOW–MEDIUM | GitHub Releases UI is simpler than a hand-maintained CHANGELOG.md for small projects. |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
 | Anti-Feature | Why Requested | Why Problematic | Alternative |
 |--------------|---------------|-----------------|-------------|
-| Severity tiers for drug references (mild=cannabis vs severe=heroin) | Seems analogous to profanity severity tiers; parents might want different policies for alcohol references vs hard drugs | For ages 3 and 7, no drug reference is appropriate; the policy distinction has no actionable effect at this age range; adds maintenance burden (categorizing every drug term into tiers) with zero skip-behavior change | Boolean detection now; add sub-category toggles (cannabis / alcohol / hard drugs) in v2+ per PROJECT.md deferred list |
-| Severity tiers for sexual content (innuendo vs explicit) | Profanity has tiers; users expect consistency | "I want a little sex" is a skip for a 3-year-old; "innuendo" vs "explicit" distinction requires context, not just keywords; keyword-only approach cannot reliably distinguish intent without NLP; adds false complexity | Boolean now; add NLP-based severity in v2+ if needed |
-| LLM-based contextual detection to reduce false positives | LLMs would understand "high" as altitude vs drug reference | Requires external API call per track (latency, cost, offline risk); PROJECT.md explicitly places NLP/LLM in "Out of Scope" and "Deferred" for layered-approach reason; false positives are acceptable at this age range (err on side of caution) | Accept keyword false positives; maintain the DRUG_TERMS and SEXUAL_TERMS lists; parent can override by turning FSM off |
-| Alcohol/tobacco as a distinct third signal from drugs | ESRB separates "Alcohol" from "Drugs" | Adds a third new signal to an already substantial milestone; alcohol references in popular music are extremely common (wine, beer, shots) and would trigger constant skips that parents may not want; merging or deferring is safer | Defer alcohol/tobacco as a separate configurable signal in v2+ per-category toggle milestone |
-| Merging drug_reference into profanity SEVERITY_MAP at tier 3 | Drugs could be considered severity-3 content alongside the f-word and slurs | Conflates two categorically different content types; breaks per-category toggle extensibility; the SEVERITY_MAP is specifically for language severity, not content categories; the dashboard badge group already treats explicit/profanity as separate signals | Keep drug and sexual signals as independent scanners parallel to ProfanityScanner; do not modify SEVERITY_MAP |
-| Combining drug scanner and sexual content scanner into one class | Reduces file count | Couples two independent keyword sets; harder to unit test in isolation; harder to toggle one without the other in v2+; mirroring ProfanityScanner's standalone module pattern is the correct approach | Two separate scanner modules: drug_scanner.py and sexual_content_scanner.py, following profanity_scanner.py pattern exactly |
-
----
-
-## Keyword Taxonomy: Drug References
-
-Research on drug detection in music lyrics (PMC drug-lyrics Twitter study, LYDIA alcohol algorithm) identifies two useful categories of drug terms for keyword lists:
-
-**Pharmaceutical / common names:** Terms most parents recognize and unambiguous in context.
-**Street names / slang:** Terms used in contemporary pop, hip-hop, and rap; evolve rapidly but a fixed set covers the vast majority of current usage.
-
-### High-confidence core terms (LOW false-positive risk)
-
-These terms have essentially no innocent meaning in a lyrics context:
-
-- Cocaine/crack: cocaine, coke, crack, crack rock, yayo, yeyo, base
-- Cannabis: weed, blunt, blunts, doobie, spliff, reefer, mary jane, kush, ganja, dank, dabs, bong, bongs, 420
-- MDMA/molly: molly, mdma, ecstasy, rolling, roll
-- Opioids/pills: heroin, smack, dope, oxy, oxys, oxycodone, fentanyl, xanax, xanny, xannies, percocet, perc, percs, lean, sizzurp, purple drank
-- Amphetamines: meth, crystal, crank, tweak, ice, adderall (lower confidence — legitimate medical)
-- General: dope (MEDIUM confidence — also means cool), stoned (LOW confidence — too ambiguous), getting high (phrase match needed), on drugs, drug dealer, plug (LOW confidence — also means electrical plug), trap (LOW — also means genre)
-
-### Terms requiring word-boundary enforcement to avoid false positives
-
-- "high" — extremely high false positive rate; skip entirely unless phrase-matched ("get high", "getting high", "stay high")
-- "snow" — skip; too ambiguous (weather, name)
-- "grass" — skip; too ambiguous
-- "pot" — skip; too ambiguous (cooking pot)
-- "trip" — skip; too ambiguous
-- "stash" — MEDIUM risk; primarily drug context in rap but also general storage
-- "dope" — MEDIUM risk; contemporary usage often just means "cool"; include with awareness of false positives
-
-**Recommendation for v1.3:** Start with the high-confidence core set only. Err toward fewer terms with low false-positive rate. A missed drug reference is less harmful than a false positive that alienates the parent from trusting the filter.
-
----
-
-## Keyword Taxonomy: Sexual Content
-
-The sexual content detection challenge differs from drug references in one critical way: **significant overlap with existing SEVERITY_MAP in profanity_scanner.py**.
-
-### Current SEVERITY_MAP entries that are sexual content, not profanity
-
-Reviewing profanity_scanner.py SEVERITY_MAP, these terms are already mapped as profanity severity 2:
-
-- `dick`, `dicks` (sev 2)
-- `cock`, `cocks` (sev 2)
-- `pussy`, `pussies` (sev 2)
-- `tit`, `tits` (sev 2)
-- `whore`, `whores` (sev 2)
-- `slut`, `sluts`, `slutty` (sev 2)
-- `wank`, `wanker`, `wankers`, `wanking` (sev 2)
-- `twat`, `twats` (sev 2)
-
-And severity 3:
-- `fuck`, `fucking`, etc. (sev 3) — primarily profanity but has strong sexual connotation in context
-
-**Overlap verdict:** Do NOT add these terms to SEXUAL_TERMS. They are already covered by the profanity scanner. The sexual content scanner should target terms that are NOT in SEVERITY_MAP — terms that describe sexual acts or scenarios without being standalone profanity words.
-
-### Terms for SEXUAL_TERMS that are absent from SEVERITY_MAP
-
-High-confidence, low false-positive:
-
-- Sex acts (explicit): sex, sexy is borderline — skip; `making love` (phrase), `booty call`, `hook up`, `hooking up`, `one night stand`, `netflix and chill` — phrase matching required; impractical for word-split scan; defer
-- Body terms not in SEVERITY_MAP: `booty` (MEDIUM — also just means butt/treasure), `ass` is in SEVERITY_MAP at sev 1 already; `naked`, `nude`, `nudes`, `undress`, `undressing`
-- Sexual activity terms: `orgasm`, `masturbate`, `masturbation`, `fondle`, `groping`, `grope`
-- Pornography references: `porn`, `pornography`, `xxx`, `onlyfans`
-- Sexual propositions in lyrics: `sleep with`, `get in bed` — phrase matching, impractical for word-split
-- Contemporary slang: `smash` (MEDIUM — high false positive in gaming context), `hit it`, `DTF` (phrase)
-
-**Honest assessment:** Pure sexual content detection via keyword scan is harder than drug detection because most sexual slang terms either (a) already appear in SEVERITY_MAP as profanity, or (b) are too context-dependent to flag via keywords alone (e.g., "touch" is never safe to flag). The safe, high-confidence core set is smaller than the drug reference set.
-
-**Recommendation for v1.3:** Target terms that are unambiguously sexual and absent from SEVERITY_MAP: `naked`, `nude`, `nudes`, `porn`, `pornography`, `orgasm`, `masturbate`, `masturbation`. This is a conservative list. It will miss many sexual songs that are already caught by the profanity scanner (which catches `pussy`, `dick`, `fuck`, etc.). Accept this gap — the profanity scanner covers the main vector; the sexual content signal catches songs that describe sex without using profanity words.
-
----
-
-## The Overlap Problem: Sexual Content and SEVERITY_MAP
-
-This is the most important design concern for v1.3.
-
-**The trap:** A developer might add terms like `dick` or `pussy` to SEXUAL_TERMS because they are semantically sexual. But they are already in SEVERITY_MAP at severity 2. This creates:
-1. Double-flagging: a song gets flagged for both `profanity-sev2` and `sexual_content` for the same word
-2. Confusing skip log entries: "Skipped: profanity (moderate) + sexual content (dick)" — the parent sees one word triggering two badges
-3. No behavior change (the song was already being skipped by the profanity scanner)
-
-**The rule:** SEXUAL_TERMS must be a disjoint set from SEVERITY_MAP keys. Before adding any term to SEXUAL_TERMS, check SEVERITY_MAP. If it is already there, do not add it.
-
-**Implementation check:** This should be enforced by a unit test that asserts `set(SEXUAL_TERMS) & set(SEVERITY_MAP.keys()) == set()`.
+| Full developer wiki or docs site | Seems professional. | Creates maintenance burden. Becomes stale faster than code. | README + CONTRIBUTING.md covers all real cases at this project size. |
+| Automated secret scanning in CI (gitleaks, git-secrets) | Seems security-conscious. | Overkill for a solo project where secrets are already gitignored and never committed. CI gate adds friction with no incremental safety. | Verify `.gitignore` is complete (it is). Done. |
+| Docker-compose in GitHub Actions CI | "Tests should match production environment." | The pytest suite mocks all external deps — Spotify API, SoCo, LRCLIB, file system. There is no integration test that needs Docker running. Docker-compose in CI adds 2+ minutes of startup time and significant workflow complexity for zero benefit. | Run `pytest` directly on the CI runner with `pip install`. |
+| Badges overload in README | Some projects display 8+ status badges. | Visual noise. No download counts, no coverage service configured, no version badge to show. | One CI status badge (GitHub Actions) once the workflow is stable. That is sufficient. |
+| All-contributors bot | Credits every contributor automatically. | Total overhead for a tool likely to have 0–3 external contributors ever. The bot requires PR reviews and config maintenance. | Acknowledge contributors in release notes if and when they appear. |
+| Separate documentation site (MkDocs, Sphinx) | Large projects use them. | For a tool this size, a well-structured README plus PROXMOX.md is all anyone will read. | Keep docs in the repo as Markdown files. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-TrackEvalResult dataclass (new)
-    └──required by──> ContentChecker.check() return type change
-    └──required by──> daemon.py (all callers of check())
-    └──required by──> drug and sexual content signals (need named fields to carry)
-    └──must be done first in milestone plan order
+LICENSE
+    └──required-before──> any public link
 
-DrugScanner (new module: drug_scanner.py)
-    └──requires──> TrackEvalResult (to return drug_ref bool + matched terms)
-    └──mirrors──> profanity_scanner.py pattern (scan(lyrics) -> tuple[bool, list[str]])
-    └──wired into──> ContentChecker.__init__(drug_scanner=...) + ContentChecker.check()
+README (stranger-facing rewrite)
+    └──enhanced-by──> CONTRIBUTING.md (sets contributor expectations)
+    └──enhanced-by──> GitHub Actions CI badge (signals test status to first visitors)
 
-SexualContentScanner (new module: sexual_content_scanner.py)
-    └──requires──> TrackEvalResult (to return sexual_content bool + matched terms)
-    └──mirrors──> profanity_scanner.py pattern
-    └──requires──> SEXUAL_TERMS disjoint from SEVERITY_MAP (enforced by test)
-    └──wired into──> ContentChecker.__init__(sexual_content_scanner=...) + ContentChecker.check()
+Source sanitization (old app name in 8 files, personal IP in test file)
+    └──required-before──> any public link
 
-ContentChecker.check() refactor
-    └──requires──> TrackEvalResult defined
-    └──requires──> DrugScanner wired in
-    └──requires──> SexualContentScanner wired in
-    └──existing callers (daemon.py) must be updated to use named fields instead of tuple indices
+.gitignore completeness
+    └──required-before──> any public link (blocks accidental future staging)
 
-skip_events.jsonl logging
-    └──requires──> TrackEvalResult carries drug_ref, sexual_content, matched terms
-    └──reason field extended──> "drug_reference" | "sexual_content" | existing reasons unchanged
-    └──uses──> existing _append_skip_event() — additive schema change only
+.env / state.json / data/ audit
+    └──required-before──> any public link (one-time verification, already clean)
 
-Dashboard badges
-    └──requires──> skip_events.jsonl carries new reason values
-    └──requires──> badge CSS variants for drug-ref and sexual-content
-    └──uses──> existing badge-group flex container (groundwork laid in v1.2)
-    └──no new SSE infrastructure needed
+GitHub Actions CI
+    └──required-before──> CONTRIBUTING.md references it
+    └──depends-on──> requirements.txt (already exists and correct)
 
-Existing signals (unaffected):
-    Explicit flag ──still first tier──> no change
-    Profanity scanner ──still third tier──> no change to SEVERITY_MAP, no change to severity reporting
-    LRCLIB fetch ──shared──> drug and sexual scanners reuse the same lyrics result
+SECURITY.md
+    └──independent──> add any time after launch
+
+Issue templates / PR template / Code of Conduct
+    └──depends-on──> having external contributors (add reactively, not proactively)
 ```
 
 ### Dependency Notes
 
-- **TrackEvalResult must be designed before any scanner work:** The dataclass fields determine what information flows through the pipeline. Sketch the full dataclass first (all fields for all signals, including the new ones), then implement scanners against it.
-- **DrugScanner and SexualContentScanner are parallel, not sequential:** Both receive the same `lyrics_result.lyrics` string. Order of execution in ContentChecker.check() does not matter.
-- **Both scanners run only when lyrics are available:** If `lyrics_result.lyrics is None` (unavailable) or `lyrics_result.instrumental`, skip both scanners — same gating logic as the profanity scanner.
-- **Skip reason priority when multiple signals fire:** A song that triggers both drug_ref and profanity-sev3 needs a clear policy. Recommendation: log all triggered signals; reason field on TrackEvalResult lists the primary reason (first-firing signal wins for the `reason` string, e.g., "explicit"), but all badge types are shown. This is consistent with the multi-badge design established in v1.2.
-- **No new Spotify API calls required:** Both new signals operate on lyrics already fetched by LyricsService. Zero new network dependencies.
-
----
-
-## Severity Tiers: v1.3 vs v2+
-
-**Decision: boolean for both signals in v1.3. Severity tiers are v2+.**
-
-Rationale:
-1. PROJECT.md already deferred "Severity scoring within content categories" to v2+ — this is locked
-2. For the target audience (ages 3 and 7), any drug reference or sexual content warrants a skip; the severity distinction has no actionable effect on skip behavior at this age range
-3. The profanity scanner's 3-tier system exists because severity 1 (damn, hell) is the parent's deliberate choice to allow mild language — no equivalent parent preference exists for "mild drug reference"
-4. Boolean signals named `drug_ref: bool` and `sexual_content: bool` on TrackEvalResult are forward-compatible: adding severity later means adding a `drug_ref_severity: int` field without removing the boolean; no breaking change
-
-**The TrackEvalResult dataclass should be designed now to accommodate future severity fields:**
-
-```python
-@dataclass
-class TrackEvalResult:
-    action: str                         # "skip" | "allow"
-    reason: str                         # primary reason string
-    severity: int                       # profanity severity (0-3); 0 for non-profanity skips
-    drug_ref: bool                      # True if drug reference detected
-    sexual_content: bool                # True if sexual content detected
-    matched_drug_terms: list[str]       # matched terms from DrugScanner
-    matched_sexual_terms: list[str]     # matched terms from SexualContentScanner
-    matched_profanity: list[str]        # matched terms from ProfanityScanner (moved from tuple)
-    # Reserved for v2+:
-    # drug_ref_severity: int = 0
-    # sexual_content_severity: int = 0
-```
-
-This design keeps v1.3 boolean but makes the v2+ severity addition a non-breaking field addition.
+- **LICENSE before public link.** No license means legally unusable. This is a hard gate, not a recommendation.
+- **Source sanitization before public link.** Publishing with the author's home IP and a stale app name in version-controlled files is fixable-but-embarrassing. Worth doing before the link goes out, not after.
+- **CI before CONTRIBUTING.md.** CONTRIBUTING.md should tell contributors how to run tests and what CI checks. Write the workflow first, then reference it.
+- **Issue templates after community forms.** GitHub's community health checklist penalizes absence, but empty-template forms that nobody fills out add no value. Add reactively when volume warrants it.
 
 ---
 
 ## MVP Definition
 
-### Launch With (v1.3)
+### Launch With (Day-1, Blocks Public Link)
 
-- [ ] `TrackEvalResult` dataclass defined; replaces positional 3-tuple return from `ContentChecker.check()`
-- [ ] All existing callers (daemon.py) updated to use named fields (`result.action`, `result.reason`, `result.severity`)
-- [ ] `DrugScanner` in `drug_scanner.py` with high-confidence DRUG_TERMS set and `scan(lyrics) -> tuple[bool, list[str]]` interface
-- [ ] `SexualContentScanner` in `sexual_content_scanner.py` with conservative SEXUAL_TERMS set (disjoint from SEVERITY_MAP) and `scan(lyrics) -> tuple[bool, list[str]]` interface
-- [ ] `ContentChecker` wired with both new scanners; `check()` populates `TrackEvalResult.drug_ref`, `drug_ref_sexual_content`, `matched_drug_terms`, `matched_sexual_terms`
-- [ ] Both signals trigger `action="skip"` when FSM is active (consistent with explicit and profanity)
-- [ ] Both signals logged with new reason strings in skip_events.jsonl
-- [ ] Dashboard badge variants for `drug-ref` and `sexual-content` in the skip feed
-- [ ] Unit test asserting `set(SEXUAL_TERMS) & set(SEVERITY_MAP.keys()) == set()` to prevent overlap regression
+- [ ] LICENSE file (MIT) — legal requirement for any usable open source release
+- [ ] README rewritten with stranger-facing lede, hardware requirements, and "what you need" block before Quick Start
+- [ ] Old app name sanitized: update docstrings in `daemon.py`, `web_ui/main.py`, `skip_client.py`, `drug_scanner.py`, `sexual_content_scanner.py`, `content_checker.py`, `lyrics_service.py`; update `FastAPI(title=)` in `web_ui/main.py`; update `user_agent=` in `lyrics_service.py`; fix `cd spotify-sentiment` in `README.md`
+- [ ] Personal IP (`192.168.1.164`) replaced with `192.0.2.1` in `tests/test_sonos_probe.py` (7 occurrences)
+- [ ] `.gitignore` patched: add `*.db-wal`, `*.db-shm`, `.DS_Store`, `.pytest_cache/`
+- [ ] Confirm `.env`, `state.json`, `data/`, `token_cache/` are not tracked in git history (already confirmed clean — document the verification)
 
-### Defer from v1.3
+### Add Before or Shortly After Public Link (Strong Should-Have)
 
-- [ ] Alcohol/tobacco as a separate configurable signal — merge into drug_reference or defer to per-category toggle milestone
-- [ ] Phrase matching for sexual content ("making love", "netflix and chill") — requires different matching strategy than word-split; defer to v2+ or a dedicated plan
-- [ ] Severity tiers for drug or sexual signals — PROJECT.md deferred; v2+ with per-category toggle UI
-- [ ] Per-category enable/disable toggles — PROJECT.md deferred; requires UI changes beyond this milestone's scope
+- [ ] CONTRIBUTING.md — one page: dev setup, `pytest` command, PR expectations, issue etiquette
+- [ ] GitHub Actions CI — simple pytest workflow (~20 lines), triggers on push and PR to main
+- [ ] SECURITY.md — two paragraphs pointing to GitHub private vulnerability reporting
+
+### Future Consideration (Post-Launch, Reactive)
+
+- [ ] GitHub issue templates (bug report + feature request) — add when external issues arrive
+- [ ] PR template — add when first external PR arrives
+- [ ] Code of Conduct (Contributor Covenant v2.1) — add when first external contributor engages
+- [ ] Repository topics and description in GitHub UI — add at launch (not a file, zero effort)
+- [ ] GitHub Releases / Changelog — add at v2.0 boundary
 
 ---
 
@@ -262,34 +134,113 @@ This design keeps v1.3 boolean but makes the v2+ severity addition a non-breakin
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| TrackEvalResult dataclass | HIGH (unblocks everything else) | MEDIUM (refactor all callers) | P1 |
-| DrugScanner with core terms | HIGH | LOW | P1 |
-| SexualContentScanner (conservative set) | HIGH | LOW | P1 |
-| ContentChecker wiring + skip dispatch | HIGH | LOW | P1 |
-| Skip log entries for new signals | HIGH | LOW | P1 |
-| Dashboard badges for new signals | MEDIUM | LOW | P1 |
-| SEXUAL_TERMS/SEVERITY_MAP disjoint test | LOW (developer safety) | LOW | P1 |
-| Phrase matching for sexual content | MEDIUM | HIGH | P3 (defer) |
-| Severity tiers for drug/sexual | LOW (no behavior change for target ages) | MEDIUM | P3 (v2+) |
-| Alcohol as separate signal | MEDIUM | LOW | P2 (next milestone) |
+| LICENSE file | HIGH (legal gate) | LOW (copy-paste MIT) | P1 |
+| README for strangers | HIGH (first impression, trust signal) | MEDIUM (rewrite lede + prerequisites) | P1 |
+| Old app name sanitization (8 files) | MEDIUM (professionalism, rebrand completion) | LOW (find-replace, no logic) | P1 |
+| Personal IP in tests replaced | MEDIUM (privacy hygiene) | LOW (7 lines, one file) | P1 |
+| `.gitignore` completeness | HIGH (prevents future secret staging) | LOW (3-line addition) | P1 |
+| Git history audit (verification) | HIGH (confirm no secrets ever committed) | LOW (one-time `git log -S` check) | P1 |
+| CONTRIBUTING.md | HIGH (contributor onboarding) | LOW (~1 page) | P2 |
+| GitHub Actions CI (pytest) | HIGH (trust signal, catches regressions) | LOW (~20-line YAML) | P2 |
+| SECURITY.md | MEDIUM (community health score) | LOW (2 paragraphs) | P2 |
+| GitHub repo topics + description | MEDIUM (discoverability) | LOW (UI setting) | P2 |
+| GitHub issue templates | LOW (only useful with external volume) | LOW | P3 |
+| PR template | LOW (only useful with contributors) | LOW | P3 |
+| Code of Conduct | LOW (no community yet) | LOW (copy-paste) | P3 |
+| Changelog / GitHub Releases | LOW (no public version history yet) | LOW–MEDIUM | P3 |
+
+**Priority key:**
+- P1: Must have before first public link
+- P2: Should have, add within a week of going public
+- P3: Nice to have, add reactively when community warrants
+
+---
+
+## Specific Sanitization Findings (Direct Codebase Audit)
+
+These are concrete items discovered by inspecting version-controlled files. All require changes before the link goes out.
+
+### Files Requiring Changes Before Public Link
+
+| File | Issue | What to Change |
+|------|-------|---------------|
+| `lyrics_service.py:73` | `user_agent="SpotifyFamilySafe/1.0"` | Change to `ReadTheRoom/1.0` |
+| `web_ui/main.py:1` | Docstring: "Spotify Family Safe Mode — Web UI Service" | Update to "Read the Room — Web UI Service" |
+| `web_ui/main.py:47` | `FastAPI(title="Spotify Family Safe Mode")` | Change to `FastAPI(title="Read the Room")` |
+| `skip_client.py:2` | Docstring: "Spotify Family Safe Mode (Phase 2)" | Update to "Read the Room" |
+| `drug_scanner.py:2` | Docstring: "Drug reference scanner for Spotify Family Safe Mode" | Update to "Read the Room" |
+| `daemon.py:2` | Docstring: "Spotify Family Safe Mode — Core Daemon (Phase 1)" | Update to "Read the Room — Core Daemon" |
+| `content_checker.py:2` | Docstring: "Content filtering orchestrator for Spotify Family Safe Mode" | Update to "Read the Room" |
+| `sexual_content_scanner.py:2` | Docstring: "Sexual content scanner for Spotify Family Safe Mode" | Update to "Read the Room" |
+| `README.md:11` | `cd spotify-sentiment` | Change to match actual public repo name (e.g., `cd read-the-room`) |
+| `tests/test_sonos_probe.py:47,58,70,82,83,99,113` | `192.168.1.164` — author's real LAN IP in 7 mock assertions | Replace all 7 occurrences with `192.0.2.1` (RFC 5737 documentation range) |
+
+### Files Confirmed Clean (No Action Required)
+
+| File | Status | Why Clean |
+|------|--------|-----------|
+| `.env` | Gitignored, never committed | Contains real Client ID and personal Sonos IP. Confirmed absent from all git commits via `git log -S "886bfa"` — returned no results. |
+| `state.json` | Gitignored, never committed | Contains real Spotify track ID and FSM state. Not in git history. |
+| `data/events.jsonl` | Gitignored, never committed | Contains real listen history (track names, artist names, album art URLs). Not tracked. |
+| `data/now_playing.json` | Gitignored, never committed | Contains `{"status": "idle"}` — harmless in any case. Not tracked. |
+| `token_cache/` | Gitignored, never committed | OAuth tokens. Not tracked. |
+| `.env.example` | Tracked, already clean | Uses `your_client_id_here` and example IPs (`192.168.1.50`, `192.168.1.51`). No personal data. |
+| `PROXMOX.md` | Tracked, clean | Uses generic example IPs in documentation. Appropriate for a stranger audience. |
+
+### `.gitignore` Gaps to Patch
+
+Current `.gitignore` covers the critical items but is missing:
+```
+*.db-wal
+*.db-shm
+.DS_Store
+.pytest_cache/
+*.egg-info/
+```
+
+---
+
+## README Structure Recommendation (For Strangers)
+
+The current README opens with `git clone` before explaining what the tool does. A stranger landing via a link needs this ordering:
+
+1. **What it is** — 2–3 sentences in plain English. "A background service that monitors Spotify playback and automatically skips explicit or profane songs when Read the Room is enabled. Works with Sonos speakers and non-Sonos Spotify Connect devices."
+2. **What you need** — Hardware (Sonos optional but primary use case), accounts (Spotify Premium required for playback control), software (Docker + docker compose v2).
+3. **Quick Start** — The existing 7-step flow is correct. Keep it. Fix `cd spotify-sentiment`.
+4. **Configuration** — `.env` fields explained (already in `.env.example` comments — can link there).
+5. **Dashboard** — A screenshot or brief description of what the browser UI shows.
+6. **Proxmox/LXC note** — Already in PROXMOX.md with a callout in README. Keep it.
+7. **Updating** — Already correct.
+
+What to remove from current README: internal references to phase numbers ("Phase 2", "D-05") if any appear, the `cd spotify-sentiment` hardcoded directory name, any assumption that the reader already knows what FSM means.
+
+---
+
+## CONTRIBUTING.md Structure Recommendation
+
+For a small solo project with occasional external contributors, one page is the right scope:
+
+1. **Reporting bugs** — Open a GitHub issue. Include: Docker version, host OS, daemon container logs (`docker compose logs daemon`), what you expected vs what happened.
+2. **Requesting features** — Open a GitHub issue before writing code. Describe the use case, not just the feature.
+3. **Development setup** — `python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`
+4. **Running tests** — `pytest tests/` — note that all external services (Spotify API, SoCo, LRCLIB) are mocked. No real accounts or hardware needed.
+5. **Submitting PRs** — One feature or fix per PR. Tests required for new logic. Keep CI green. Reference the issue number.
+6. **Code style** — The codebase uses no linter configuration currently. Note this honestly. A future milestone can add `ruff` or `black` if the project attracts contributors.
 
 ---
 
 ## Sources
 
-- Direct code inspection: `profanity_scanner.py` SEVERITY_MAP — confirmed overlap terms; HIGH confidence
-- Direct code inspection: `content_checker.py` ContentChecker.check() positional tuple pattern — HIGH confidence
-- Project requirements: `.planning/PROJECT.md` v1.3 milestone section and Deferred section — HIGH confidence
-- ESRB content descriptors: https://www.esrb.org/ratings-guide/ — "Drug Reference" and "Use of Drugs" as distinct boolean descriptors, not severity tiers; HIGH confidence
-- IMDB Parents Guide categories: https://help.imdb.com/article/contribution/titles/parental-guide/GF4KYKYJA4PKQB32 — five discrete categories including "Alcohol/Drugs/Smoking" and "Sex and Nudity"; HIGH confidence
-- RIAA Parental Advisory label evolution: https://www.unchainedmusic.io/blog-posts/understanding-the-parental-advisory-labels — three named boolean categories (strong language, violent content, sexual content); HIGH confidence
-- Drug lyrics research: PMC study on drug-related lyrics (190 keyword corpus, pharmaceutical + street terms): https://pmc.ncbi.nlm.nih.gov/articles/PMC11729777/ — MEDIUM confidence (academic context; keyword sets not directly transferable but confirm taxonomy)
-- LYDIA alcohol detection algorithm: https://pmc.ncbi.nlm.nih.gov/articles/PMC10794165/ — word-based detection; notes false positive risk on ambiguous terms like "rose"; MEDIUM confidence
-- Scunthorpe problem / false positive analysis: https://github.com/stephenhaunts/ProfanityDetector and sightengine docs — confirmed word-boundary enforcement requirement; HIGH confidence
-- Sexual content detection limitations: https://arxiv.org/html/2602.05485 — confirms keyword-only approach misses metaphor/slang; 61% F1 for dictionary-based approach; MEDIUM confidence (confirms conservative list is the right v1.3 strategy)
-- Drug slang lists: https://www.palmerlakerecovery.com/drug-addiction/drug-slang-list-names-and-terms/ — consulted for slang term awareness; LOW confidence for completeness (these lists evolve; used for initial term selection only)
+- Direct codebase audit: `/home/cgallarno/Development/spotify-sentiment/` — HIGH confidence. All sanitization findings are from direct file inspection, not inference.
+- [GitHub Docs: Configuring issue templates](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository) — HIGH confidence
+- [Open Source Guides: Code of Conduct](https://opensource.guide/code-of-conduct/) — HIGH confidence
+- [GitHub Docs: Removing sensitive data from a repository](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository) — HIGH confidence
+- [Contributor Covenant](https://www.contributor-covenant.org/) — HIGH confidence (40,000+ projects, including Home Assistant)
+- [GitHub blog: Coordinated vulnerability disclosure for open source](https://github.blog/security/vulnerability-research/coordinated-vulnerability-disclosure-cvd-open-source-projects/) — MEDIUM confidence
+- [GitHub Actions setup for Python projects in 2025](https://ber2.github.io/posts/2025_github_actions_python/) — MEDIUM confidence
+- [Open source pre-launch checklist (binbash)](https://medium.com/binbash-inc/open-source-github-repository-pre-launch-checklist-4a52dbbe4af1) — MEDIUM confidence (general checklist, no home automation specificity)
+- [GitHub Docs: Adding a security policy](https://docs.github.com/en/code-security/getting-started/adding-a-security-policy-to-your-repository) — HIGH confidence
 
 ---
-
-*Feature research for: drug reference detection + sexual content detection + TrackEvalResult refactor — v1.3 milestone*
-*Researched: 2026-04-03*
+*Feature research for: OSS release preparation (Read the Room v1.6)*
+*Researched: 2026-04-06*

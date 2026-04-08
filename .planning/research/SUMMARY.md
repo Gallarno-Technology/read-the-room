@@ -1,171 +1,179 @@
 # Project Research Summary
 
-**Project:** Spotify Family Safe Mode — v1.3 Drug & Sexual Content Detection
-**Domain:** Keyword-based content signal detection — Python content filter extension
-**Researched:** 2026-04-03
+**Project:** Read the Room v1.6 — OSS Release Preparation
+**Domain:** Open source release infrastructure for a private Python/Docker home automation daemon
+**Researched:** 2026-04-06
 **Confidence:** HIGH
 
 ## Executive Summary
 
-v1.3 is a well-bounded extension to an already-working content filter pipeline. The existing daemon has `ContentChecker`, `ProfanityScanner`, `LyricsService`, and a badge-group dashboard that were deliberately designed as an extensibility foundation. Adding drug reference and sexual content detection means wiring two new scanner modules into an established pattern — the architecture is already correct; the work is execution, not design.
+Read the Room is a working, self-hosted Python 3.12 asyncio daemon + FastAPI web UI that monitors Spotify playback and skips explicit content on Sonos speakers. The v1.6 milestone is not a feature milestone — it is a release hygiene milestone. All runtime functionality already ships. The work is: remove personal data from the codebase, create the legal and contributor scaffolding a stranger requires, and add CI infrastructure that signals the project is maintained. Every finding in this research is grounded in direct codebase inspection; all sanitization items cite exact file paths and line numbers.
 
-The recommended approach is entirely Python stdlib: `re.compile` with `\b` word-boundary anchors for keyword matching, `@dataclass(frozen=True)` for the new named return type, and project-owned `frozenset` keyword lists. No new PyPI dependencies are required. The `TrackEvalResult` dataclass refactor (replacing the current `(action, reason, severity)` 3-tuple) is the hard prerequisite for everything else and must ship as a single atomic commit. Both new scanners are then independent pure functions that plug into `ContentChecker` via the same injection pattern already used for `ProfanityScanner`.
+The recommended approach is strict sequential execution dictated by hard dependencies: hygiene first, then legal and contributor docs, then CI, then GitHub repository configuration at launch. The hygiene phase is a hard gate — publishing a personal home IP, 530 internal planning files with absolute home directory paths, and an absent `.dockerignore` that would expose OAuth credentials in any Docker build creates problems that are difficult to reverse once contributors or forks appear. The documentation and CI phases are independently deliverable once hygiene is clean.
 
-The principal risk is not technical — it is false positives destroying parent trust. Drug vocabulary heavily overlaps with everyday English ("high", "smoke", "grass", "roll", "blow"). A high-recall keyword list that flags family-friendly songs will cause parents to disable Family Safe Mode entirely. The correct v1.3 posture is a short, high-precision list of unambiguous terms, with the expectation that some drug references will be missed. The same conservative approach applies to sexual content: `SEXUAL_TERMS` must not duplicate words already in `SEVERITY_MAP`, and the initial list should focus only on unambiguous terms absent from the profanity scanner.
+The two critical pre-existing risks that must be resolved before the repo goes public are: (1) no `.dockerignore` exists, meaning `COPY . .` in the Dockerfile would bake `.env` credentials and a live OAuth refresh token into any Docker image built from the project root; and (2) `.planning/` and `.claude/` (530 tracked files with `/home/cgallarno/` absolute paths) are currently tracked by git and will appear on GitHub. All other findings are low-to-moderate risk text substitutions and new file additions with no logic impact.
+
+---
 
 ## Key Findings
 
 ### Recommended Stack
 
-No new dependencies. All capabilities are available in Python 3.12 stdlib. The three technical choices are: `re.compile` (word-boundary matching), `@dataclass` (named return type), and `frozenset` (keyword backing store). This is the entire stack delta for v1.3.
+The project adds no new runtime dependencies in v1.6. All additions are dev/CI tooling: GitHub Actions for CI (free on public repos, zero-infra, native to the platform where the repo lives), `ruff` 0.15.9 as a single replacement for flake8 + black + isort, `pre-commit` 4.5.1 for local hook enforcement, and `pyproject.toml` as the consolidated tool config. No PyPI publish step, no tox, no matrix CI — the project targets Python 3.12 in a fixed Docker environment and these would add noise without benefit.
 
-The `re.compile` approach is preferred over the profanity scanner's word-split + dict lookup pattern because it handles punctuation boundaries natively via `\b` and is composable for potential multi-word phrase additions. Patterns must be compiled once at module load — not inside `scan()` on every call.
+The exact CI YAML, `pyproject.toml` content, and `.pre-commit-config.yaml` content are fully specified in STACK.md and can be copied directly into implementation without further design work.
 
 **Core technologies:**
-- `re` (stdlib): Word-boundary keyword matching — `\b` anchors prevent substring false positives; `re.IGNORECASE` avoids allocation overhead of `.lower()`; `re.search` short-circuits on first match for boolean detection
-- `dataclasses` (stdlib): `TrackEvalResult` named return type — `frozen=True` enforces immutability; `slots=True` reduces per-instance memory; default field values mean existing test mocks constructing `TrackEvalResult(action=..., reason=..., severity=...)` continue to work when new fields are added
-- `frozenset` (builtin): Keyword list backing store — O(1) membership testing; immutable; communicates intent that these are fixed canonical sets
+- GitHub Actions (`actions/checkout@v4`, `actions/setup-python@v5`, `ubuntu-latest`): Run pytest on push/PR — free for public repos, zero infrastructure, Linux runner matches Docker host environment. `cache: pip` cuts subsequent run time by ~30s.
+- `ruff` 0.15.9: Lint and format in one tool (replaces flake8 + black + isort) — written in Rust, runs in milliseconds, Python ecosystem has converged on ruff for new projects in 2025-2026.
+- `pre-commit` 4.5.1: Git hook manager — catches lint failures before they reach CI; `pre-commit install` is a one-time setup per clone.
+- `pyproject.toml` (tool config only): Consolidates `[tool.pytest.ini_options]` and `[tool.ruff]` — no `[project]` table since the project is not published to PyPI.
+- MIT License: Standard permissive license for a personal utility — no patent grant complexity, appropriate for a home automation tool.
 
 ### Expected Features
 
-v1.3 delivers two new boolean detection signals and one structural refactor. Industry content advisory systems (ESRB, RIAA, IMDB) consistently treat drug reference and sexual content as discrete boolean categories, not severity tiers. For children ages 3 and 7, any drug reference or sexual content warrants a skip — the severity distinction has no actionable effect.
+All v1.6 deliverables are OSS release artifacts — documents, automation, and hygiene changes. No new runtime features ship in this milestone.
 
-**Must have (table stakes):**
-- `TrackEvalResult` dataclass replacing positional 3-tuple — hard prerequisite; unlocks all other work
-- `DrugScanner` in `drug_scanner.py` with high-confidence `DRUG_TERMS` frozenset — unambiguous drug names and slang only; omit ambiguous terms like "high", "smoke", "grass"
-- `SexualContentScanner` in `sexual_content_scanner.py` with conservative `SEXUAL_TERMS` frozenset — disjoint from `SEVERITY_MAP`; focus on terms the profanity scanner misses
-- Both signals trigger `action='skip'` when FSM is active
-- Both signals logged in `skip_events.jsonl` with new reason strings (`"drug_reference"`, `"sexual_content"`)
-- Dashboard badge variants for drug-reference and sexual-content in the skip feed
+**Must have before first public link (P1 — hard gates):**
+- `.dockerignore` created — currently absent; `COPY . .` in Dockerfile exposes `.env` and `token_cache/` in any Docker build
+- `.planning/` and `.claude/` removed from git tracking — 530 files with absolute home directory paths
+- LICENSE file (MIT) — without it, the code is legally all-rights-reserved and cannot be legally used or forked
+- Old app name sanitized across 9 files — "Spotify Family Safe Mode" in docstrings, `FastAPI(title=)`, and `user_agent=` string
+- Personal IP replaced in test file — `192.168.1.164` in 7 locations in `tests/test_sonos_probe.py`
+- README rewritten for strangers — lede, hardware prerequisites, "what you need" before Quick Start
+- `.gitignore` patched — add `*.db-wal`, `*.db-shm`, `.DS_Store`, `.pytest_cache/`
+- `.env.example` additions — `UID`, `GID`, and `EVENTS_PATH` variables currently undocumented
 
-**Should have (differentiators):**
-- Matched terms included in internal debug logs (not in JSONL events — see Pitfall 7 on security)
-- `SEXUAL_TERMS` disjoint-from-`SEVERITY_MAP` unit test — prevents future regression
-- `isinstance(result, TrackEvalResult)` smoke test — catches missed migration sites
+**Should have within one week of public link (P2):**
+- CONTRIBUTING.md — dev setup, pytest command, PR expectations, UID/GID pitfall warning, `network_mode: host` access pattern
+- GitHub Actions CI — pytest workflow on push/PR with dummy env vars; `ruff check` and `ruff format --check`; `pyproject.toml` and `.pre-commit-config.yaml`
+- SECURITY.md — two paragraphs pointing to GitHub private vulnerability reporting
 
-**Defer (v2+):**
-- Severity tiers for drug or sexual signals — no actionable effect on skip behavior for ages 3 and 7
-- Per-category enable/disable toggles — requires UI changes beyond v1.3 scope
-- Phrase matching for sexual content ("making love", "netflix and chill")
-- Alcohol/tobacco as a separate configurable signal
-- LLM/NLP contextual detection to reduce false positives
+**Defer, add reactively (P3):**
+- GitHub issue templates — only useful once external issue volume exists
+- PR template — add when first external PR arrives
+- Code of Conduct (Contributor Covenant v2.1) — add when first external contributor engages
+- GitHub Releases / Changelog — defer to v2.0 boundary
 
 ### Architecture Approach
 
-v1.3 adds two new scanner modules that mirror `profanity_scanner.py` exactly, extends `ContentChecker` with scanner injection, replaces the 3-tuple return type with a named dataclass, and propagates two new boolean fields through the existing file-based IPC chain. The `web_ui/main.py` FastAPI server requires zero changes — new JSON fields pass through its `json.loads/json.dumps` SSE bridge verbatim. Only `daemon.py` call sites and `index.html` badge logic require updates beyond the new modules.
+The existing architecture is unchanged by v1.6. The daemon and web UI run as two Docker containers communicating via file-based IPC (`./data/events.jsonl`, `./data/now_playing.json`) with shared bind-mount volumes for OAuth tokens and FSM state. The flat layout (all daemon modules at repo root, `web_ui/` as a separate subdirectory with its own Dockerfile and `requirements.txt`) is appropriate for a single-purpose daemon and requires no restructuring.
 
-**Major components:**
-1. `drug_scanner.py` (new) — `DrugScanner` with module-level compiled regex; `scan(lyrics) -> tuple[bool, list[str]]`
-2. `sexual_content_scanner.py` (new) — `SexualContentScanner`, same structure; `SEXUAL_TERMS` must be disjoint from `SEVERITY_MAP`
-3. `content_checker.py` (modified) — `TrackEvalResult` dataclass defined here; `check()` return type updated; both new scanners injected via `__init__` kwargs with `None` defaults; all three scans run unconditionally once lyrics are available (no short-circuit on profanity)
-4. `daemon.py` (modified) — 10 mock call sites in tests updated; all 4 `_append_event` / `_write_now_playing` call sites updated with new boolean fields; a `_emit_eval_result` helper should be extracted to avoid the 4-site update problem
-5. `web_ui/templates/index.html` (modified) — `badge--drug` and `badge--sexual` CSS classes; `setBadgeClass()`, `badgeLabel()`, `setEvalBadge()` extended
+The only structural changes are: adding `.github/workflows/`, adding top-level documentation files (LICENSE, CONTRIBUTING.md, SECURITY.md), and removing `.planning/` and `.claude/` from git tracking. The repo should ideally be renamed from `spotify-sentiment` to `read-the-room` but this decision is deferred to the owner (see Gaps).
+
+**Major components (existing, unchanged by v1.6):**
+1. `daemon.py` — Asyncio poll loop: fetches Spotify state, evaluates content, triggers skip via SoCo or Spotify API, writes events
+2. `web_ui/main.py` — FastAPI app: serves dashboard, REST + SSE endpoints, reads/writes `state.json`
+3. `ContentChecker` / scanners — Content evaluation with hot-swappable profile configuration; scanner singletons are long-lived
+4. `LyricsService` — LRCLIB fetch with SQLite cache and graceful fallback; `user_agent` string needs rebrand update
+5. `SocoSkipClient` / `SpotifySkipClient` — Skip abstractions with Sonos-first, Spotify API fallback on error 701
 
 ### Critical Pitfalls
 
-1. **Substring matching on common words** — Never use `term in lyrics` or bare `re.search(term, lyrics)`. Always compile with `r'\b(?:term1|term2)\b'` word-boundary anchors. Test against a known-clean song corpus before merging. "High Hopes", "Here Comes the Sun", and "Puff the Magic Dragon" must produce zero false positives.
+1. **No `.dockerignore` — `.env` and OAuth token baked into Docker image**: `COPY . .` in Dockerfile with no `.dockerignore` copies `.env` (real Spotify credentials) and `token_cache/.cache` (live OAuth refresh token granting `user-modify-playback-state`) into any Docker build. Confirmed absent. Verify fix: `docker run --rm <image> cat /app/.env` must fail.
 
-2. **`SEXUAL_TERMS` duplicating `SEVERITY_MAP` words** — `dick`, `cock`, `pussy`, `whore`, `slut`, `tits`, `wank`, `twat` are already in `SEVERITY_MAP` at severity 2. Adding them to `SEXUAL_TERMS` creates double-flagging with no behavior change. Enforce with a `isdisjoint` assertion unit test that must pass before any other scanner test.
+2. **`.planning/` and `.claude/` tracked in git with absolute home paths**: 530 files containing `/home/cgallarno/` absolute paths are currently tracked. Will appear on GitHub, expose personal machine layout, and confuse contributors. Fix: `git rm -r --cached .planning/ .claude/` and add both to `.gitignore`. Directories remain on disk untracked.
 
-3. **3-tuple to `TrackEvalResult` migration breaking call sites silently** — Python will not raise at import time; it raises `TypeError` only when the unpack executes. All 10 mock return values in `test_daemon_events.py` and all `return (...)` statements in `content_checker.py` must be updated in a single atomic commit. Add `from content_checker import TrackEvalResult` to the test file. Verify with grep for zero remaining bare-tuple unpack patterns.
+3. **GitHub Actions CI fails without dummy Spotify env vars**: Modules import spotipy at load time; without `SPOTIFY_CLIENT_ID` and related vars set, CI fails with `SpotifyOauthError` before any test runs. The test suite is fully mocked — it just needs fake env vars present. Set them in the workflow `env:` block with clearly fake values (`test-client-id`, etc.).
 
-4. **New boolean fields absent from some `eval_result` code paths** — `daemon.py` emits `eval_result` events from 4 separate inline dict-construction call sites. Missing one means inconsistent events: some carry `drug_reference` and `sexual_content`, others do not. Extract a `_emit_eval_result` helper before adding the new fields, so all 4 paths are covered in one change.
+4. **Personal IP `192.168.1.164` in test fixtures**: The author's actual Sonos IP is hardcoded in `tests/test_sonos_probe.py` in 7 mock assertion values. Replace all with `192.168.1.100` (already the convention in `tests/test_skip_client.py`). Pure text substitution; test behavior is identical.
 
-5. **`now_playing.json` not updated in sync with `eval_result` events** — The SSE stream and the JSON hydration endpoint are written from separate call sites. Drug/sexual badges visible in the live feed will disappear on page reload if `_write_now_playing` is not updated with the same new fields. The `_emit_eval_result` helper from pitfall 4 should call both `_append_event` and `_write_now_playing` to keep them in sync automatically.
+5. **README written for author, not strangers**: No "what is this" section above Quick Start; UID/GID failure mode not surfaced; Sonos optional status not stated; OAuth redirect "browser fails" note buried in step 5. Requires structured rewrite with a stranger-facing persona.
+
+---
 
 ## Implications for Roadmap
 
-Based on research, the build order is driven by a single hard prerequisite (the dataclass refactor) followed by parallel independent work (scanner modules), followed by wiring, propagation, and UI in that order.
+The dependency structure is rigid and dictates execution order: hygiene must precede documentation (docs should not reference unsanitized code or non-existent CI), CI must be added before CONTRIBUTING.md references it, and all of this must complete before launch. This structure suggests four sequential phases.
 
-### Phase 1: TrackEvalResult Dataclass Refactor
+### Phase 1: Repository Hygiene and Sanitization
 
-**Rationale:** The dataclass migration is a pure refactor with zero behavior change and zero new features, but it is the hard prerequisite for Phases 2-5. Every subsequent phase writes to and reads from named attributes on `TrackEvalResult`. Doing this first as an isolated commit means the test suite can be confirmed green before any new detection logic is added. If done last or interleaved, a failing migration will be difficult to isolate from failing detection logic.
-**Delivers:** `TrackEvalResult` dataclass in `content_checker.py`; all 5 `return (...)` statements in `check()` replaced; `daemon.py` attribute access updated; all 10 test mocks updated; test suite green with no behavior change.
-**Addresses:** Table-stakes feature — `TrackEvalResult` named dataclass (P1 from FEATURES.md)
-**Avoids:** Pitfall 3 (tuple migration silently breaking call sites) — atomic commit, grep verification, smoke test
+**Rationale:** Hard gate — no other phase begins before this is clean. Publishing personal data and credential exposure vectors is irreversible once forks appear. This is the highest-risk phase by far; everything else is low-risk file creation.
+**Delivers:** A repo that is safe and non-embarrassing to make public: no credential exposure in Docker builds, no internal planning noise, no personal IPs, no stale branding, complete `.gitignore`.
+**Addresses:** `.dockerignore` creation, `.planning/` + `.claude/` removal from tracking, personal IP replacement in `tests/test_sonos_probe.py`, app name sanitization across 9 source files, `.gitignore` completion, `.env.example` additions, git history verification (already confirmed clean for `.env` and `token_cache/`).
+**Avoids:** Pitfall 1 (`.dockerignore` absent), Pitfall 2 (OAuth token in Docker image), Pitfall 3 (`.planning/` with home directory paths in public git), Pitfall 4 (personal IP in tests).
 
-### Phase 2: Scanner Modules
+### Phase 2: License, Contributing Docs, and README
 
-**Rationale:** `DrugScanner` and `SexualContentScanner` are pure functions with no dependencies on each other and no dependency on the rest of the pipeline. They receive a lyrics string and return a `(bool, list[str])` tuple. Both can be written and unit-tested in complete isolation before any wiring occurs. Developing them before Phase 3 means ContentChecker integration can be tested against real scanner classes rather than mocks.
-**Delivers:** `drug_scanner.py` with curated high-confidence `DRUG_TERMS` frozenset and compiled regex; `sexual_content_scanner.py` with conservative `SEXUAL_TERMS` frozenset (disjoint from `SEVERITY_MAP`); unit tests in `test_drug_scanner.py` and `test_sexual_content_scanner.py`; disjoint-from-`SEVERITY_MAP` assertion test passing.
-**Uses:** `re` stdlib, `frozenset` builtin — zero new dependencies
-**Avoids:** Pitfall 1 (substring matching); Pitfall 2 (SEVERITY_MAP overlap); Pitfall 6 (ambiguous drug terms)
+**Rationale:** Legal requirement (LICENSE) and first-impression infrastructure. A stranger who finds the repo needs three things to evaluate it: legal permission to use it, a clear explanation of what it is, and a path to contributing. All three are in this phase.
+**Delivers:** MIT LICENSE file; README rewritten for a stranger persona (lede, hardware prerequisites, UID/GID pitfall call-out, `network_mode: host` access explanation); CONTRIBUTING.md (dev setup, pytest, PR expectations); SECURITY.md (private vulnerability reporting).
+**Addresses:** P1 features (LICENSE, README rewrite) and P2 features (CONTRIBUTING.md, SECURITY.md).
+**Avoids:** Pitfall 6 (README written for author); the `UID`/`GID` first-run failure documented explicitly in CONTRIBUTING.md; `network_mode: host` dashboard access pattern documented clearly.
 
-### Phase 3: ContentChecker Pipeline Integration
+### Phase 3: CI Infrastructure
 
-**Rationale:** Depends on Phase 1 (`TrackEvalResult` exists) and Phase 2 (scanner classes exist). Wires both scanners into `ContentChecker.__init__` as optional injection parameters (default `None`), adds them to the `check()` pipeline after the profanity scan, and aggregates results into `TrackEvalResult` fields. All three scans must run unconditionally — do not short-circuit on profanity.
-**Delivers:** `ContentChecker` wired with `DrugScanner` and `SexualContentScanner`; `TrackEvalResult` fields `drug_reference`, `drug_terms`, `sexual_content`, `sexual_terms` populated; `daemon.py` instantiation updated; `test_content_checker.py` extended for all new pipeline paths.
-**Implements:** ContentChecker filter pipeline (Architecture section)
-**Avoids:** Short-circuiting drug/sexual scans when profanity fires
+**Rationale:** CI must be added after sanitization (clean code should pass lint and tests before CI gates them) and after Phase 2 (CONTRIBUTING.md references the CI workflow by name). CI should be green at the moment the public link goes out so the badge is accurate from day one.
+**Delivers:** `.github/workflows/ci.yml` running `ruff check`, `ruff format --check`, and `pytest` on push and PR with dummy Spotify env vars; `pyproject.toml` with `[tool.pytest.ini_options]` and `[tool.ruff]`; `.pre-commit-config.yaml` with ruff hooks; CI and license badges in README.
+**Uses:** `ruff` 0.15.9, `pre-commit` 4.5.1, `actions/checkout@v4`, `actions/setup-python@v5`, `ubuntu-latest`.
+**Avoids:** Pitfall 5 (CI failing without real Spotify credentials — solved by dummy env vars in workflow `env:` block); Docker-compose-in-CI anti-pattern (use plain `pytest` on the runner instead).
 
-### Phase 4: Event Propagation and Incident Log
+### Phase 4: Launch and GitHub Repository Configuration
 
-**Rationale:** Depends on Phase 3 (ContentChecker now populates the new fields). The recommended approach is to extract a `_emit_eval_result` helper in `daemon.py` first, then add the two new boolean fields in that single helper rather than updating 4 inline dict-construction call sites. Both `_append_event` and `_write_now_playing` should be called from this helper to guarantee `events.jsonl` and `now_playing.json` stay in sync.
-**Delivers:** `drug_reference` and `sexual_content` booleans in all `eval_result` and `skip` events; same fields in `now_playing.json`; `test_daemon_events.py` updated with field assertions.
-**Avoids:** Pitfall 4 (missing fields on some code paths); Pitfall 5 (now_playing.json not updated)
-
-### Phase 5: Dashboard Badge Variants
-
-**Rationale:** Depends on Phase 4 (SSE events and `/now-playing` now carry the boolean fields). CSS badge classes must be defined before JS tries to assign them. Extend `setBadgeClass()`, `badgeLabel()`, and `setEvalBadge()` independently — do not overload `severity` to signal drug/sexual content. Guard all JS reads with `?? false` for backward compatibility with pre-v1.3 events in the log.
-**Delivers:** `badge--drug` and `badge--sexual` CSS classes; extended badge JS; visual skip feed showing distinct badge types for drug-reference and sexual-content skips.
-**Avoids:** Pitfall 7 (sexual-content / profanity badge collision); UX pitfall (no visual distinction in incident log)
+**Rationale:** Final non-code steps that occur at or immediately before making the repository public. No code changes; GitHub UI configuration only.
+**Delivers:** Public repository with correct topics (`spotify sonos parental-controls home-automation docker python`), description, and visibility. P3 items (issue templates, PR template, Code of Conduct) are explicitly deferred — add reactively when community volume warrants them.
+**Addresses:** P2 feature (GitHub repo topics and description).
 
 ### Phase Ordering Rationale
 
-- Phase 1 before all others: the dataclass is a hard structural prerequisite; isolating it as a no-behavior-change refactor lets CI confirm green before new logic is added
-- Phase 2 before Phase 3: scanner modules are pure functions that can be unit-tested in isolation; wiring them into ContentChecker after they are tested independently reduces debugging surface
-- Phase 3 before Phase 4: ContentChecker must populate `TrackEvalResult` fields before daemon can propagate them to events
-- Phase 4 before Phase 5: dashboard needs the boolean fields to arrive in SSE events before JS can render badges
-- The `_emit_eval_result` helper extraction in Phase 4 is a prerequisite within that phase, not its own numbered phase
+- Hygiene before all else because any documentation written before sanitization would reference unsanitized code or embed personal details.
+- Documentation before CI because CONTRIBUTING.md must reference the CI workflow by its correct file name, and the README should show a green badge (not a missing badge).
+- CI before launch so the status badge reflects real passing tests from the first moment the link is public.
+- Issue templates, PR template, and Code of Conduct explicitly post-launch — they provide no value before external contributors exist and add ongoing maintenance overhead if added prematurely.
 
 ### Research Flags
 
-Phases with standard patterns (skip research-phase):
-- **Phase 1 (Dataclass Refactor):** Well-documented stdlib `@dataclass` pattern; exhaustive call-site inventory already compiled in ARCHITECTURE.md
-- **Phase 2 (Scanner Modules):** Standard `re.compile` + `frozenset` pattern; keyword list content is domain judgment, not a research question
-- **Phase 3 (ContentChecker Integration):** Mirrors existing `ProfanityScanner` injection pattern exactly; no novel architecture
-- **Phase 4 (Event Propagation):** JSON field addition through existing JSONL pipeline; no novel architecture
-- **Phase 5 (Dashboard Badges):** Extends existing `badge-group` CSS/JS pattern from v1.2
+All four phases have standard, well-documented patterns. No phases require a `/gsd:research-phase` during planning.
 
-No phases require `/gsd:research-phase` during planning. All patterns are well-documented and the existing codebase provides direct precedent for every change required.
+- **Phase 1 (Hygiene):** All findings enumerated in PITFALLS.md and ARCHITECTURE.md with exact file paths, line numbers, and replacement values. Execute directly from research output.
+- **Phase 2 (Docs):** README structure and CONTRIBUTING.md content fully specified in FEATURES.md and PITFALLS.md. License is MIT copy-paste. SECURITY.md is two paragraphs.
+- **Phase 3 (CI):** Exact CI YAML, `pyproject.toml`, and `.pre-commit-config.yaml` are fully specified in STACK.md with rationale and version pins. Copy from research file.
+- **Phase 4 (Launch):** GitHub UI settings; no code changes; no research needed.
+
+---
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All findings based on official Python docs and direct codebase inspection; zero external dependencies reduce uncertainty |
-| Features | HIGH | Based on direct code inspection of v1.2, ESRB/RIAA official documentation, and explicit PROJECT.md v1.3 milestone requirements |
-| Architecture | HIGH | All findings based on direct inspection of every production and test file in the codebase; exhaustive call-site inventory compiled |
-| Pitfalls | HIGH | All pitfalls identified from direct codebase inspection of real production code; not inferred from external sources |
+| Stack | HIGH | All tool versions verified against official package registries and GitHub releases as of 2026-04-06. CI YAML is fully specified and immediately usable without modification. |
+| Features | HIGH | Based on direct codebase audit; all sanitization findings cite exact file and line. OSS community standards are well-established and corroborated by multiple official sources. |
+| Architecture | HIGH | Based on direct inspection of live codebase, git history inventory (`git ls-files`), and `git log --all` verification. All findings are reproducible with the cited commands. |
+| Pitfalls | HIGH | Every pitfall confirmed by direct observation: `.dockerignore` absent, 530 tracked internal files, real IP in test fixtures, `token_cache/.cache` confirmed present at 551 bytes. Not hypothetical. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Drug keyword list completeness:** The research provides a high-confidence seed list but the final term selection is a domain judgment call for the implementation team. Terms like "dope", "bars", "plug", and "trap" are noted as medium-confidence with real false-positive risk. Plan for a manual review pass against a clean-song corpus before merging the keyword list. This is an implementation quality gate, not a design question.
+- **Canonical public repo name**: The research recommends renaming `spotify-sentiment` to `read-the-room` for brand consistency, but the actual public repo name has not been decided. The README rewrite phase must resolve this before the link goes out — specifically the `cd spotify-sentiment` reference in Quick Start that will become `cd <repo-name>`.
 
-- **Sexual content keyword list size:** The safe, high-confidence core set for sexual content is intentionally small because most sexual slang either appears in `SEVERITY_MAP` already or is too context-dependent for keyword-only detection. The v1.3 list (`naked`, `nude`, `nudes`, `porn`, `pornography`, `orgasm`, `masturbate`, `masturbation`) is conservative by design — the profanity scanner covers the primary detection vector. Accept this gap.
+- **`.planning/` and `.claude/` local retention**: After `git rm -r --cached .planning/ .claude/`, both directories remain on disk (untracked) and the GSD toolchain continues to function locally. No action required — documenting for clarity so implementers do not delete the directories from disk when removing them from git tracking.
 
-- **`_eval_state_from_result` helper in `daemon.py` (line 147):** ARCHITECTURE.md identifies this as a migration target. Whether it should accept a `TrackEvalResult` or remain taking positional `action`/`reason` strings is a minor implementation decision to confirm during Phase 1.
+- **Docker image publishing**: The research assumes Docker images are only built locally by each user (never pushed to a public registry). If the project ever adds a pre-built image on Docker Hub or GHCR, the `.dockerignore` guidance in CONTRIBUTING.md must be strengthened with an explicit "never push an image built from a directory containing real credentials" warning.
+
+---
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Direct codebase inspection: `content_checker.py`, `daemon.py`, `profanity_scanner.py`, `lyrics_service.py`, `web_ui/main.py`, `web_ui/templates/index.html`, `tests/test_daemon_events.py` — all architecture and pitfall findings
-- Python official docs: `re` module, `dataclasses` module — stack technology rationale
-- `.planning/PROJECT.md` v1.3 milestone section — feature scope, deferred items
-- ESRB content descriptors (https://www.esrb.org/ratings-guide/) — boolean category model for drug/sexual signals
-- RIAA Parental Advisory evolution — boolean three-category model confirmation
+- Direct codebase inspection: `/home/cgallarno/Development/spotify-sentiment/` — all sanitization findings, git history verification, `.dockerignore` absence, OAuth token file confirmed
+- [GitHub Actions: Building and testing Python](https://docs.github.com/actions/guides/building-and-testing-python) — CI workflow structure, `cache: pip` option
+- [ruff PyPI](https://pypi.org/project/ruff/) — version 0.15.9 confirmed latest as of 2026-04-02
+- [ruff pre-commit integration](https://github.com/astral-sh/ruff-pre-commit) — hook IDs `ruff` and `ruff-format`, ordering rationale
+- [ruff configuration docs](https://docs.astral.sh/ruff/configuration/) — `pyproject.toml` `[tool.ruff]` and `[tool.ruff.lint]` table structure
+- [pre-commit PyPI](https://pypi.org/project/pre-commit/) — version 4.5.1 confirmed
+- [actions/checkout releases](https://github.com/actions/checkout/releases) — v4 confirmed safe stable major; v6 exists with no feature gap for this use case
+- [actions/setup-python releases](https://github.com/actions/setup-python) — v5 confirmed widely-adopted stable; v6 requires Node 24 runner
+- [GitHub Docs: Adding a workflow status badge](https://docs.github.com/en/actions/monitoring-and-troubleshooting-workflows/adding-a-workflow-status-badge) — native badge URL format
+- [GitHub Docs: Adding a security policy](https://docs.github.com/en/code-security/getting-started/adding-a-security-policy-to-your-repository) — SECURITY.md guidance
+- [GitHub Docs: Configuring issue templates](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository) — template format
+- [Contributor Covenant](https://www.contributor-covenant.org/) — Code of Conduct v2.1 text
 
 ### Secondary (MEDIUM confidence)
-- PMC study on drug-related lyrics (190-keyword corpus) — drug keyword taxonomy seed list
-- LYDIA alcohol detection algorithm (PMC) — word-based detection; false-positive analysis for ambiguous terms
-- arxiv.org sexual content detection study — confirms 61% F1 for dictionary-based approach; supports conservative list strategy
-
-### Tertiary (LOW confidence)
-- BurntRouter/filtered-word-lists (GitHub) — reviewed as candidate keyword source; not recommended (no drug category, no maintenance signal)
-- Drug slang lists from recovery resource sites — consulted for slang term awareness only; evolve rapidly; used for initial term selection only
+- [shields.io static badge docs](https://shields.io/) — MIT license badge URL pattern (static badge, no API dependency)
+- [GitHub blog: Coordinated vulnerability disclosure for open source](https://github.blog/security/vulnerability-research/coordinated-vulnerability-disclosure-cvd-open-source-projects/) — SECURITY.md framing
+- [GitHub Actions setup for Python projects in 2025](https://ber2.github.io/posts/2025_github_actions_python/) — general CI structure patterns
+- [Open source pre-launch checklist](https://medium.com/binbash-inc/open-source-github-repository-pre-launch-checklist-4a52dbbe4af1) — general checklist corroboration
 
 ---
-*Research completed: 2026-04-03*
+*Research completed: 2026-04-06*
 *Ready for roadmap: yes*

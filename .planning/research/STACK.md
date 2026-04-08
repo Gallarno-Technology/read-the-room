@@ -1,164 +1,223 @@
 # Stack Research
 
-**Domain:** Keyword-based drug reference and sexual content detection in lyrics text — Python content filter extension
-**Researched:** 2026-04-03
+**Domain:** Open source release infrastructure — CI/tooling additions for a Python/Docker home automation tool (no PyPI publish)
+**Researched:** 2026-04-06
 **Confidence:** HIGH
 
 ---
 
-## Context: What This Milestone Adds (v1.3)
+## Context: What This Milestone Adds (v1.6)
 
-The existing daemon already has:
+The existing codebase is a working, self-hosted Python 3.12 asyncio daemon + FastAPI web UI deployed via Docker Compose. It already has:
 
-- `ContentChecker` class with `check()` returning a positional 3-tuple `(action, reason, severity)`
-- `ProfanityScanner` doing word-split + dict lookup (Pass 1) and `better-profanity` leet-speak fallback (Pass 2)
-- `LyricsService` fetching LRCLIB lyrics, cache-first via `aiosqlite` SQLite
-- Full lyrics text available as a plain string at `lyrics_result.lyrics`
-- Dashboard badge infrastructure already extended for additive badge display (`badge-group` flex pattern)
+- `pytest` 8.3.5 + `pytest-asyncio` 0.25.3 with 11+ test files under `tests/`
+- `requirements.txt` (flat install list, no packaging metadata)
+- Docker Compose deployment only — never published to PyPI
+- No `.github/` directory, no CI, no license file, no badges
 
-v1.3 adds two new boolean detection signals on top of the existing lyrics text, without changing how lyrics are fetched:
-
-- Drug reference detection (keyword match against lyrics text)
-- Sexual content detection (keyword match against lyrics text)
-- `ContentChecker.check()` returns a named `TrackEvalResult` dataclass instead of positional 3-tuple
+v1.6 adds open source release infrastructure: CI, lint enforcement, license, and documentation polish for strangers cloning and running the project.
 
 ---
 
 ## Recommended Stack
 
-### Core Technologies
-
-No new PyPI dependencies required. All three capabilities — regex matching, dataclass return type, and word lists — are handled by Python stdlib.
+### Core Technologies — CI/CD
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| `re` (stdlib) | Python 3.12 built-in | Word-boundary keyword matching against lyrics text | `\b` word boundary anchors prevent substring false positives (e.g. "grass" matching "ass"). `re.compile()` with alternation pattern `\b(?:term1|term2|...)\b` precompiled at module load — O(1) pattern reuse per scan. `re.IGNORECASE` handles mixed-case lyrics without normalization overhead. No external dependency. |
-| `dataclasses` (stdlib) | Python 3.12 built-in | Named return type `TrackEvalResult` replacing positional 3-tuple | `@dataclass` in stdlib since Python 3.7. Python 3.12 supports `slots=True` (added 3.10) for minor memory savings. `frozen=True` is appropriate for an immutable result object. No new package needed — zero requirements.txt change. |
-| `frozenset` (stdlib) | Python 3.12 built-in | Backing store for drug and sexual content keyword lists | O(1) membership testing vs O(n) for list. Immutable (cannot be accidentally mutated at runtime). Communicates intent: these are fixed canonical sets, not user-configurable lists. Used as source for building the compiled regex alternation at module load time. |
+| GitHub Actions | — | Run tests on push and pull requests | Free for public repos, zero-infra, no external service. Native to GitHub where the repo lives. Ubuntu runners have Docker + Python preinstalled. |
+| `actions/checkout` | v4 | Checkout repo in CI workflow | v4 is the current widely-adopted stable major. v6 exists but requires runner v2.327.1+; v4 is safer default for broad compatibility without any feature gap for this use case. |
+| `actions/setup-python` | v5 | Install Python 3.12 in CI runner | v5 is the current stable major in wide use. v6 (released Jan 2026) adds Node 24 but breaks older runners; v5 is the safe, supported choice unless runner pinning is explicitly managed. |
+| `ubuntu-latest` runner | — | CI execution environment | Fastest cold start for Python projects, matches the Docker host environment (Linux), free on public repos. |
 
-### Supporting Libraries
+### Core Technologies — Code Quality
 
-No new libraries needed. Existing stack already provides everything required.
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| `ruff` | 0.15.9 | Linter + formatter (replaces flake8, black, isort) | Single tool replaces three. Written in Rust — runs in milliseconds on this codebase (~4K lines). `ruff check` catches real bugs (undefined names, unused imports); `ruff format` enforces consistent style. Configured in `pyproject.toml` alongside pytest. The Python ecosystem has converged on ruff for new projects in 2025-2026. |
+| `pre-commit` | 4.5.1 | Run ruff hooks before commit | Catches lint/format failures before they land in CI. Especially useful for contributors unfamiliar with the project. Single `pre-commit install` sets up the hook; no per-dev manual setup required. |
 
-| Library | Version | Already in? | Role in v1.3 |
-|---------|---------|-------------|--------------|
-| `better-profanity` | 0.7.0 | daemon | Unchanged — leet-speak fallback for profanity only; drug/sexual scanners do NOT use it |
-| `aiosqlite` | 0.22.1 | daemon | Unchanged — lyrics cache layer; drug/sexual scan happens on already-fetched lyrics string |
-| `pytest` | 8.3.5 | daemon | Unit tests for new scanner classes and `TrackEvalResult` dataclass |
-| `pytest-asyncio` | 0.25.3 | daemon | Unchanged — `ContentChecker.check()` is still async |
+### Core Technologies — Project Metadata
 
-### Development Tools
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| `pyproject.toml` | PEP 517/518 standard | Central config for ruff, pytest, and project metadata | Single file replaces `setup.py`, `setup.cfg`, `pytest.ini`, `.flake8`. Does NOT require publishing to PyPI — the `[tool.*]` sections work for any project. Consolidates ruff and pytest config in one place. No `[build-system]` table needed if not publishing. |
+| MIT License | — | Open source license file | MIT is the simplest permissive license: no attribution beyond copyright notice, no patent grant complexity. Appropriate for a self-hosted utility with no corporate entanglement. Home Assistant uses Apache-2.0 (adds explicit patent grant); MIT is sufficient for this project. |
 
-No changes to dev toolchain.
+---
+
+## Supporting Libraries
+
+No new runtime dependencies. The following are dev-only additions:
+
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| `ruff` | 0.15.9 | Lint and format — dev only | Add to `requirements-dev.txt` (or `pyproject.toml` optional-dependencies). NOT in main `requirements.txt` — not needed at runtime or in Docker container. |
+| `pre-commit` | 4.5.1 | Git hook manager — dev only | Install once per dev machine: `pip install pre-commit && pre-commit install`. Never add to `requirements.txt` or Dockerfile. |
+
+---
+
+## Development Tools
 
 | Tool | Purpose | Notes |
 |------|---------|-------|
-| `pytest` + `pytest-asyncio` | Test new scanner classes and updated `check()` return type | Existing `conftest.py` patterns apply; scanner tests are synchronous (no async needed) |
+| GitHub Actions workflow (`.github/workflows/ci.yml`) | Run `pytest` on push and PR to `main` | Single job: checkout → setup Python 3.12 → `pip install -r requirements.txt` → `pip install ruff` → `ruff check .` → `pytest tests/` |
+| `.pre-commit-config.yaml` | Ruff hooks run before each commit | Two hooks: `ruff` (lint + autofix) then `ruff-format` (format). Run in that order so lint fixes are formatted. |
+| `pyproject.toml` | Central project config | `[tool.pytest.ini_options]` for `testpaths`, `asyncio_mode`; `[tool.ruff]` for `target-version`, `line-length`, `select` rules. |
+| `LICENSE` | MIT license text | Standard GitHub license file; enables GitHub's license detection and the license badge. |
 
 ---
 
-## Pattern: Word-Boundary Regex Matching
+## CI Workflow: Exact Specification
 
-The correct implementation pattern for both `DrugScanner` and `SexualContentScanner` is:
+**File:** `.github/workflows/ci.yml`
 
-```python
-import re
-from frozenset import ...  # frozenset is a builtin
+```yaml
+name: CI
 
-# Defined at module level — compiled once, reused on every scan
-_DRUG_TERMS: frozenset[str] = frozenset({
-    "weed", "marijuana", "cannabis", "cocaine", "coke", "crack",
-    "heroin", "meth", "molly", "ecstasy", "mdma", "xanax", "percocet",
-    "oxy", "oxycontin", "codeine", "lean", "sizzurp", "blunt", "joint",
-    "spliff", "bong", "dope", "acid", "lsd", "shrooms", "ketamine",
-    "adderall", "vicodin", "morphine", "fentanyl", "bars", "perc",
-    # ... full list in implementation
-})
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
-_DRUG_PATTERN: re.Pattern[str] = re.compile(
-    r"\b(?:" + "|".join(map(re.escape, sorted(_DRUG_TERMS))) + r")\b",
-    re.IGNORECASE,
-)
+jobs:
+  test:
+    runs-on: ubuntu-latest
 
-def scan_drugs(lyrics: str) -> bool:
-    return bool(_DRUG_PATTERN.search(lyrics))
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install dev tools
+        run: pip install ruff==0.15.9
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Format check
+        run: ruff format --check .
+
+      - name: Test
+        run: pytest tests/ -v
 ```
 
-**Why this pattern over word-split + dict lookup (the profanity scanner approach):**
-
-The profanity scanner splits on whitespace then strips punctuation from each token. This works for profanity (single-word terms). For drug/sexual content it fails on multi-word phrases like "lean drink" if we ever add them, and requires manual punctuation stripping. The `re.compile` pattern handles punctuation boundaries natively via `\b` and is more composable.
-
-**Why `re.search` not `re.findall`:**
-
-For a boolean signal we only need to know if any term exists — `search()` short-circuits on first match. `findall()` scans the entire text and collects all matches, which is wasteful for a detection-only use case.
-
-**Why `re.IGNORECASE` not manual `.lower()`:**
-
-Normalizing the entire lyrics string to lowercase before matching creates a temporary string allocation per check. `re.IGNORECASE` is a flag on the compiled pattern — no allocation overhead.
-
-**`re.escape` on each term before joining:**
-
-Ensures terms with regex metacharacters (e.g. dots, parentheses) are treated literally. Defensive against word list additions that accidentally include regex syntax.
+**Why this structure:**
+- `cache: "pip"` on setup-python caches the pip download cache, cutting subsequent run time by ~30s on a project this size.
+- `ruff check` and `ruff format --check` are separate steps so failures show clearly (lint vs format) in the Actions UI.
+- `pytest tests/ -v` matches the existing `conftest.py` which adds project root to `sys.path`. Running from repo root with explicit `tests/` path is correct.
+- No matrix strategy — the project targets Python 3.12 specifically (matches Dockerfile `FROM python:3.12`). Testing multiple Python versions adds CI noise without benefit for a self-hosted tool.
 
 ---
 
-## Pattern: TrackEvalResult Dataclass
+## README Badges: Exact Markdown
 
-Replace the existing `tuple[str, str, int]` return type from `ContentChecker.check()` with a named dataclass:
+**CI badge (GitHub native, no shields.io dependency):**
 
-```python
-from dataclasses import dataclass
-
-@dataclass(frozen=True, slots=True)
-class TrackEvalResult:
-    action: str          # "skip" | "allow"
-    reason: str          # "explicit" | "profanity" | "drug" | "sexual" | "instrumental" | "clean" | "lyrics_unavailable" | "no_lyrics_service"
-    severity: int        # 0-3 (profanity severity; 0 for non-profanity skip reasons)
-    has_drug_ref: bool   # True if drug reference detected in lyrics
-    has_sexual_content: bool  # True if sexual content detected in lyrics
+```markdown
+![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)
 ```
 
-**`frozen=True`:** Result objects are immutable values — they should not be modified after `check()` returns. `frozen=True` enforces this and auto-generates `__hash__`, enabling use in sets/dicts if needed for caching.
+This uses GitHub's native badge endpoint — no third-party service dependency. The badge auto-updates to pass/fail on each workflow run.
 
-**`slots=True`:** Available since Python 3.10, present in 3.12. Reduces per-instance memory by using `__slots__` instead of `__dict__`. For a small struct returned per-track on every poll cycle (once per second), this is a mild but free improvement.
+**License badge (shields.io — static, always reliable):**
 
-**No `@dataclass(eq=True)` needed:** `eq=True` is the default. Equality comparison of result objects is correct behavior for tests.
+```markdown
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+```
 
-**Backward compatibility on call sites:** All existing call sites unpack `(action, reason, severity) = result` or access `result[0]`. `frozen=True` dataclasses do NOT support index access (`result[0]`). All call sites must be migrated to attribute access (`result.action`, `result.reason`, `result.severity`). This is the expected migration cost — positional tuple → named dataclass.
+Shields.io static badges do not hit any external API and do not require the repo to be configured — they render from the URL parameters alone. This is more reliable than a dynamic license badge that reads GitHub's license API.
 
----
-
-## Word Lists: Drug References
-
-No PyPI package provides a maintained, curated list of drug slang specifically for music/lyric content filtering. The packages found on PyPI (`drug-named-entity-recognition`, `drugstone`, `druglinker`) are pharmaceutical NER tools designed for clinical text — not appropriate for lyric slang.
-
-**Recommendation: Maintain a custom `frozenset` in the codebase** (same approach as `SEVERITY_MAP` in `profanity_scanner.py`). This gives full control, auditability, and no transitive dependency risk.
-
-**Evidence-based seed list** (from academic research on drug references in Billboard Hot 100 music, 2008-2018):
-
-Cannabis: `weed`, `marijuana`, `cannabis`, `pot`, `blunt`, `joint`, `spliff`, `bong`, `dank`, `chronic`, `kush`, `bud`, `reefer`, `ganja`, `420`, `doobie`
-
-Cocaine/stimulants: `cocaine`, `coke`, `crack`, `blow`, `snow`, `powder`, `meth`, `ice`, `crystal`, `speed`, `adderall`
-
-Opioids: `heroin`, `smack`, `dope`, `oxy`, `oxycontin`, `oxycodone`, `percocet`, `perc`, `vicodin`, `morphine`, `codeine`, `lean`, `sizzurp`, `promethazine`, `fentanyl`, `bars` (Xanax bars), `xanax`
-
-MDMA/psychedelics: `molly`, `ecstasy`, `mdma`, `acid`, `lsd`, `shrooms`, `mushrooms`, `ketamine`, `pcp`
-
-Generic: `dope`, `stash`, `plug` (slang for dealer), `trap` (context-dependent — flag for review)
-
-**Note on false positives:** Terms like `pot`, `speed`, `crystal`, `ice`, `bars`, `trap`, and `plug` have common non-drug uses in lyrics. The word-boundary pattern prevents substring false positives, but context-dependent terms will produce some false positives. This is consistent with the project's established philosophy: "err on the side of caution" for ages 3 and 7. False positives (over-skipping) are preferable to false negatives.
-
-**Note on `420` and numeric slang:** `\b` word boundary works with digits — `\b420\b` will match `420` as a standalone token but not `1420` or `4200`. Include numeric slang terms in the list.
+**Placement:** Both badges go on line 1 of README.md, before the project title, or immediately after the `# Read the Room` heading. One line of badges is the convention for utilities; do not add Python version badge or Docker badge — they add noise without value for a single-stack self-hosted tool.
 
 ---
 
-## Word Lists: Sexual Content
+## pyproject.toml: Exact Specification
 
-Same recommendation: custom `frozenset` in codebase. The existing `profanity_scanner.py` `SEVERITY_MAP` already contains several sexual terms at severity tier 2 (`whore`, `slut`, `tits`, `cock`, `pussy`, `wank`, etc.). The sexual content scanner serves a different purpose: detecting explicit sexual *acts and scenarios* in lyrics, which would not trigger the profanity scanner's severity threshold.
+```toml
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
 
-The sexual content scanner keyword list should include terms for sexual acts, body parts not already in the profanity map, and common euphemisms used in popular music. The full list is the implementation team's domain judgment — the scanner class structure is identical to the drug scanner.
+[tool.ruff]
+target-version = "py312"
+line-length = 100
 
-**Overlap with profanity map:** Words already in `SEVERITY_MAP` at tier 2/3 (e.g. `dick`, `pussy`, `cock`, `fuck`) do NOT need duplication in the sexual content list. The profanity scanner already handles them. The sexual content list should focus on terms the profanity scanner misses: act descriptors, contextual slang, and euphemisms.
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+# E/W: pycodestyle errors and warnings
+# F: pyflakes (undefined names, unused imports)
+# I: isort (import ordering)
+# Deliberately NOT selecting: D (pydocstrings), ANN (type annotations), S (bandit security)
+# These generate noise on a working codebase without incremental value for v1.6 scope.
+```
+
+**Why `asyncio_mode = "auto"`:**
+The existing test suite uses `@pytest.mark.asyncio` via `pytest-asyncio`. Mode `auto` eliminates the need to decorate every async test and matches the existing pattern in the codebase.
+
+**Why NOT include `[project]` table:**
+This project is not published to PyPI. The `[project]` metadata table (name, version, dependencies) is only needed for packaging. Omitting it keeps `pyproject.toml` to its useful purpose: tool configuration. Adding a `[project]` table without a `[build-system]` table creates a malformed (but not harmful) file that confuses `pip install .` attempts.
+
+---
+
+## pre-commit Config: Exact Specification
+
+**File:** `.pre-commit-config.yaml`
+
+```yaml
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.9
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+```
+
+**Why `ruff` before `ruff-format`:**
+`ruff --fix` may change code (e.g., removing unused imports). `ruff-format` then ensures the fixed code is correctly formatted. Order matters.
+
+**Why `--fix` on the lint hook:**
+Auto-fixing import order and minor style issues saves developers from a fail → manually fix → re-stage cycle for mechanical issues. Non-auto-fixable errors (e.g., undefined names) still fail the commit and require manual attention.
+
+---
+
+## Installation (Dev Setup)
+
+```bash
+# Install dev tools (not needed in Docker/production)
+pip install ruff==0.15.9 pre-commit==4.5.1
+
+# Install pre-commit hooks (once per clone)
+pre-commit install
+
+# Run pre-commit against all files (initial cleanup)
+pre-commit run --all-files
+
+# Run tests locally
+pytest tests/ -v
+```
+
+---
+
+## Alternatives Considered
+
+| Recommended | Alternative | When Alternative Makes Sense |
+|-------------|-------------|------------------------------|
+| `ruff` (lint + format) | `flake8` + `black` + `isort` (3 tools) | Legacy projects where black/flake8 are already configured; teams with established per-tool `.ini` configs. For a greenfield open source release, ruff's single-tool DX is clearly better. |
+| `actions/setup-python@v5` | `actions/setup-python@v6` | v6 requires runner ≥ v2.327.1 (Node 24 requirement). Use v6 only if explicitly targeting hosted runners known to meet this requirement. v5 is safe default for public repos. |
+| `actions/checkout@v4` | `actions/checkout@v6` | v4 is broadly compatible and well-tested. v6 offers minor improvements not relevant to this workflow. Either works; v4 avoids any runner version risk. |
+| MIT License | Apache-2.0 | Apache-2.0 adds explicit patent grant — relevant for companies or projects with IP concerns. MIT is sufficient for a personal utility tool. |
+| `pyproject.toml` (tool config only) | Separate `pytest.ini` + `ruff.toml` | Separate files are fine but `pyproject.toml` is the modern convention. Tools like ruff explicitly support and prefer `pyproject.toml` in 2026. |
+| No matrix CI (Python 3.12 only) | Matrix across 3.11 / 3.12 / 3.13 | Matrix testing is valuable for libraries. For a self-hosted app pinned to a specific Python version in Dockerfile, matrix testing adds noise without coverage value. |
 
 ---
 
@@ -166,83 +225,42 @@ The sexual content scanner keyword list should include terms for sexual acts, bo
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `drug-named-entity-recognition` (PyPI) | Clinical/pharmaceutical NER, not music slang. Requires ML model download, heavy dependency. Would recognize "Tylenol" but miss "lean". | Custom `frozenset` with curated music slang terms |
-| `spacy` or `nltk` for NLP-based detection | Adds 50-500MB of model data and startup time to a container that polls every second. Overkill for boolean keyword detection. | `re.compile` with `\b` boundaries — sufficient and instant |
-| `better-profanity` for drug/sexual scanning | Its leet-speak expansion is only relevant for profanity — drug/sexual slang is not typically leet-encoded in music lyrics. Extending its wordlist would mix concerns. | Separate scanner classes with dedicated `frozenset` + compiled regex |
-| `pydantic.BaseModel` for `TrackEvalResult` | Pydantic adds validation overhead and a 3MB dependency for a result object that never crosses a serialization boundary. | stdlib `@dataclass(frozen=True, slots=True)` — immutable, zero-cost, no new dep |
-| `NamedTuple` for `TrackEvalResult` | Supports index access (`result[0]`), which encourages continued positional usage instead of named attributes. Harder to add fields with defaults. | `@dataclass(frozen=True)` — attribute-only access enforces named usage |
-| Checking `better_profanity.profanity_wordlist.txt` for drug/sexual terms | The built-in wordlist mixes categories without labels — no reliable way to extract drug-specific or sexual-content-specific terms programmatically. | Curated project-owned lists |
-| `re.MULTILINE` flag | Not needed — lyrics are searched as a single string, not line-by-line. `\b` works correctly without it. | No flag (default) |
-| Calling `re.search(pattern_string, ...)` inside scan method | Recompiles the pattern on every call even with internal caching. | `re.compile()` at module level, call `.search(lyrics)` on the compiled object |
-
----
-
-## Installation
-
-No new packages. No changes to `requirements.txt` in daemon or web_ui.
-
-```bash
-# No changes required — all capabilities are Python 3.12 stdlib:
-# - re (word-boundary regex matching)
-# - dataclasses (@dataclass decorator)
-# - frozenset (builtin type, no import)
-```
-
----
-
-## Alternatives Considered
-
-| Category | Recommended | Alternative | When Alternative Makes Sense |
-|----------|-------------|-------------|------------------------------|
-| Return type | `@dataclass(frozen=True, slots=True)` | `typing.NamedTuple` | NamedTuple is fine if callers legitimately need tuple unpacking or index access. Here we're deliberately breaking positional access to force migration to named attributes. |
-| Keyword matching | `re.compile(\b...\b, re.IGNORECASE)` | word-split + `frozenset` lookup (profanity scanner pattern) | The profanity scanner pattern is faster for pure single-token exact-match with manual punctuation stripping. Use it when the term list has no multi-word phrases and you need matched word reporting. The regex approach is more correct for general text matching and handles punctuation automatically. |
-| Word list source | Project-owned `frozenset` in source | External data file (`.txt` or `.json`) loaded at startup | External file makes sense when the list is > ~200 terms, needs runtime updates without code deploy, or needs to be shared across multiple services. For v1.3 the list is < 100 terms and changes only with code changes. |
-| Drug/sexual detection scope | Keyword matching (boolean, per PROJECT.md) | ML classifier (BERT fine-tune, etc.) | ML is appropriate when context is critical — "I shot the sheriff" vs literal gun violence. For v1.3 the requirement is explicitly a "boolean signal" and the project explicitly excludes "Sentiment NLP — too complex for v1". |
+| PyPI publish step in CI | This is a self-hosted Docker tool, not a library. Publishing to PyPI creates a confusing, unsupported package. | No publish step. `docker compose up` is the install path. |
+| `setup.py` or `setup.cfg` | Legacy packaging files. If `pyproject.toml` exists for tool config, adding `setup.py` creates confusion about the build system. | `pyproject.toml` with tool sections only; no `[build-system]` table. |
+| `codecov` or coverage badges | Adds external service dependency and maintenance overhead. Not warranted for a personal utility reaching open source. | Bare `pytest` pass/fail in CI is sufficient signal. |
+| `mypy` or `pyright` in CI | Type checking this codebase introduces annotation debt on ~4K lines of working code that has no type annotations. Adding it as a CI gate blocks contributors immediately. | Defer type annotations to a future milestone if desired. |
+| `tox` | Tox is for testing across multiple Python versions and environments. This project targets one Python version in a fixed Docker environment. | Direct `pytest` invocation in CI. |
+| `dependabot` auto-PRs for `requirements.txt` | Dependabot PRs for `spotipy`, `soco`, `better-profanity` will require manual API compatibility testing — they are not pure library upgrades. Auto-PRs would create noise without a test infrastructure that validates end-to-end behavior. | Mention manual dependency review in CONTRIBUTING.md. |
+| `.editorconfig` | Ruff handles formatting. `.editorconfig` adds a second source of truth for indentation/line endings. | `ruff format` configuration in `pyproject.toml`. |
 
 ---
 
 ## Version Compatibility
 
-| Package | Container | Version | v1.3 Notes |
-|---------|-----------|---------|------------|
-| Python | daemon | 3.12 | `@dataclass(slots=True)` requires 3.10+ — satisfied |
-| `re` (stdlib) | daemon | 3.12 | `\b` word boundary, `re.IGNORECASE`, `re.escape` — all stable, no version concerns |
-| `dataclasses` (stdlib) | daemon | 3.12 | `frozen=True`, `slots=True` — both available since 3.10 |
-| `better-profanity` | daemon | 0.7.0 | Unchanged — not involved in new scanners |
-| `pytest` | daemon | 8.3.5 | Unchanged — scanner unit tests are synchronous |
-
----
-
-## Integration Points with Existing Code
-
-### New files to create
-
-- `drug_scanner.py` — `DrugScanner` class with module-level compiled pattern, `scan(lyrics: str) -> bool` method
-- `sexual_content_scanner.py` — `SexualContentScanner` class, same structure as `DrugScanner`
-
-### Files to modify
-
-- `content_checker.py` — Add `TrackEvalResult` dataclass (or import from a shared `models.py`). Update `check()` return type annotation and all `return` statements. Wire in `DrugScanner` and `SexualContentScanner` alongside existing `ProfanityScanner`.
-- `daemon.py` — Update all call sites of `content_checker.check()` to use named attributes (`result.action`, `result.reason`, `result.severity`) instead of tuple unpacking. Add `has_drug_ref` and `has_sexual_content` fields to skip event JSON written to `skip_events.jsonl`.
-- `web_ui/main.py` (or `now_playing.json` serialization) — Add `has_drug_ref` and `has_sexual_content` to the SSE event payload for new dashboard badge rendering.
-
-### Dataclass placement
-
-Two options: inline in `content_checker.py` or a new `models.py`. The latter is preferred — it avoids circular imports if `daemon.py` needs to type-annotate the result without importing the full `ContentChecker`.
+| Package | Version | Notes |
+|---------|---------|-------|
+| `ruff` | 0.15.9 | Targets `py312`. `ruff format` 0.15.9 implements the 2026 style guide (lambda changes). Pin exact version in CI (`pip install ruff==0.15.9`) to avoid surprise style changes from ruff upgrades. |
+| `pre-commit` | 4.5.1 | Uses `ruff-pre-commit` rev `v0.15.9` — must match the CI version to avoid lint passing locally but failing in CI. |
+| `pytest` | 8.3.5 | Already in `requirements.txt`. CI installs from `requirements.txt` — no version conflict. |
+| `pytest-asyncio` | 0.25.3 | Already in `requirements.txt`. `asyncio_mode = "auto"` in `pyproject.toml` is compatible with 0.25.x. |
+| `actions/checkout` | v4 | Stable, no known compatibility issues with `ubuntu-latest`. |
+| `actions/setup-python` | v5 | Compatible with `ubuntu-latest`. v6 requires runner ≥ v2.327.1 (Node 24) — avoid until GitHub confirms default hosted runners meet this. |
 
 ---
 
 ## Sources
 
-- [Python `re` module official docs](https://docs.python.org/3/library/re.html) — `\b` boundary behavior, `re.IGNORECASE`, `re.escape`, compile-once performance (HIGH confidence, official)
-- [Python `dataclasses` official docs](https://docs.python.org/3/library/dataclasses.html) — `frozen`, `slots`, `KW_ONLY` parameters, Python 3.10+ feature additions (HIGH confidence, official)
-- Existing `profanity_scanner.py` (codebase) — word-split + dict lookup pattern, established precedent for inline word lists (HIGH confidence, primary source)
-- Existing `content_checker.py` (codebase) — current `check()` return tuple, integration points for new scanners (HIGH confidence, primary source)
-- ResearchGate / PMC study on drug terms in Billboard Hot 100 lyrics — evidence base for drug keyword seed list (MEDIUM confidence, academic source, accessed 2026-04-03)
-- [BurntRouter/filtered-word-lists](https://github.com/BurntRouter/filtered-word-lists) — reviewed as candidate source; contains sexual terms but no drug category, no maintenance signal (LOW confidence — not recommended as dependency)
-- [Python frozenset O(1) membership](https://www.datacamp.com/tutorial/frozenset) — confirmed O(1) hash lookup vs O(n) list (HIGH confidence, consistent with Python data model)
+- [GitHub Actions: Building and testing Python (official docs)](https://docs.github.com/actions/guides/building-and-testing-python) — workflow structure, `cache: pip` option (HIGH confidence, official)
+- [actions/checkout releases](https://github.com/actions/checkout/releases) — confirmed v4 as current safe stable major; v6.0.2 exists (HIGH confidence, official)
+- [actions/setup-python releases](https://github.com/actions/setup-python) — confirmed v5 as widely-adopted stable; v6.2.0 has Node 24 runner requirement (HIGH confidence, official)
+- [GitHub Docs: Adding a workflow status badge](https://docs.github.com/en/actions/monitoring-and-troubleshooting-workflows/adding-a-workflow-status-badge) — exact badge URL format (HIGH confidence, official)
+- [ruff PyPI](https://pypi.org/project/ruff/) — confirmed 0.15.9 latest as of 2026-04-02 (HIGH confidence, official)
+- [ruff pre-commit integration](https://github.com/astral-sh/ruff-pre-commit) — hook IDs `ruff` and `ruff-format`, ordering recommendation (HIGH confidence, official)
+- [pre-commit PyPI](https://pypi.org/project/pre-commit/) — confirmed 4.5.1 latest (HIGH confidence, official)
+- [ruff configuration docs](https://docs.astral.sh/ruff/configuration/) — `pyproject.toml` `[tool.ruff]` and `[tool.ruff.lint]` tables (HIGH confidence, official)
+- [shields.io static badge docs](https://shields.io/) — MIT license badge URL pattern (MEDIUM confidence, well-known service)
 
 ---
 
-*Stack research for: Spotify Family Safe Mode v1.3 — drug reference and sexual content detection*
-*Researched: 2026-04-03*
+*Stack research for: Read the Room v1.6 — open source release CI/tooling infrastructure*
+*Researched: 2026-04-06*
