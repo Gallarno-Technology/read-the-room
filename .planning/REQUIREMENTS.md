@@ -10,8 +10,8 @@ Requirements for the open source release milestone. Each maps to a roadmap phase
 
 ### Repository Hygiene
 
-- [ ] **HYG-01**: A `.dockerignore` exists so live OAuth tokens, `.env`, and runtime data directories are excluded from Docker build context
-- [ ] **HYG-02**: `.claude/` directory is untracked from git and added to `.gitignore`
+- [x] **HYG-01**: A `.dockerignore` exists so live OAuth tokens, `.env`, and runtime data directories are excluded from Docker build context
+- [x] **HYG-02**: `.claude/` directory is untracked from git and added to `.gitignore`
 - [ ] **HYG-03**: Personal IP `192.168.1.164` replaced with generic placeholder (`192.168.1.100`) in `tests/test_sonos_probe.py`
 - [ ] **HYG-04**: "Spotify Family Safe Mode" replaced with "Read the Room" in all module docstrings and source strings (user-agent in `lyrics_service.py`, FastAPI title in `web_ui/main.py`)
 - [ ] **HYG-05**: `.env.example` updated to include `UID`, `GID`, and `EVENTS_PATH` with explanatory comments
@@ -57,8 +57,8 @@ Requirements for the open source release milestone. Each maps to a roadmap phase
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HYG-01 | Phase 20 | Pending |
-| HYG-02 | Phase 20 | Pending |
+| HYG-01 | Phase 20 | Complete |
+| HYG-02 | Phase 20 | Complete |
 | HYG-03 | Phase 20 | Pending |
 | HYG-04 | Phase 20 | Pending |
 | HYG-05 | Phase 20 | Pending |

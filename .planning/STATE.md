@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Open Source
-status: planning
-stopped_at: Phase 20 context gathered
-last_updated: "2026-04-08T21:42:42.858Z"
-last_activity: 2026-04-08 — Roadmap created for v1.6 Open Source (Phases 20-22)
+status: executing
+stopped_at: Completed 20-01-PLAN.md
+last_updated: "2026-04-08T22:22:01.359Z"
+last_activity: 2026-04-08
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 5
+  completed_plans: 4
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** v1.6 — Open Source milestone, Phase 20 ready to plan
+**Current focus:** Phase 20 — repository-hygiene
 
 ## Current Position
 
-Phase: 20 of 22 (Repository Hygiene)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-04-08 — Roadmap created for v1.6 Open Source (Phases 20-22)
+Phase: 20 (repository-hygiene) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-04-08
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -47,6 +47,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 17-rebrand | 1 | 2 tasks | 2 files |
 | Phase 18-profile-info-icon | 1 | 5 tasks | 4 files |
 | Phase 19-mobile-polish | 1 | 2 tasks | 2 files |
+| Phase 20-repository-hygiene P01 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,7 @@ Recent decisions affecting current work:
 - [v1.6 Research]: `.planning/` and `.claude/` must be removed from git tracking before repo goes public (530 files with absolute home paths)
 - [v1.6 Research]: CI needs dummy Spotify env vars — test suite is fully mocked but modules import spotipy at load time
 - [v1.6 Research]: Phase 20 (Hygiene) is a hard gate — no other v1.6 phase begins before hygiene is clean
+- [Phase 20-repository-hygiene]: Edit .gitignore before git rm --cached to close re-tracking window (per RESEARCH.md Pitfall 3)
 
 ### Pending Todos
 
@@ -71,6 +73,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-08T21:42:42.857Z
-Stopped at: Phase 20 context gathered
-Resume file: .planning/phases/20-repository-hygiene/20-CONTEXT.md
+Last session: 2026-04-08T22:22:01.358Z
+Stopped at: Completed 20-01-PLAN.md
+Resume file: None
