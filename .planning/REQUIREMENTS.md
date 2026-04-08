@@ -77,4 +77,4 @@ Requirements for the open source release milestone. Each maps to a roadmap phase
 
 ---
 *Requirements defined: 2026-04-08*
-*Last updated: 2026-04-08 after initial definition*
+*Last updated: 2026-04-08 — traceability confirmed against ROADMAP.md (Phases 20-22)*
