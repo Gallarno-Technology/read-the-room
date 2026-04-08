@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Spotify Family Safe Mode — Core Daemon (Phase 1).
+"""Read the Room — Core Daemon.
 
 Polls Spotify /me/player/currently-playing every POLL_INTERVAL_SECONDS,
 detects track changes by comparing track IDs, logs meaningful events, and

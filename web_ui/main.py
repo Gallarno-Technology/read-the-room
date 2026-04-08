@@ -1,4 +1,4 @@
-"""Spotify Family Safe Mode — Web UI Service (Phase 3).
+"""Read the Room — Web UI Service.
 
 FastAPI app serving the dashboard HTML and providing:
   GET  /              -> HTML dashboard (template rendered by Plan 03-02)
@@ -44,7 +44,7 @@ logging.basicConfig(
 STATE_PATH = os.environ.get("STATE_PATH", "state.json")
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
-app = FastAPI(title="Spotify Family Safe Mode", docs_url=None, redoc_url=None)
+app = FastAPI(title="Read the Room", docs_url=None, redoc_url=None)
 
 # ---------------------------------------------------------------------------
 # File-based IPC bridge — daemon writes events.jsonl; we tail it here.
