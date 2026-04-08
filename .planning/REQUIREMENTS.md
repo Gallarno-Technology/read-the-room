@@ -1,58 +1,80 @@
-# Requirements: Spotify Family Safe Mode
+# Requirements: Read the Room
 
-**Defined:** 2026-04-05
-**Milestone:** v1.5 — Dashboard Polish & Mobile UX
+**Defined:** 2026-04-08
+**Milestone:** v1.6 — Open Source
 **Core Value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
 
-## v1.5 Requirements
+## v1.6 Requirements
 
-Requirements for this milestone. Each maps to a roadmap phase.
+Requirements for the open source release milestone. Each maps to a roadmap phase.
 
-### Rebrand
+### Repository Hygiene
 
-- [x] **RBR-01**: Dashboard `<title>` tag and visible app heading display "Read the Room"
-- [x] **RBR-02**: README.md header and introduction updated to "Read the Room"
+- [ ] **HYG-01**: A `.dockerignore` exists so live OAuth tokens, `.env`, and runtime data directories are excluded from Docker build context
+- [ ] **HYG-02**: `.claude/` directory is untracked from git and added to `.gitignore`
+- [ ] **HYG-03**: Personal IP `192.168.1.164` replaced with generic placeholder (`192.168.1.100`) in `tests/test_sonos_probe.py`
+- [ ] **HYG-04**: "Spotify Family Safe Mode" replaced with "Read the Room" in all module docstrings and source strings (user-agent in `lyrics_service.py`, FastAPI title in `web_ui/main.py`)
+- [ ] **HYG-05**: `.env.example` updated to include `UID`, `GID`, and `EVENTS_PATH` with explanatory comments
 
-### Profile Info
+### Legal & Docs
 
-- [x] **INFO-01**: An info icon (ⓘ) is visible on the FSM control card at all times
-- [x] **INFO-02**: Tapping/clicking the info icon reveals a breakdown of what the active profile skips (profanity, drug refs, sexual content, explicit flag)
+- [ ] **DOCS-01**: `LICENSE` (MIT) present at repository root
+- [ ] **DOCS-02**: `README.md` rewritten for a public audience — description, prerequisites, quick start, how it works, filter profiles, Sonos notes, repo named `read-the-room`
+- [ ] **DOCS-03**: `CONTRIBUTING.md` created — filing issues, submitting PRs, project layout, local dev setup
 
-### Mobile UX
+### CI & Tooling
 
-- [x] **MOB-01**: Dashboard viewport prevents pinch-zoom and double-tap zoom on mobile
-- [x] **MOB-02**: Buttons, labels, badges, and profile options have `user-select: none` — track title/artist remain selectable
+- [ ] **CI-01**: `.github/workflows/ci.yml` runs `pytest tests/` on push and pull_request (all tests mocked — no real credentials needed)
+- [ ] **CI-02**: `pyproject.toml` created with `[tool.pytest.ini_options]` and `[tool.ruff]` sections (no `[build-system]` — not a PyPI package)
+- [ ] **CI-03**: Ruff lint/format check added to CI workflow
+- [ ] **CI-04**: README header includes CI status badge and MIT license badge
 
 ## Future Requirements
 
-### Rebrand
+### Community Infrastructure
 
-- **RBR-03**: Rename repo directory and Python filenames to match new brand
+- **COM-01**: Issue templates (bug report, feature request)
+- **COM-02**: Pull request template
+- **COM-03**: Code of conduct (Contributor Covenant)
+- **COM-04**: SECURITY.md — vulnerability reporting policy
+
+### Hosted Version Prep
+
+- **HOST-01**: Local agent bridge mode — optional cloud connection flag
+- **HOST-02**: WebSocket relay protocol spec for cloud connectivity
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Rename source files / repo directory | Low value, high churn — display name change sufficient for v1.5 |
-| Info icon inside the dropdown per-option | Card-level icon covers the use case without cluttering the dropdown |
-| Full mobile responsive layout | Small scope — fixing zoom/select is the quick win; full responsive is a future milestone |
+| PyPI publishing | Self-hosted Docker tool, not a Python library |
+| Docker Hub image publishing | Users build locally; no image registry in scope |
+| pre-commit hooks | Nice-to-have post-launch; not a contributor blocker |
+| Hosted/multi-user architecture | Separate future project (read-the-room-cloud) |
+| Source file / repo directory rename (RBR-03) | Low value, high churn — deferred from v1.5 |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| RBR-01 | Phase 17 | Complete |
-| RBR-02 | Phase 17 | Complete |
-| INFO-01 | Phase 18 | Complete |
-| INFO-02 | Phase 18 | Complete |
-| MOB-01 | Phase 19 | Complete |
-| MOB-02 | Phase 19 | Complete |
+| HYG-01 | Phase 20 | Pending |
+| HYG-02 | Phase 20 | Pending |
+| HYG-03 | Phase 20 | Pending |
+| HYG-04 | Phase 20 | Pending |
+| HYG-05 | Phase 20 | Pending |
+| DOCS-01 | Phase 21 | Pending |
+| DOCS-02 | Phase 21 | Pending |
+| DOCS-03 | Phase 21 | Pending |
+| CI-01 | Phase 22 | Pending |
+| CI-02 | Phase 22 | Pending |
+| CI-03 | Phase 22 | Pending |
+| CI-04 | Phase 22 | Pending |
 
 **Coverage:**
-- v1.5 requirements: 6 total
-- Mapped to phases: 6
+- v1.6 requirements: 12 total
+- Mapped to phases: 12
 - Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-04-05*
-*Last updated: 2026-04-05 after roadmap creation (phases 17-19 assigned)*
+*Requirements defined: 2026-04-08*
+*Last updated: 2026-04-08 after initial definition*
