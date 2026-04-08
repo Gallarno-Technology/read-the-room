@@ -1,0 +1,21 @@
+# Secrets and runtime credentials — must never be baked into image layers
+.env
+token_cache/
+
+# Runtime state and data — container-managed, not source
+state.json
+data/
+lyrics_cache.db
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Version control and dev tooling — not needed at runtime
+.git/
+.claude/
+.planning/
+
+# Test suite — not needed at runtime
+tests/
