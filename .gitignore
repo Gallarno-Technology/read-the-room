@@ -15,3 +15,7 @@ __pycache__/
 # Runtime data and caches
 data/
 lyrics_cache.db
+
+# Dev tooling — personal config with absolute paths, not for public repos
+.claude/
+.planning/
