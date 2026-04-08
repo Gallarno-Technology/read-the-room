@@ -127,7 +127,10 @@ Plans:
   3. `tests/test_sonos_probe.py` contains no personal IP address — all occurrences replaced with `192.168.1.100`
   4. No module docstring, FastAPI title, or user-agent string in source code references "Spotify Family Safe Mode"
   5. `.env.example` documents `UID`, `GID`, and `EVENTS_PATH` with explanatory comments
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 20-01-PLAN.md — Create .dockerignore and untrack .claude/ from git (HYG-01, HYG-02)
+- [ ] 20-02-PLAN.md — Replace personal IP, rename branding strings, update .env.example (HYG-03, HYG-04, HYG-05)
 
 ### Phase 21: Legal & Docs
 **Goal**: A stranger who finds the repository has legal permission to use it, a clear explanation of what it does, and a documented path to contributing
@@ -174,6 +177,6 @@ Plans:
 | 17. Rebrand | v1.5 | 1/1 | Complete | 2026-04-06 |
 | 18. Profile Info Icon | v1.5 | 1/1 | Complete | 2026-04-06 |
 | 19. Mobile Polish | v1.5 | 1/1 | Complete | 2026-04-06 |
-| 20. Repository Hygiene | v1.6 | 0/? | Not started | - |
+| 20. Repository Hygiene | v1.6 | 0/2 | Not started | - |
 | 21. Legal & Docs | v1.6 | 0/? | Not started | - |
 | 22. CI & Tooling | v1.6 | 0/? | Not started | - |
