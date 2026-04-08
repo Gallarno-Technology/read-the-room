@@ -72,7 +72,7 @@
 
 **Milestone Goal:** Prepare the repository for public release so strangers can clone, understand, and run Read the Room.
 
-- [ ] **Phase 20: Repository Hygiene** — Remove personal data, fix credential exposure, sanitize branding and IPs
+- [x] **Phase 20: Repository Hygiene** — Remove personal data, fix credential exposure, sanitize branding and IPs (completed 2026-04-08)
 - [ ] **Phase 21: Legal & Docs** — Add LICENSE, rewrite README for strangers, create CONTRIBUTING.md
 - [ ] **Phase 22: CI & Tooling** — GitHub Actions CI, pyproject.toml, ruff lint/format, README badges
 
@@ -130,7 +130,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 20-01-PLAN.md — Create .dockerignore and untrack .claude/ from git (HYG-01, HYG-02)
-- [ ] 20-02-PLAN.md — Replace personal IP, rename branding strings, update .env.example (HYG-03, HYG-04, HYG-05)
+- [x] 20-02-PLAN.md — Replace personal IP, rename branding strings, update .env.example (HYG-03, HYG-04, HYG-05)
 
 ### Phase 21: Legal & Docs
 **Goal**: A stranger who finds the repository has legal permission to use it, a clear explanation of what it does, and a documented path to contributing
@@ -177,6 +177,6 @@ Plans:
 | 17. Rebrand | v1.5 | 1/1 | Complete | 2026-04-06 |
 | 18. Profile Info Icon | v1.5 | 1/1 | Complete | 2026-04-06 |
 | 19. Mobile Polish | v1.5 | 1/1 | Complete | 2026-04-06 |
-| 20. Repository Hygiene | v1.6 | 1/2 | In Progress|  |
+| 20. Repository Hygiene | v1.6 | 2/2 | Complete   | 2026-04-08 |
 | 21. Legal & Docs | v1.6 | 0/? | Not started | - |
 | 22. CI & Tooling | v1.6 | 0/? | Not started | - |
