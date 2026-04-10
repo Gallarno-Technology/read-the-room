@@ -1,77 +1,109 @@
+<!-- CI badges: added in Phase 22 -->
+
 # Read the Room
 
-Automatically skips explicit songs when Read the Room is on. Polls Spotify playback, checks lyrics, and skips via Sonos or the Spotify API.
-
-## Quick Start
-
-1. **Clone and copy env**
-
-   ```bash
-   git clone <repo-url>
-   cd spotify-sentiment
-   cp .env.example .env
-   ```
-
-2. **Edit `.env`**
-
-   Fill in `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, and `SPOTIFY_REDIRECT_URI`. See the comments in `.env.example` for details.
-
-3. **Pre-create bind-mount files**
-
-   ```bash
-   echo '{"last_track_id": null}' > state.json && mkdir -p token_cache data && touch lyrics_cache.db
-   ```
-
-   (Or run `make setup` if you have Make installed.)
-
-4. **Set UID and GID**
-
-   The containers run as your host user — this prevents bind-mounted files from being root-owned. Export before running any compose commands:
-
-   ```bash
-   export UID=$(id -u) GID=$(id -g)
-   ```
-
-   Or add `UID` and `GID` directly to your `.env` file:
-
-   ```
-   UID=<your-uid>
-   GID=<your-gid>
-   ```
-
-5. **One-time Spotify OAuth**
-
-   ```bash
-   docker compose run --rm -it daemon python setup_auth.py
-   ```
-
-   A browser window opens. Approve access in Spotify, then the browser will fail to load the redirect page — this is expected. Copy the full URL from the address bar and paste it back into the terminal.
-
-6. **Start the service**
-
-   ```bash
-   docker compose up -d
-   ```
-
-7. **Dashboard** — [http://localhost:8888](http://localhost:8888)
-
-> **Proxmox/LXC users:** Sonos SSDP discovery requires multicast bridge forwarding. See [PROXMOX.md](PROXMOX.md).
+Read the Room is a self-hosted background service that monitors Spotify playback and automatically skips songs that violate family-safe content rules. It was built to solve a real parenting problem: having young children (ages 3 and 7) in the room while music plays. The service runs as a Docker stack on any Linux or macOS machine on your home network, with no cloud dependency and no ongoing subscription.
 
 ## Prerequisites
 
-- **Docker + docker compose (v2)** — run `docker compose version` to confirm v2+.
-- **Docker daemon enabled at host boot (Linux):**
+- **A Sonos speaker** configured as a Spotify Connect device. Read the Room skips tracks by sending a UPnP command to the speaker via SoCo (a Python Sonos control library). Spotify Connect mode is required for this to work.
 
+- **Docker and Docker Compose v2.** Verify with `docker compose version` (note: `compose`, not `compose-plugin` — must be v2+).
+
+- **Docker daemon enabled at host boot (Linux):**
   ```bash
   sudo systemctl enable docker
   sudo systemctl is-enabled docker   # should output: enabled
   ```
+  Docker Desktop (macOS) starts automatically — no configuration needed.
 
-  Docker Desktop (macOS/Windows) auto-starts — no configuration needed.
+- **A Spotify developer app** registered at [developer.spotify.com](https://developer.spotify.com/dashboard). You need:
+  - Client ID and Client Secret
+  - `https://127.0.0.1:8080` added to the app's Redirect URIs list
 
-- **Spotify app registered** at [developer.spotify.com](https://developer.spotify.com/dashboard) — you need Client ID, Client Secret, and a Redirect URI (`https://127.0.0.1:8080`) added to the app's Redirect URIs list.
+## Quick Start
 
-- **UID and GID set** in your shell or `.env` (see Quick Start step 4).
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/read-the-room
+   cd read-the-room
+   ```
+
+2. **Copy and edit `.env`**
+   ```bash
+   cp .env.example .env
+   ```
+   Open `.env` and fill in `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, and `SPOTIFY_REDIRECT_URI`. The redirect URI must be `https://127.0.0.1:8080` — register it in your Spotify app dashboard. See `.env.example` for all available options.
+
+3. **Pre-create bind-mount files**
+   ```bash
+   make setup
+   ```
+   This creates `state.json`, `token_cache/`, `lyrics_cache.db`, and `data/` so Docker bind mounts have writable targets on the host.
+
+4. **Set UID and GID**
+   The containers run as your host user to prevent bind-mounted files from being root-owned. Add these to your `.env`:
+   ```
+   UID=<output of `id -u`>
+   GID=<output of `id -g`>
+   ```
+   Or export them in your shell before running any compose commands:
+   ```bash
+   export UID=$(id -u) GID=$(id -g)
+   ```
+
+5. **Authenticate with Spotify (one time)**
+   ```bash
+   make auth
+   ```
+   This opens a URL — open it in a browser and approve access in Spotify. The browser will redirect to a page that fails to load (this is expected). Copy the full URL from the address bar and paste it back into the terminal. The token is saved to `token_cache/` and reused automatically.
+
+6. **Start the service**
+   ```bash
+   docker compose up -d
+   ```
+
+7. **Open the dashboard** — [http://localhost:8888](http://localhost:8888)
+
+## How It Works
+
+The daemon polls the Spotify playback API every second to see what is currently playing. When a new track starts, it checks the Spotify explicit flag first. If the track is flagged explicit, it is skipped immediately — no lyrics fetch needed.
+
+If the explicit flag is not set, the daemon fetches lyrics from LRCLIB, a public and free lyrics API. The lyrics are scanned for profanity, drug references, and sexual content according to the rules of the active filter profile. Lyric scan results are cached in a local SQLite database so the same track is not fetched twice.
+
+When a track fails the content check, Read the Room sends a skip command to the Sonos speaker via SoCo using UPnP. If the speaker is unreachable or returns an error (for example, when Sonos is in Spotify Connect mode), the daemon falls back to the Spotify API skip command. A Docker healthcheck confirms the daemon is alive by checking a `.healthcheck` file that the daemon touches every polling cycle. The dashboard, served by FastAPI on port 8888, shows the current track, a Family Safe Mode toggle, skip history, and a filter profile selector.
+
+## Filter Profiles
+
+Read the Room ships with four named filter profiles. The active profile controls which content rules apply during playback. You can change the active profile at any time from the dashboard.
+
+### Kids Present
+
+The strictest profile. It skips any track that Spotify has flagged explicit and scans all other tracks for profanity, drug references, and sexual content. Any match triggers a skip. This is the right choice when young children are in the room and you want the broadest filtering net.
+
+### We're All Adults
+
+A middle-ground profile for mixed company. It skips profanity and sexual content but allows drug references to pass through. Tracks that Spotify flags explicit are still skipped.
+
+### Above The Covers
+
+A light-touch profile that only skips tracks containing sexual content. Profanity and drug references pass through. Tracks flagged explicit by Spotify are still skipped.
+
+### Permissive
+
+The most lenient profile. No lyric scanning is performed. Read the Room skips only tracks that Spotify itself has flagged explicit, and allows everything else.
+
+## Sonos Notes
+
+Read the Room uses SSDP (multicast) to discover Sonos speakers automatically on startup. No configuration is needed if your speakers are on the same network segment as the host running Docker.
+
+If SSDP discovery fails — due to a firewall, VLAN, or virtualized host — set `SONOS_SPEAKER_IPS` in your `.env`:
+```
+SONOS_SPEAKER_IPS=Living Room=192.168.1.50
+```
+Use the exact room name that Spotify reports for the device.
+
+Proxmox/LXC users: Sonos SSDP requires multicast bridge forwarding. See [PROXMOX.md](PROXMOX.md).
 
 ## Updating
 
@@ -80,3 +112,9 @@ git pull && docker compose up -d --build
 ```
 
 Data files (`state.json`, `lyrics_cache.db`, `token_cache/`, `data/`) are bind-mounted on the host and survive rebuilds — no manual migration needed.
+
+## License
+
+This repository is proprietary software. See [LICENSE](LICENSE) for the full terms.
+
+A hosted cloud version is planned as a separate service developed in its own repository.
