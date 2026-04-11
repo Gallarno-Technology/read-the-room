@@ -1,8 +1,8 @@
-# Spotify Family Safe Mode
+# Read the Room
 
 ## What This Is
 
-A background service running on a home server that monitors Spotify playback and automatically skips songs that violate family-safe content rules when Family Safe Mode is active. It uses Spotify's explicit flag and lyric scanning (via LRCLIB) to filter content, with a real-time web dashboard for monitoring and control. Integrates with Sonos speakers via SoCo UPnP and Spotify Web API. The dashboard now supports four named filter profiles — parents select a profile that controls which content rules apply. Built for a parent who wants to listen freely but not expose young children (ages 3 and 7) to explicit lyrics or heavy curse words.
+A background service running on a home server that monitors Spotify playback and automatically skips songs that violate family-safe content rules when Family Safe Mode is active. It uses Spotify's explicit flag and lyric scanning (via LRCLIB) to filter content, with a real-time web dashboard for monitoring and control. Integrates with Sonos speakers via SoCo UPnP and Spotify Web API. The dashboard supports four named filter profiles — parents select a profile that controls which content rules apply. Built for a parent who wants to listen freely but not expose young children (ages 3 and 7) to explicit lyrics or heavy curse words. Published as open source (proprietary license) with CI, public README, and contribution guidelines.
 
 ## Core Value
 
@@ -41,16 +41,16 @@ Songs that violate family-safe rules are skipped automatically before children h
 - ✓ Parent can select a named filter profile from dashboard UI — v1.4 (PROF-01, PROF-04)
 - ✓ Active profile persists in state.json and survives service restart — v1.4 (PROF-02)
 - ✓ ContentChecker applies the active profile's per-scanner rules — v1.4 (PROF-03)
+- ✓ Rebrand app display name to "Read the Room" across UI, README, and project docs — v1.5 (Phase 17)
+- ✓ Info icon (ⓘ) on FSM card showing what the active profile skips — v1.5 (Phase 18)
+- ✓ Mobile dashboard: disable pinch-zoom, limit text selection on UI chrome — v1.5 (Phase 19)
+- ✓ Repository hygiene — .dockerignore, git untracking, IP anonymization, branding rename, .env.example docs — v1.6 (Phase 20)
+- ✓ LICENSE (proprietary all-rights-reserved), CONTRIBUTING.md, and public-facing README published — v1.6 (Phase 21)
+- ✓ GitHub Actions CI (pytest + ruff), pyproject.toml tooling config, README badges — v1.6 (Phase 22)
 
 ### Active
 
-- ✓ Rebrand app display name to "Read the Room" across UI, README, and project docs — v1.5 Phase 17
-- ✓ Info icon (ⓘ) on FSM card showing what the active profile skips — v1.5 Phase 18
-- ✓ Repository hygiene complete — .dockerignore, git untracking, IP anonymization, branding rename, .env.example docs — v1.6 Phase 20
-- ✓ LICENSE (proprietary all-rights-reserved), CONTRIBUTING.md, and public-facing README published for open source release — v1.6 Phase 21 (DOCS-01, DOCS-02, DOCS-03)
-- ✓ CI pipeline (pytest + ruff) on push/PR, pyproject.toml tooling config, README badges — v1.6 Phase 22 (CI-01, CI-02, CI-03, CI-04)
-- [ ] Mobile dashboard: disable pinch-zoom, limit text selection on UI chrome
-- [ ] Support for multiple Sonos rooms without env var mapping (future)
+- (none — planning next milestone)
 
 ### Deferred (v2+)
 
@@ -70,17 +70,19 @@ Songs that violate family-safe rules are skipped automatically before children h
 
 ## Context
 
-- **Phase 22 complete** on 2026-04-11: CI & Tooling — pyproject.toml, GitHub Actions workflow (pytest + ruff), README badges
+- **Shipped v1.6 Open Source** on 2026-04-11: 6 phases (17–22), 10 plans — rebrand, profile info icon, mobile polish, repository hygiene, legal/docs, CI & tooling
+- **Shipped v1.5** (Phases 17–19): Rebranded to "Read the Room", added profile info icon, mobile viewport polish
 - **Shipped v1.4** on 2026-04-05: 3 phases (14–16), 7 plans — idle detection, skip history persistence, and filter profiles with split-button dashboard UI
-- **Shipped v1.3** on 2026-04-04: 13 phases total, drug/sexual reference detection pipeline + incident log propagation + dashboard badge variants; title-fallback scan added
-- **Shipped v1.2** on 2026-04-03: 9 phases total, 23 plans, ~1,754 lines (Python + HTML/CSS/JS + tests)
-- Tech stack: Python 3.12, asyncio, spotipy, SoCo, FastAPI, SSE, LRCLIB, better-profanity, Docker, pytest; vanilla JS frontend (no framework)
-- Codebase: ~3,931 lines Python, 904 lines HTML/CSS/JS
+- **Shipped v1.3** on 2026-04-04: drug/sexual reference detection pipeline + incident log propagation + dashboard badge variants; title-fallback scan
+- **Shipped v1.2** on 2026-04-03: Now Playing API, manual skip, severity badges
+- Tech stack: Python 3.12, asyncio, spotipy, SoCo, FastAPI, SSE, LRCLIB, better-profanity, ruff, Docker, pytest; vanilla JS frontend (no framework)
+- Codebase: ~3,931 lines Python, 1,123 lines HTML/CSS/JS
+- Tooling: `pyproject.toml` with `[tool.pytest.ini_options]` (asyncio_mode=auto) and `[tool.ruff]`; CI on GitHub Actions
 - Sonos SSDP auto-discovery via `probe_sonos_speakers()` at startup; `SONOS_SPEAKER_IPS=Name=IP,...` is explicit escape hatch for LXC/Proxmox hosts
 - Sonos in Spotify Connect mode returns error 701 on UPnP `next()` — daemon falls back to Spotify API
 - Docker healthcheck: `poll_loop()` touches `/app/.healthcheck` every cycle; 90s hang detection (interval 30s × retries 3)
 - Children are ages 3 and 7 — filtering errs on the side of caution
-- Music plays through Living Room Sonos (192.168.1.164); Dining Room IP unknown (offline)
+- README badge `YOUR_USERNAME` placeholder must be replaced with real GitHub username on first push
 - setup_auth.py requires scope `user-read-playback-state user-read-currently-playing user-modify-playback-state` — all three needed
 
 ## Key Decisions
@@ -114,19 +116,10 @@ Songs that violate family-safe rules are skipped automatically before children h
 | explicit_skip: bool = True default | Preserves all existing Tier 1 skip behavior by default; profiles opt out explicitly | ✓ Good — zero regression |
 | Split-button (left=FSM toggle, right=▾ dropdown) | Separates two orthogonal controls (on/off vs. which profile) into one compact compound element | ✓ Good — verified intuitive in UAT |
 | Dropdown closes on SSE disconnect (not reconnect) | User expects dropdown to close when connection drops, not after it restores — avoids stale open state | ✓ Good — user-verified |
-
----
-## Current Milestone: v1.6 Open Source
-
-**Goal:** Prepare the repository for public release so strangers can clone, understand, and run Read the Room.
-
-**Target features:**
-- LICENSE file
-- README rewritten for a public audience (clear setup, what it does, what you need)
-- CONTRIBUTING.md — how to file issues, submit PRs, project structure overview
-- Sanitize hardcoded personal details in code and docs (IPs, personal context)
-- GitHub Actions CI — run test suite on push/PR
-- Repository hygiene audit — `.gitignore` complete, no secrets in history
+| Proprietary license (not MIT) despite public release | Repository is public for visibility; code is not freely reusable — all-rights-reserved Gallarno Technology LLC | ✓ Good |
+| ruff added to requirements.txt (not installed separately in CI) | Single `pip install -r requirements.txt` step covers all deps including linter — no extra CI install step | ✓ Good |
+| asyncio_mode = "auto" in pyproject.toml | Forward-compatible with pytest-asyncio 1.0 strict mode default change; suppresses deprecation warnings | ✓ Good |
+| CI badge uses Proprietary not MIT | REQUIREMENTS.md CI-04 said "MIT badge" but LICENSE is all-rights-reserved — badge must match actual license | ✓ Good — intentional deviation from requirements |
 
 ## Evolution
 
@@ -146,4 +139,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-10 after Phase 21 complete — LICENSE, CONTRIBUTING.md, and public README published.*
+*Last updated: 2026-04-11 after v1.6 Open Source milestone — repository published with CI, LICENSE, and public README.*

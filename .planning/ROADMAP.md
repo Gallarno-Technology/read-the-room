@@ -8,7 +8,7 @@
 - ✅ **v1.3 Drug & Sexual Reference Detection** — Phases 9-13 (shipped 2026-04-04)
 - ✅ **v1.4 Dashboard Polish & Filter Profiles** — Phases 14-16 (shipped 2026-04-05)
 - ✅ **v1.5 Dashboard Polish & Mobile UX** — Phases 17-19 (shipped 2026-04-06)
-- 🚧 **v1.6 Open Source** — Phases 20-22 (in progress)
+- ✅ **v1.6 Open Source** — Phases 20-22 (shipped 2026-04-11)
 
 ## Phases
 
@@ -68,97 +68,14 @@
 
 </details>
 
-### 🚧 v1.6 Open Source (In Progress)
+<details>
+<summary>✅ v1.6 Open Source (Phases 20-22) — SHIPPED 2026-04-11</summary>
 
-**Milestone Goal:** Prepare the repository for public release so strangers can clone, understand, and run Read the Room.
+- [x] Phase 20: Repository Hygiene (2/2 plans) — completed 2026-04-08
+- [x] Phase 21: Legal & Docs (2/2 plans) — completed 2026-04-10
+- [x] Phase 22: CI & Tooling (3/3 plans) — completed 2026-04-11
 
-- [x] **Phase 20: Repository Hygiene** — Remove personal data, fix credential exposure, sanitize branding and IPs (completed 2026-04-08)
-- [x] **Phase 21: Legal & Docs** — Add LICENSE, rewrite README for strangers, create CONTRIBUTING.md (completed 2026-04-10)
-- [x] **Phase 22: CI & Tooling** — GitHub Actions CI, pyproject.toml, ruff lint/format, README badges (completed 2026-04-11)
-
-## Phase Details
-
-### Phase 17: Rebrand
-**Goal**: The app presents itself as "Read the Room" everywhere a user sees its name
-**Depends on**: Phase 16
-**Requirements**: RBR-01, RBR-02
-**Success Criteria** (what must be TRUE):
-  1. Browser tab shows "Read the Room" as the page title
-  2. Dashboard heading displays "Read the Room" (not "Spotify Family Safe Mode")
-  3. README.md header and opening paragraph reference "Read the Room"
-**Plans**: 1 plan
-Plans:
-- [x] 17-01-PLAN.md — Rename all user-visible display strings to "Read the Room" in index.html and README.md
-**UI hint**: yes
-
-### Phase 18: Profile Info Icon
-**Goal**: Parents can see exactly what content each filter profile blocks without leaving the dashboard
-**Depends on**: Phase 17
-**Requirements**: INFO-01, INFO-02
-**Success Criteria** (what must be TRUE):
-  1. An info icon (ⓘ) is visible on the FSM control card at all times, regardless of FSM state
-  2. Tapping or clicking the icon reveals a readable breakdown of what the active profile skips (profanity level, drug refs, sexual content, explicit flag)
-  3. The breakdown updates when the active profile changes
-**Plans**: 1 plan
-Plans:
-- [x] 18-01-PLAN.md — Add ⓘ info button to FSM card with responsive desktop popover and mobile bottom-sheet reveal
-**UI hint**: yes
-
-### Phase 19: Mobile Polish
-**Goal**: The dashboard behaves predictably on mobile — no accidental zoom or text selection on UI chrome
-**Depends on**: Phase 18
-**Requirements**: MOB-01, MOB-02
-**Success Criteria** (what must be TRUE):
-  1. Pinch-zoom and double-tap zoom are disabled on the dashboard viewport on mobile
-  2. Buttons, badges, labels, and profile options cannot be accidentally selected as text
-  3. Track title and artist text remain selectable (not affected by selection restriction)
-**Plans**: 1 plan
-Plans:
-- [x] 19-01-PLAN.md — Viewport meta zoom tokens + CSS user-select/touch-action rules in index.html
-**UI hint**: yes
-
-### Phase 20: Repository Hygiene
-**Goal**: The repository is safe and non-embarrassing to make public — no credential exposure vectors, no personal data, no stale branding
-**Depends on**: Phase 19
-**Requirements**: HYG-01, HYG-02, HYG-03, HYG-04, HYG-05
-**Success Criteria** (what must be TRUE):
-  1. A Docker build from the project root cannot bake `.env` or `token_cache/` into the image (`.dockerignore` present and effective)
-  2. `.claude/` directory is absent from `git ls-files` output and added to `.gitignore`
-  3. `tests/test_sonos_probe.py` contains no personal IP address — all occurrences replaced with `192.168.1.100`
-  4. No module docstring, FastAPI title, or user-agent string in source code references "Spotify Family Safe Mode"
-  5. `.env.example` documents `UID`, `GID`, and `EVENTS_PATH` with explanatory comments
-**Plans**: 2 plans
-Plans:
-- [x] 20-01-PLAN.md — Create .dockerignore and untrack .claude/ from git (HYG-01, HYG-02)
-- [x] 20-02-PLAN.md — Replace personal IP, rename branding strings, update .env.example (HYG-03, HYG-04, HYG-05)
-
-### Phase 21: Legal & Docs
-**Goal**: A stranger who finds the repository has legal permission to use it, a clear explanation of what it does, and a documented path to contributing
-**Depends on**: Phase 20
-**Requirements**: DOCS-01, DOCS-02, DOCS-03
-**Success Criteria** (what must be TRUE):
-  1. `LICENSE` (MIT) is present at the repository root
-  2. README opens with a stranger-facing lede — what the project is, hardware prerequisites, and quick start — without assuming prior knowledge of the author's setup
-  3. `CONTRIBUTING.md` exists and covers local dev setup, how to run tests, and how to submit a PR
-**Plans**: 2 plans
-Plans:
-- [x] 21-01-PLAN.md — Create LICENSE (MIT) and CONTRIBUTING.md (DOCS-01, DOCS-03)
-- [x] 21-02-PLAN.md — Rewrite README.md for a stranger-facing audience (DOCS-02)
-
-### Phase 22: CI & Tooling
-**Goal**: The repository signals it is maintained — tests and lint pass in CI from the first day the public link goes out
-**Depends on**: Phase 21
-**Requirements**: CI-01, CI-02, CI-03, CI-04
-**Success Criteria** (what must be TRUE):
-  1. A push or pull request triggers GitHub Actions and runs the full `pytest tests/` suite without real Spotify credentials
-  2. Ruff lint and format checks run in CI and fail the workflow on violations
-  3. `pyproject.toml` exists at the repository root with `[tool.pytest.ini_options]` and `[tool.ruff]` sections
-  4. README header displays a live CI status badge and a license badge
-**Plans**: 3 plans
-Plans:
-- [x] 22-01-PLAN.md — Create pyproject.toml and add ruff to requirements.txt (CI-02, CI-03)
-- [x] 22-02-PLAN.md — Create .github/workflows/ci.yml with pytest and ruff steps (CI-01, CI-03)
-- [x] 22-03-PLAN.md — Add CI status and license badges to README.md header (CI-04)
+</details>
 
 ## Progress
 
