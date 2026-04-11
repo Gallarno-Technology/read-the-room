@@ -1,4 +1,5 @@
-<!-- CI badges: added in Phase 22 -->
+[![CI](https://github.com/YOUR_USERNAME/read-the-room/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/read-the-room/actions/workflows/ci.yml)
+[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)](LICENSE)
 
 # Read the Room
 
