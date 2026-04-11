@@ -25,8 +25,8 @@ Requirements for the open source release milestone. Each maps to a roadmap phase
 ### CI & Tooling
 
 - [ ] **CI-01**: `.github/workflows/ci.yml` runs `pytest tests/` on push and pull_request (all tests mocked — no real credentials needed)
-- [ ] **CI-02**: `pyproject.toml` created with `[tool.pytest.ini_options]` and `[tool.ruff]` sections (no `[build-system]` — not a PyPI package)
-- [ ] **CI-03**: Ruff lint/format check added to CI workflow
+- [x] **CI-02**: `pyproject.toml` created with `[tool.pytest.ini_options]` and `[tool.ruff]` sections (no `[build-system]` — not a PyPI package)
+- [x] **CI-03**: Ruff lint/format check added to CI workflow
 - [ ] **CI-04**: README header includes CI status badge and MIT license badge
 
 ## Future Requirements
@@ -66,8 +66,8 @@ Requirements for the open source release milestone. Each maps to a roadmap phase
 | DOCS-02 | Phase 21 | Complete |
 | DOCS-03 | Phase 21 | Complete |
 | CI-01 | Phase 22 | Pending |
-| CI-02 | Phase 22 | Pending |
-| CI-03 | Phase 22 | Pending |
+| CI-02 | Phase 22 | Complete |
+| CI-03 | Phase 22 | Complete |
 | CI-04 | Phase 22 | Pending |
 
 **Coverage:**

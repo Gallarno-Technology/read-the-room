@@ -153,8 +153,12 @@ Plans:
   1. A push or pull request triggers GitHub Actions and runs the full `pytest tests/` suite without real Spotify credentials
   2. Ruff lint and format checks run in CI and fail the workflow on violations
   3. `pyproject.toml` exists at the repository root with `[tool.pytest.ini_options]` and `[tool.ruff]` sections
-  4. README header displays a live CI status badge and a static MIT license badge
-**Plans**: TBD
+  4. README header displays a live CI status badge and a license badge
+**Plans**: 3 plans
+Plans:
+- [x] 22-01-PLAN.md — Create pyproject.toml and add ruff to requirements.txt (CI-02, CI-03)
+- [ ] 22-02-PLAN.md — Create .github/workflows/ci.yml with pytest and ruff steps (CI-01, CI-03)
+- [ ] 22-03-PLAN.md — Add CI status and license badges to README.md header (CI-04)
 
 ## Progress
 
@@ -181,5 +185,5 @@ Plans:
 | 18. Profile Info Icon | v1.5 | 1/1 | Complete | 2026-04-06 |
 | 19. Mobile Polish | v1.5 | 1/1 | Complete | 2026-04-06 |
 | 20. Repository Hygiene | v1.6 | 2/2 | Complete    | 2026-04-08 |
-| 21. Legal & Docs | v1.6 | 2/2 | Complete   | 2026-04-10 |
-| 22. CI & Tooling | v1.6 | 0/? | Not started | - |
+| 21. Legal & Docs | v1.6 | 2/2 | Complete    | 2026-04-10 |
+| 22. CI & Tooling | v1.6 | 1/3 | In Progress|  |

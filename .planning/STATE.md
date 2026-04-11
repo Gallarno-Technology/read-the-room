@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Open Source
-status: verifying
-stopped_at: Completed 21-legal-docs-02-PLAN.md
-last_updated: "2026-04-10T22:50:17.187Z"
-last_activity: 2026-04-10
+status: executing
+stopped_at: Completed 22-ci-tooling-01-PLAN.md
+last_updated: "2026-04-11T12:56:29.275Z"
+last_activity: 2026-04-11
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 10
+  completed_plans: 8
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Phase 21 — legal-docs
+**Current focus:** Phase 22 — CI & Tooling
 
 ## Current Position
 
-Phase: 21 (legal-docs) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
-Last activity: 2026-04-10
+Phase: 22 (CI & Tooling) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-04-11
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -51,6 +51,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 20-repository-hygiene P02 | 8 | 3 tasks | 9 files |
 | Phase 21-legal-docs P01 | 2 | 2 tasks | 2 files |
 | Phase 21-legal-docs P02 | 1 | 1 tasks | 1 files |
+| Phase 22-ci-tooling P01 | 1 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,7 @@ Recent decisions affecting current work:
 - [Phase 20-repository-hygiene]: Replace personal IP 192.168.1.164 with 192.168.1.100 in test fixtures; module docstrings drop phase numbers during brand rename; snake_case family_safe_mode key preserved per D-04
 - [Phase 21-legal-docs]: LICENSE is proprietary all-rights-reserved single-line notice for Gallarno Technology LLC (not MIT — task action was authoritative over objective description)
 - [Phase 21-legal-docs]: README License section states proprietary software — consistent with Phase 21 Plan 01 outcome where LICENSE is all-rights-reserved
+- [Phase 22-ci-tooling]: No [build-system] in pyproject.toml — project is not a PyPI package; asyncio_mode=auto set for pytest-asyncio 1.0 forward-compatibility
 
 ### Pending Todos
 
@@ -79,6 +81,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-10T22:50:17.186Z
-Stopped at: Completed 21-legal-docs-02-PLAN.md
+Last session: 2026-04-11T12:56:29.273Z
+Stopped at: Completed 22-ci-tooling-01-PLAN.md
 Resume file: None
