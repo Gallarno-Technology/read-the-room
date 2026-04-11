@@ -47,6 +47,8 @@ Songs that violate family-safe rules are skipped automatically before children h
 - ✓ Rebrand app display name to "Read the Room" across UI, README, and project docs — v1.5 Phase 17
 - ✓ Info icon (ⓘ) on FSM card showing what the active profile skips — v1.5 Phase 18
 - ✓ Repository hygiene complete — .dockerignore, git untracking, IP anonymization, branding rename, .env.example docs — v1.6 Phase 20
+- ✓ LICENSE (proprietary all-rights-reserved), CONTRIBUTING.md, and public-facing README published for open source release — v1.6 Phase 21 (DOCS-01, DOCS-02, DOCS-03)
+- ✓ CI pipeline (pytest + ruff) on push/PR, pyproject.toml tooling config, README badges — v1.6 Phase 22 (CI-01, CI-02, CI-03, CI-04)
 - [ ] Mobile dashboard: disable pinch-zoom, limit text selection on UI chrome
 - [ ] Support for multiple Sonos rooms without env var mapping (future)
 
@@ -68,6 +70,7 @@ Songs that violate family-safe rules are skipped automatically before children h
 
 ## Context
 
+- **Phase 22 complete** on 2026-04-11: CI & Tooling — pyproject.toml, GitHub Actions workflow (pytest + ruff), README badges
 - **Shipped v1.4** on 2026-04-05: 3 phases (14–16), 7 plans — idle detection, skip history persistence, and filter profiles with split-button dashboard UI
 - **Shipped v1.3** on 2026-04-04: 13 phases total, drug/sexual reference detection pipeline + incident log propagation + dashboard badge variants; title-fallback scan added
 - **Shipped v1.2** on 2026-04-03: 9 phases total, 23 plans, ~1,754 lines (Python + HTML/CSS/JS + tests)
@@ -143,4 +146,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-07 after v1.6 milestone start — open source preparation.*
+*Last updated: 2026-04-10 after Phase 21 complete — LICENSE, CONTRIBUTING.md, and public README published.*
