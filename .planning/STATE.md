@@ -4,7 +4,7 @@ milestone: v1.6
 milestone_name: Open Source
 status: verifying
 stopped_at: Completed 22-ci-tooling-03-PLAN.md
-last_updated: "2026-04-11T13:00:50.306Z"
+last_updated: "2026-04-11T13:03:44.802Z"
 last_activity: 2026-04-11
 progress:
   total_phases: 6
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-07)
 
 ## Current Position
 
-Phase: 22 (CI & Tooling) — EXECUTING
-Plan: 3 of 3
+Phase: 22
+Plan: Not started
 Status: Phase complete — ready for verification
 Last activity: 2026-04-11
 
