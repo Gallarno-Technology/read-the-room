@@ -19,7 +19,7 @@ Requirements for the open source release milestone. Each maps to a roadmap phase
 ### Legal & Docs
 
 - [x] **DOCS-01**: `LICENSE` (MIT) present at repository root
-- [ ] **DOCS-02**: `README.md` rewritten for a public audience — description, prerequisites, quick start, how it works, filter profiles, Sonos notes, repo named `read-the-room`
+- [x] **DOCS-02**: `README.md` rewritten for a public audience — description, prerequisites, quick start, how it works, filter profiles, Sonos notes, repo named `read-the-room`
 - [x] **DOCS-03**: `CONTRIBUTING.md` created — filing issues, submitting PRs, project layout, local dev setup
 
 ### CI & Tooling
@@ -63,7 +63,7 @@ Requirements for the open source release milestone. Each maps to a roadmap phase
 | HYG-04 | Phase 20 | Complete |
 | HYG-05 | Phase 20 | Complete |
 | DOCS-01 | Phase 21 | Complete |
-| DOCS-02 | Phase 21 | Pending |
+| DOCS-02 | Phase 21 | Complete |
 | DOCS-03 | Phase 21 | Complete |
 | CI-01 | Phase 22 | Pending |
 | CI-02 | Phase 22 | Pending |

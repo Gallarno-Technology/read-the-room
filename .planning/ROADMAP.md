@@ -73,7 +73,7 @@
 **Milestone Goal:** Prepare the repository for public release so strangers can clone, understand, and run Read the Room.
 
 - [x] **Phase 20: Repository Hygiene** — Remove personal data, fix credential exposure, sanitize branding and IPs (completed 2026-04-08)
-- [ ] **Phase 21: Legal & Docs** — Add LICENSE, rewrite README for strangers, create CONTRIBUTING.md
+- [x] **Phase 21: Legal & Docs** — Add LICENSE, rewrite README for strangers, create CONTRIBUTING.md (completed 2026-04-10)
 - [ ] **Phase 22: CI & Tooling** — GitHub Actions CI, pyproject.toml, ruff lint/format, README badges
 
 ## Phase Details
@@ -143,7 +143,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 21-01-PLAN.md — Create LICENSE (MIT) and CONTRIBUTING.md (DOCS-01, DOCS-03)
-- [ ] 21-02-PLAN.md — Rewrite README.md for a stranger-facing audience (DOCS-02)
+- [x] 21-02-PLAN.md — Rewrite README.md for a stranger-facing audience (DOCS-02)
 
 ### Phase 22: CI & Tooling
 **Goal**: The repository signals it is maintained — tests and lint pass in CI from the first day the public link goes out
@@ -181,5 +181,5 @@ Plans:
 | 18. Profile Info Icon | v1.5 | 1/1 | Complete | 2026-04-06 |
 | 19. Mobile Polish | v1.5 | 1/1 | Complete | 2026-04-06 |
 | 20. Repository Hygiene | v1.6 | 2/2 | Complete    | 2026-04-08 |
-| 21. Legal & Docs | v1.6 | 1/2 | In Progress|  |
+| 21. Legal & Docs | v1.6 | 2/2 | Complete   | 2026-04-10 |
 | 22. CI & Tooling | v1.6 | 0/? | Not started | - |
