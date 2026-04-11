@@ -200,14 +200,18 @@ async def test_no_lyrics_profanity_title_skips(checker_with_scanners):
 
 @pytest.mark.asyncio
 async def test_no_lyrics_no_scanners_allows():
-    """With no scanners wired, no-lyrics path still returns lyrics_unavailable allow."""
+    """With lyrics service but no scanners wired, no-lyrics path returns lyrics_unavailable allow.
+
+    Previously returned no_lyrics_service (bug: gate required profanity_scanner to be non-None).
+    Fixed: gate is now lyrics_service is not None only; scanners are called conditionally.
+    """
     lyrics_svc = MagicMock()
     lyrics_svc.get_lyrics = AsyncMock(return_value=_make_lyrics_result(lyrics=None))
-    # profanity_scanner is None — no scan block entered at all
+    # profanity_scanner is None — pipeline still runs, all scanner calls are skipped
     checker = ContentChecker(lyrics_service=lyrics_svc, profanity_scanner=None)
     result = await checker.check(_make_track(name="Cocaine", artist="Artist"))
     assert result.action == "allow"
-    assert result.reason == "no_lyrics_service"
+    assert result.reason == "lyrics_unavailable"
 
 
 @pytest.mark.asyncio
