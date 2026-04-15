@@ -42,7 +42,7 @@ def main() -> None:
         client_id=os.environ["SPOTIFY_CLIENT_ID"],
         client_secret=os.environ["SPOTIFY_CLIENT_SECRET"],
         redirect_uri=os.environ["SPOTIFY_REDIRECT_URI"],
-        scope="user-read-playback-state user-read-currently-playing user-modify-playback-state",
+        scope="user-read-currently-playing user-modify-playback-state",
         open_browser=False,  # D-01: print URL, do not auto-open browser
         cache_handler=cache_handler,
     )
