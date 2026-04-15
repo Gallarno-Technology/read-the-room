@@ -12,9 +12,14 @@ Tiers 2 and 3 are stubbed in this plan (Plan 01) — the conditional check on
 ``self.lyrics_service is not None`` keeps them dormant until Plan 02 wires in
 LyricsService and ProfanityScanner.
 """
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from track_cache import TrackCache
 
 log = logging.getLogger(__name__)
 
@@ -61,6 +66,7 @@ class ContentChecker:
         sexual_content_scanner=None,
         min_severity: int = 2,
         explicit_skip: bool = True,   # D-16: when False, Tier 1 explicit check is bypassed
+        track_cache: "TrackCache | None" = None,  # D-05: injected seam, None disables caching
     ) -> None:
         self.lyrics_service = lyrics_service
         self.profanity_scanner = profanity_scanner
@@ -68,9 +74,13 @@ class ContentChecker:
         self.sexual_content_scanner = sexual_content_scanner
         self.min_severity = min_severity
         self.explicit_skip = explicit_skip
+        self.track_cache = track_cache
 
     async def check(self, track: dict) -> "TrackEvalResult":
         """Check a track against content filter rules.
+
+        Cache fast-path: if track_cache is set and the track is already cached,
+        returns the cached result immediately without running the pipeline (D-06).
 
         Args:
             track: Spotify track object from currently_playing() API response.
@@ -83,6 +93,26 @@ class ContentChecker:
                       'clean' | 'lyrics_unavailable' | 'no_lyrics_service' |
                       'drug_reference' | 'sexual_content'
             - severity: 0-3 (0=none, 1=mild, 2=moderate, 3=severe)
+        """
+        # Cache fast-path (D-06 step 1) — runs before Tier 1
+        if self.track_cache is not None:
+            cached = await self.track_cache.get(track["id"])
+            if cached is not None:
+                return cached
+
+        # Run the full five-tier pipeline
+        result = await self._run_pipeline(track)
+
+        # Cache write after pipeline completes (D-06 step 3)
+        if self.track_cache is not None:
+            await self.track_cache.put(track["id"], result)
+        return result
+
+    async def _run_pipeline(self, track: dict) -> "TrackEvalResult":
+        """Execute the five-tier content filter pipeline.
+
+        Contains the unchanged pipeline body — all existing scan logic, logging,
+        and return values are preserved verbatim.
         """
         track_name = track.get("name", "unknown")
         artist_name = track["artists"][0]["name"] if track.get("artists") else "unknown"
