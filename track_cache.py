@@ -80,8 +80,13 @@ class SQLiteTrackCache(TrackCache):
     async def _ensure_db(self) -> aiosqlite.Connection:
         """Lazily open the aiosqlite connection and create the eval_results table."""
         if self._db is None:
-            self._db = await aiosqlite.connect(self.db_path)
-            await self._db.executescript(CREATE_EVAL_TABLE)
+            db = await aiosqlite.connect(self.db_path)
+            try:
+                await db.executescript(CREATE_EVAL_TABLE)
+            except Exception:
+                await db.close()
+                raise
+            self._db = db
         return self._db
 
     async def get(self, track_id: str) -> TrackEvalResult | None:

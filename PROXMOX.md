@@ -8,7 +8,7 @@ Sonos speakers are discovered via SSDP (Simple Service Discovery Protocol), whic
 
 When the daemon runs inside a Proxmox LXC container, it uses `network_mode: host` — sharing the host's network stack. However, multicast traffic is not always forwarded across the Linux bridge (typically `vmbr0`) into LXC network namespaces by default.
 
-When SSDP fails, the daemon logs:
+When SSDP fails, the daemon logs
 
 ```
 [SONOS] No speakers found via SSDP. Check firewall (allow UDP 1900 multicast) and Proxmox bridge multicast forwarding. Set SONOS_SPEAKER_IPS as a fallback.
