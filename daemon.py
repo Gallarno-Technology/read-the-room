@@ -440,26 +440,26 @@ async def poll_loop(
                             device_name, is_restricted,
                         )
 
-                        result = await content_checker.check(track)
+                        eval_result = await content_checker.check(track)
 
                         # D-09: [SCAN] log is emitted inside content_checker.check()
                         # for all code paths (explicit, instrumental, profanity, clean, etc.)
 
-                        if result.action == "allow":
+                        if eval_result.action == "allow":
                             consecutive_skips = 0
                             # DAEM-02: emit eval_result for every allowed track
-                            eval_state = _eval_state_from_result(result.action, result.reason)
+                            eval_state = _eval_state_from_result(eval_result.action, eval_result.reason)
                             _emit_eval_result(
                                 track_id=track_id,
                                 track_name=track["name"],
                                 artist=track["artists"][0]["name"],
                                 album_art_url=album_art_url,
                                 eval_state=eval_state,
-                                severity=result.severity,
-                                result=result,
+                                severity=eval_result.severity,
+                                result=eval_result,
                             )
 
-                        if result.action == "skip":
+                        if eval_result.action == "skip":
                             # SKIP-03: Select skip client based on is_restricted (D-01).
                             # When Spotify Connect controls a Sonos, UPnP next() fails with
                             # error 701 (queue owned by Spotify, not Sonos). Fall back to
@@ -493,8 +493,8 @@ async def poll_loop(
                                     artist=track["artists"][0]["name"],
                                     album_art_url=album_art_url,
                                     eval_state="paused",
-                                    severity=result.severity,
-                                    result=result,
+                                    severity=eval_result.severity,
+                                    result=eval_result,
                                 )
                             else:
                                 success = await client.skip(device_name, device.get("id"))
@@ -506,7 +506,7 @@ async def poll_loop(
                                     # D-07: Structured skip log
                                     log.info(
                                         "[SKIP] reason=%s track=%r artist=%r",
-                                        result.reason,
+                                        eval_result.reason,
                                         track["name"],
                                         track["artists"][0]["name"],
                                     )
@@ -515,22 +515,22 @@ async def poll_loop(
                                         "type": "skip",
                                         "track": track["name"],
                                         "artist": track["artists"][0]["name"],
-                                        "reason": result.reason,
-                                        "explicit": result.explicit,
-                                        "profanity": result.profanity,
-                                        "drug_reference": result.drug_reference,
-                                        "sexual_content": result.sexual_content,
+                                        "reason": eval_result.reason,
+                                        "explicit": eval_result.explicit,
+                                        "profanity": eval_result.profanity,
+                                        "drug_reference": eval_result.drug_reference,
+                                        "sexual_content": eval_result.sexual_content,
                                         "timestamp": time.strftime("%H:%M:%S"),
                                     })
                                     _append_event({
                                         "type": "skip",
                                         "track": track["name"],
                                         "artist": track["artists"][0]["name"],
-                                        "reason": result.reason,
-                                        "explicit": result.explicit,
-                                        "profanity": result.profanity,
-                                        "drug_reference": result.drug_reference,
-                                        "sexual_content": result.sexual_content,
+                                        "reason": eval_result.reason,
+                                        "explicit": eval_result.explicit,
+                                        "profanity": eval_result.profanity,
+                                        "drug_reference": eval_result.drug_reference,
+                                        "sexual_content": eval_result.sexual_content,
                                         "timestamp": time.strftime("%H:%M:%S"),
                                     })
                                     consecutive_skips += 1
@@ -541,13 +541,13 @@ async def poll_loop(
                                         artist=track["artists"][0]["name"],
                                         album_art_url=album_art_url,
                                         eval_state="skipped",
-                                        severity=result.severity,
-                                        result=result,
+                                        severity=eval_result.severity,
+                                        result=eval_result,
                                     )
                                 else:
                                     log.warning(
                                         "[SKIP_FAILED] reason=%s track=%r artist=%r",
-                                        result.reason,
+                                        eval_result.reason,
                                         track["name"],
                                         track["artists"][0]["name"],
                                     )
