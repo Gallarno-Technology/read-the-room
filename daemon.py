@@ -5,6 +5,8 @@ Polls Spotify /me/player/currently-playing every POLL_INTERVAL_SECONDS,
 detects track changes by comparing track IDs, logs meaningful events, and
 runs headlessly inside Docker with graceful SIGTERM shutdown.
 """
+from __future__ import annotations
+
 import asyncio
 import datetime
 import json
@@ -16,18 +18,19 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from dotenv import load_dotenv
 import soco.discovery
 import spotipy
+from dotenv import load_dotenv
 from spotipy.exceptions import SpotifyException
 from spotipy.oauth2 import CacheFileHandler, SpotifyOAuth
 
-from content_checker import ContentChecker
+from content_checker import ContentChecker, TrackEvalResult
+from drug_scanner import DrugScanner
 from lyrics_service import LyricsService
 from profanity_scanner import ProfanityScanner
-from drug_scanner import DrugScanner
 from sexual_content_scanner import SexualContentScanner
 from skip_client import SocoSkipClient, SpotifySkipClient
+from track_cache import SQLiteTrackCache
 
 load_dotenv()
 
@@ -245,6 +248,7 @@ def _build_content_checker(
     profanity_scanner,
     drug_scanner,
     sexual_content_scanner,
+    track_cache=None,   # D-07: default None disables caching
 ) -> ContentChecker:
     """Construct ContentChecker from the active profile config (D-14, D-15, PROF-03).
 
@@ -255,6 +259,7 @@ def _build_content_checker(
     Args:
         profile_key: Key from PROFILE_MAP (e.g. "kids_present"). Falls back to
             "kids_present" if unknown.
+        track_cache: TrackCache instance for result caching, or None to disable.
     """
     cfg = PROFILE_MAP.get(profile_key, PROFILE_MAP["kids_present"])
     use_lyrics = cfg.get("lyrics", True)
@@ -266,6 +271,7 @@ def _build_content_checker(
         sexual_content_scanner=sexual_content_scanner if cfg["sexual"] else None,
         min_severity=cfg["min_severity"],
         explicit_skip=cfg["explicit_skip"],
+        track_cache=track_cache,
     )
 
 
@@ -321,6 +327,7 @@ async def poll_loop(
     profanity_scanner=None,
     drug_scanner=None,
     sexual_content_scanner=None,
+    track_cache=None,
 ) -> None:
     """Main polling coroutine. Runs until stop_event is set."""
     state = load_state()
@@ -393,6 +400,7 @@ async def poll_loop(
                             profanity_scanner,
                             drug_scanner,
                             sexual_content_scanner,
+                            track_cache,
                         )
                         prev_profile = current_profile
                         log.info("[PROFILE] switched to %r", current_profile)
@@ -626,13 +634,15 @@ async def main() -> None:
 
     # Phase 2 + Phase 16: Build scanner instances once; ContentChecker is profile-aware
     lyrics_service = LyricsService(db_path=LYRICS_DB_PATH)
+    track_cache = SQLiteTrackCache(db_path=LYRICS_DB_PATH)
     profanity_scanner = ProfanityScanner(min_severity=PROFANITY_MIN_SEVERITY)
     drug_scanner = DrugScanner()
     sexual_content_scanner = SexualContentScanner()
     startup_state = load_state()
     startup_profile = startup_state.get("active_profile", "kids_present")
     content_checker = _build_content_checker(
-        startup_profile, lyrics_service, profanity_scanner, drug_scanner, sexual_content_scanner
+        startup_profile, lyrics_service, profanity_scanner, drug_scanner,
+        sexual_content_scanner, track_cache
     )
     log.info("[PROFILE] startup profile: %r", startup_profile)
     soco_skip = SocoSkipClient()
@@ -651,8 +661,10 @@ async def main() -> None:
         profanity_scanner,
         drug_scanner,
         sexual_content_scanner,
+        track_cache,
     )
     await lyrics_service.close()
+    await track_cache.close()
     log.info("Daemon stopped cleanly")
 
 
