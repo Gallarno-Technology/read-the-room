@@ -1,80 +1,89 @@
 # Requirements: Read the Room
 
 **Defined:** 2026-04-08
-**Milestone:** v1.6 — Open Source
+**Milestone:** v1.7 — Cloud-Ready Architecture
 **Core Value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
 
-## v1.6 Requirements
+## v1.7 Requirements
 
-Requirements for the open source release milestone. Each maps to a roadmap phase.
+Refactor the daemon to expose four injectable seams. All seams default to current OSS
+behavior — zero functional change for self-hosters. Cloud implementations live outside
+this repo and plug in at startup.
 
-### Repository Hygiene
+### TrackCache
 
-- [x] **HYG-01**: A `.dockerignore` exists so live OAuth tokens, `.env`, and runtime data directories are excluded from Docker build context
-- [x] **HYG-02**: `.claude/` directory is untracked from git and added to `.gitignore`
-- [x] **HYG-03**: Personal IP `192.168.1.164` replaced with generic placeholder (`192.168.1.100`) in `tests/test_sonos_probe.py`
-- [x] **HYG-04**: "Spotify Family Safe Mode" replaced with "Read the Room" in all module docstrings and source strings (user-agent in `lyrics_service.py`, FastAPI title in `web_ui/main.py`)
-- [x] **HYG-05**: `.env.example` updated to include `UID`, `GID`, and `EVENTS_PATH` with explanatory comments
+- [ ] **CACHE-01**: `TrackCache` abstract interface defined with `get(track_id)` and `put(track_id, data)` methods covering both lyrics and analysis results
+- [ ] **CACHE-02**: `SQLiteTrackCache` implements `TrackCache` as the OSS default, consolidating existing SQLite lyrics cache and adding analysis result storage in the same DB
+- [ ] **CACHE-03**: `ContentChecker` accepts an injected `TrackCache`; checks cache before running pipeline (cache hit skips full scan), writes result after pipeline completes
+- [ ] **CACHE-04**: Daemon wires `SQLiteTrackCache` by default; passing `None` disables caching entirely
 
-### Legal & Docs
+### EventEmitter
 
-- [x] **DOCS-01**: `LICENSE` (MIT) present at repository root
-- [ ] **DOCS-02**: `README.md` rewritten for a public audience — description, prerequisites, quick start, how it works, filter profiles, Sonos notes, repo named `read-the-room`
-- [x] **DOCS-03**: `CONTRIBUTING.md` created — filing issues, submitting PRs, project layout, local dev setup
+- [ ] **EMIT-01**: `EventEmitter` abstract interface defined with a single `emit(event: dict)` async method
+- [ ] **EMIT-02**: `FileEventEmitter` implements `EventEmitter` — writes to `events.jsonl` and puts to SSE queue (current behavior, unchanged)
+- [ ] **EMIT-03**: All `_append_event()` calls and `skip_event_queue.put_nowait()` calls in `daemon.py` replaced with a single `event_emitter.emit()` call
+- [ ] **EMIT-04**: Daemon wires `FileEventEmitter` by default
 
-### CI & Tooling
+### SkipExecutor
 
-- [ ] **CI-01**: `.github/workflows/ci.yml` runs `pytest tests/` on push and pull_request (all tests mocked — no real credentials needed)
-- [ ] **CI-02**: `pyproject.toml` created with `[tool.pytest.ini_options]` and `[tool.ruff]` sections (no `[build-system]` — not a PyPI package)
-- [ ] **CI-03**: Ruff lint/format check added to CI workflow
-- [ ] **CI-04**: README header includes CI status badge and MIT license badge
+- [ ] **SKIP-01**: `SkipExecutor` abstract interface defined with `skip(track, device)` and `pause(device)` async methods
+- [ ] **SKIP-02**: `DefaultSkipExecutor` implements `SkipExecutor` with existing Spotify-first → Sonos-fallback chain (current behavior, unchanged)
+- [ ] **SKIP-03**: Daemon wires `DefaultSkipExecutor` by default; skip and pause calls routed through the injected executor
 
-## Future Requirements
+### AnalysisBackend
 
-### Community Infrastructure
+- [ ] **ANLYS-01**: `AnalysisBackend` abstract interface defined with `analyze(track: dict, result: TrackEvalResult)` async method
+- [ ] **ANLYS-02**: `NoOpAnalysisBackend` implements `AnalysisBackend` (returns immediately, does nothing) — OSS default
+- [ ] **ANLYS-03**: Daemon calls `analysis_backend.analyze()` after pipeline completes, non-blocking (fire-and-forget via `asyncio.create_task`); skip decision is never delayed by analysis
+- [ ] **ANLYS-04**: Daemon wires `NoOpAnalysisBackend` by default
 
-- **COM-01**: Issue templates (bug report, feature request)
-- **COM-02**: Pull request template
-- **COM-03**: Code of conduct (Contributor Covenant)
-- **COM-04**: SECURITY.md — vulnerability reporting policy
+### Test Coverage
 
-### Hosted Version Prep
+- [ ] **TEST-01**: Unit tests verify each default OSS implementation preserves current behavior (FileEventEmitter writes jsonl, SQLiteTrackCache round-trips lyrics and results, DefaultSkipExecutor follows Spotify→Sonos order, NoOpAnalysisBackend completes without side effects)
+- [ ] **TEST-02**: Integration test verifies that injecting `None` or no-op implementations does not change daemon skip/allow outcomes
 
-- **HOST-01**: Local agent bridge mode — optional cloud connection flag
-- **HOST-02**: WebSocket relay protocol spec for cloud connectivity
+## v2+ Requirements
+
+- Custom cloud implementations of all four seams (DynamoDB cache, SQS emitter, LLM analysis backend, Spotify-only executor) — lives outside OSS repo
+- CommandReceiver seam for cloud → local Sonos command routing — deferred until cloud service is built
+- Multi-tenant coroutine runner (N users per Fargate task) — deferred until scale demands it
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| PyPI publishing | Self-hosted Docker tool, not a Python library |
-| Docker Hub image publishing | Users build locally; no image registry in scope |
-| pre-commit hooks | Nice-to-have post-launch; not a contributor blocker |
-| Hosted/multi-user architecture | Separate future project (read-the-room-cloud) |
-| Source file / repo directory rename (RBR-03) | Low value, high churn — deferred from v1.5 |
+| Sonos support in cloud daemon | Cloud daemon uses Spotify API only; Sonos is LAN-only |
+| LLM inference code | Cloud-only feature; OSS repo exposes the seam (AnalysisBackend), not the implementation |
+| Cloud infrastructure (DynamoDB, SQS, Lambda) | Outside this repo entirely |
+| New user-facing features | Pure refactor milestone — no UI or behavioral changes |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HYG-01 | Phase 20 | Complete |
-| HYG-02 | Phase 20 | Complete |
-| HYG-03 | Phase 20 | Complete |
-| HYG-04 | Phase 20 | Complete |
-| HYG-05 | Phase 20 | Complete |
-| DOCS-01 | Phase 21 | Complete |
-| DOCS-02 | Phase 21 | Pending |
-| DOCS-03 | Phase 21 | Complete |
-| CI-01 | Phase 22 | Pending |
-| CI-02 | Phase 22 | Pending |
-| CI-03 | Phase 22 | Pending |
-| CI-04 | Phase 22 | Pending |
+| CACHE-01 | Phase 23 | Pending |
+| CACHE-02 | Phase 23 | Pending |
+| CACHE-03 | Phase 23 | Pending |
+| CACHE-04 | Phase 23 | Pending |
+| EMIT-01 | Phase 24 | Pending |
+| EMIT-02 | Phase 24 | Pending |
+| EMIT-03 | Phase 24 | Pending |
+| EMIT-04 | Phase 24 | Pending |
+| SKIP-01 | Phase 25 | Pending |
+| SKIP-02 | Phase 25 | Pending |
+| SKIP-03 | Phase 25 | Pending |
+| ANLYS-01 | Phase 26 | Pending |
+| ANLYS-02 | Phase 26 | Pending |
+| ANLYS-03 | Phase 26 | Pending |
+| ANLYS-04 | Phase 26 | Pending |
+| TEST-01 | Phase 23–26 | Pending |
+| TEST-02 | Phase 26 | Pending |
 
 **Coverage:**
-- v1.6 requirements: 12 total
-- Mapped to phases: 12
+- v1.7 requirements: 17 total
+- Mapped to phases: 17
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-08*
-*Last updated: 2026-04-08 — traceability confirmed against ROADMAP.md (Phases 20-22)*
+*Last updated: 2026-04-11 after v1.7 milestone start*

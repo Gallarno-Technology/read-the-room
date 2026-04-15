@@ -33,7 +33,6 @@ DRUG_TERMS: set[str] = {
     "pcp",
     "ecstasy",
     "mdma",
-    "crack",
     # Explicit slang (D-03)
     "crystal meth",
     "sizzurp",
