@@ -19,15 +19,15 @@ Requirements for the open source release milestone. Each maps to a roadmap phase
 ### Legal & Docs
 
 - [x] **DOCS-01**: `LICENSE` (MIT) present at repository root
-- [x] **DOCS-02**: `README.md` rewritten for a public audience — description, prerequisites, quick start, how it works, filter profiles, Sonos notes, repo named `read-the-room`
+- [ ] **DOCS-02**: `README.md` rewritten for a public audience — description, prerequisites, quick start, how it works, filter profiles, Sonos notes, repo named `read-the-room`
 - [x] **DOCS-03**: `CONTRIBUTING.md` created — filing issues, submitting PRs, project layout, local dev setup
 
 ### CI & Tooling
 
-- [x] **CI-01**: `.github/workflows/ci.yml` runs `pytest tests/` on push and pull_request (all tests mocked — no real credentials needed)
-- [x] **CI-02**: `pyproject.toml` created with `[tool.pytest.ini_options]` and `[tool.ruff]` sections (no `[build-system]` — not a PyPI package)
-- [x] **CI-03**: Ruff lint/format check added to CI workflow
-- [x] **CI-04**: README header includes CI status badge and MIT license badge
+- [ ] **CI-01**: `.github/workflows/ci.yml` runs `pytest tests/` on push and pull_request (all tests mocked — no real credentials needed)
+- [ ] **CI-02**: `pyproject.toml` created with `[tool.pytest.ini_options]` and `[tool.ruff]` sections (no `[build-system]` — not a PyPI package)
+- [ ] **CI-03**: Ruff lint/format check added to CI workflow
+- [ ] **CI-04**: README header includes CI status badge and MIT license badge
 
 ## Future Requirements
 
@@ -63,12 +63,12 @@ Requirements for the open source release milestone. Each maps to a roadmap phase
 | HYG-04 | Phase 20 | Complete |
 | HYG-05 | Phase 20 | Complete |
 | DOCS-01 | Phase 21 | Complete |
-| DOCS-02 | Phase 21 | Complete |
+| DOCS-02 | Phase 21 | Pending |
 | DOCS-03 | Phase 21 | Complete |
-| CI-01 | Phase 22 | Complete |
-| CI-02 | Phase 22 | Complete |
-| CI-03 | Phase 22 | Complete |
-| CI-04 | Phase 22 | Complete |
+| CI-01 | Phase 22 | Pending |
+| CI-02 | Phase 22 | Pending |
+| CI-03 | Phase 22 | Pending |
+| CI-04 | Phase 22 | Pending |
 
 **Coverage:**
 - v1.6 requirements: 12 total

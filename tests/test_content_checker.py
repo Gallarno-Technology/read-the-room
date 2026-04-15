@@ -200,18 +200,14 @@ async def test_no_lyrics_profanity_title_skips(checker_with_scanners):
 
 @pytest.mark.asyncio
 async def test_no_lyrics_no_scanners_allows():
-    """With lyrics service but no scanners wired, no-lyrics path returns lyrics_unavailable allow.
-
-    Previously returned no_lyrics_service (bug: gate required profanity_scanner to be non-None).
-    Fixed: gate is now lyrics_service is not None only; scanners are called conditionally.
-    """
+    """With no scanners wired, no-lyrics path still returns lyrics_unavailable allow."""
     lyrics_svc = MagicMock()
     lyrics_svc.get_lyrics = AsyncMock(return_value=_make_lyrics_result(lyrics=None))
-    # profanity_scanner is None — pipeline still runs, all scanner calls are skipped
+    # profanity_scanner is None — no scan block entered at all
     checker = ContentChecker(lyrics_service=lyrics_svc, profanity_scanner=None)
     result = await checker.check(_make_track(name="Cocaine", artist="Artist"))
     assert result.action == "allow"
-    assert result.reason == "lyrics_unavailable"
+    assert result.reason == "no_lyrics_service"
 
 
 @pytest.mark.asyncio
@@ -259,3 +255,80 @@ async def test_explicit_skip_default_is_true():
     result = await checker.check(_make_track(explicit=True))
     assert result.action == "skip"
     assert result.reason == "explicit"
+
+
+# ---------------------------------------------------------------------------
+# CACHE-03 / CACHE-04: TrackCache seam tests (Phase 23, Plan 02)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def mock_cache():
+    """Mock TrackCache: get returns None (miss) by default."""
+    cache = MagicMock()
+    cache.get = AsyncMock(return_value=None)   # miss by default
+    cache.put = AsyncMock()
+    return cache
+
+
+@pytest.mark.asyncio
+async def test_cache_hit_skips_pipeline(mock_cache):
+    """Cache hit returns cached result immediately — lyrics_service is never called (CACHE-03)."""
+    cached_result = TrackEvalResult(action="allow", reason="clean", severity=0)
+    mock_cache.get.return_value = cached_result
+
+    lyrics_svc = AsyncMock()
+    checker = ContentChecker(lyrics_service=lyrics_svc, track_cache=mock_cache)
+
+    track = _make_track(track_id="abc123")
+    result = await checker.check(track)
+
+    assert result == cached_result
+    mock_cache.get.assert_awaited_once_with("abc123")
+    lyrics_svc.get_lyrics.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_cache_miss_writes_result(mock_cache, checker_with_scanners):
+    """Cache miss runs pipeline and writes result to cache (CACHE-04)."""
+    checker, lyrics_svc, prof, drug, sexual = checker_with_scanners
+    checker.track_cache = mock_cache
+    lyrics_svc.get_lyrics = AsyncMock(return_value=_make_lyrics_result("la la la"))
+
+    track = _make_track(track_id="xyz789")
+    result = await checker.check(track)
+
+    mock_cache.get.assert_awaited_once_with("xyz789")
+    mock_cache.put.assert_awaited_once_with("xyz789", result)
+
+
+@pytest.mark.asyncio
+async def test_none_cache_no_error():
+    """ContentChecker(track_cache=None) works without AttributeError (CACHE-03 backward compat)."""
+    lyrics_svc = MagicMock()
+    lyrics_svc.get_lyrics = AsyncMock(return_value=_make_lyrics_result("la la la"))
+    profanity_scanner = MagicMock()
+    profanity_scanner.scan.return_value = (0, [])
+
+    checker = ContentChecker(
+        track_cache=None,
+        lyrics_service=lyrics_svc,
+        profanity_scanner=profanity_scanner,
+    )
+    result = await checker.check(_make_track())
+    assert result.action == "allow"
+
+
+@pytest.mark.asyncio
+async def test_cache_hit_explicit_tier(mock_cache):
+    """Cache returns a cached skip/explicit result — Tier 1 logic is bypassed (CACHE-03)."""
+    cached_result = TrackEvalResult(action="skip", reason="explicit", severity=3, explicit=True)
+    mock_cache.get.return_value = cached_result
+
+    # lyrics_service=None — if pipeline ran it would go to no_lyrics_service branch
+    checker = ContentChecker(track_cache=mock_cache)
+
+    track = _make_track(track_id="explicit1", explicit=True)
+    result = await checker.check(track)
+
+    assert result == cached_result
+    mock_cache.get.assert_awaited_once_with("explicit1")
