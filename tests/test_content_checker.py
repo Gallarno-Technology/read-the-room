@@ -207,7 +207,7 @@ async def test_no_lyrics_no_scanners_allows():
     checker = ContentChecker(lyrics_service=lyrics_svc, profanity_scanner=None)
     result = await checker.check(_make_track(name="Cocaine", artist="Artist"))
     assert result.action == "allow"
-    assert result.reason == "no_lyrics_service"
+    assert result.reason == "lyrics_unavailable"
 
 
 @pytest.mark.asyncio
