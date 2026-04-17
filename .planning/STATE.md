@@ -1,13 +1,13 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.8
-milestone_name: Multi-User Beta
-status: executing
+milestone: v1.6
+milestone_name: Open Source
+status: completed
 stopped_at: Completed 27-02-PLAN.md (manage_users.py operator CLI)
-last_updated: "2026-04-17T02:22:00.000Z"
+last_updated: "2026-04-17T02:27:48.437Z"
 last_activity: 2026-04-17
 progress:
-  total_phases: 6
+  total_phases: 12
   completed_phases: 1
   total_plans: 2
   completed_plans: 2
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 
 ## Current Position
 
-Phase: 27 (user-registry-operator-cli) — COMPLETE
-Plan: 2 of 2
+Phase: 28
+Plan: Not started
 Status: Complete
 Last activity: 2026-04-17
 
