@@ -1,89 +1,107 @@
 # Requirements: Read the Room
 
-**Defined:** 2026-04-08
-**Milestone:** v1.7 — Cloud-Ready Architecture
+**Defined:** 2026-04-16
+**Milestone:** v1.8 — Multi-User Beta
 **Core Value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
 
-## v1.7 Requirements
+## v1.8 Requirements
 
-Refactor the daemon to expose four injectable seams. All seams default to current OSS
-behavior — zero functional change for self-hosters. Cloud implementations live outside
-this repo and plug in at startup.
+Beta multi-user support for up to 5 users (Spotify dev mode cap). Manual operator
+onboarding by design — friction is a quality filter and a conversation touchpoint.
+Cookie-based uid routing; per-user daemon isolation; server-side OAuth callback.
 
-### TrackCache
+### Isolation
 
-- [ ] **CACHE-01**: `TrackCache` abstract interface defined with `get(track_id)` and `put(track_id, data)` methods covering both lyrics and analysis results
-- [ ] **CACHE-02**: `SQLiteTrackCache` implements `TrackCache` as the OSS default, consolidating existing SQLite lyrics cache and adding analysis result storage in the same DB
-- [ ] **CACHE-03**: `ContentChecker` accepts an injected `TrackCache`; checks cache before running pipeline (cache hit skips full scan), writes result after pipeline completes
-- [ ] **CACHE-04**: Daemon wires `SQLiteTrackCache` by default; passing `None` disables caching entirely
+- [ ] **ISOL-01**: Provisioned user has an isolated data directory (`users/{uid}/`) containing their own `state.json`, `data/events.jsonl`, `data/now_playing.json`, and `token_cache/`
+- [ ] **ISOL-02**: A flat registry (`users.json`) maps each uid to name and `created_at` timestamp
+- [ ] **ISOL-03**: `lyrics_cache.db` is shared across all users, keyed by Spotify track ID
 
-### EventEmitter
+### Operator
 
-- [ ] **EMIT-01**: `EventEmitter` abstract interface defined with a single `emit(event: dict)` async method
-- [ ] **EMIT-02**: `FileEventEmitter` implements `EventEmitter` — writes to `events.jsonl` and puts to SSE queue (current behavior, unchanged)
-- [ ] **EMIT-03**: All `_append_event()` calls and `skip_event_queue.put_nowait()` calls in `daemon.py` replaced with a single `event_emitter.emit()` call
-- [ ] **EMIT-04**: Daemon wires `FileEventEmitter` by default
+- [ ] **OPS-01**: Operator can run `manage_users.py generate-url <name>` to print a new uid and Spotify OAuth URL with that uid baked into the `state` parameter
+- [ ] **OPS-02**: Operator can run `manage_users.py remove <uid>` to stop the user's daemon, delete their data directory, and remove their registry entry
 
-### SkipExecutor
+### Web Routing
 
-- [ ] **SKIP-01**: `SkipExecutor` abstract interface defined with `skip(track, device)` and `pause(device)` async methods
-- [ ] **SKIP-02**: `DefaultSkipExecutor` implements `SkipExecutor` with existing Spotify-first → Sonos-fallback chain (current behavior, unchanged)
-- [ ] **SKIP-03**: Daemon wires `DefaultSkipExecutor` by default; skip and pause calls routed through the injected executor
+- [ ] **ROUTE-01**: All FastAPI route handlers resolve a `UserContext` (per-user file paths) from a `uid` httpOnly cookie on every request
+- [ ] **ROUTE-02**: SSE `/events` endpoint spawns a per-user file tail task on first connection rather than maintaining a single global tail at server startup
 
-### AnalysisBackend
+### OAuth Onboarding
 
-- [ ] **ANLYS-01**: `AnalysisBackend` abstract interface defined with `analyze(track: dict, result: TrackEvalResult)` async method
-- [ ] **ANLYS-02**: `NoOpAnalysisBackend` implements `AnalysisBackend` (returns immediately, does nothing) — OSS default
-- [ ] **ANLYS-03**: Daemon calls `analysis_backend.analyze()` after pipeline completes, non-blocking (fire-and-forget via `asyncio.create_task`); skip decision is never delayed by analysis
-- [ ] **ANLYS-04**: Daemon wires `NoOpAnalysisBackend` by default
+- [ ] **AUTH-01**: `GET /auth/callback` receives the Spotify OAuth redirect, validates the `state` parameter matches the pending uid, exchanges the code for a token, writes the token to `users/{uid}/token_cache/`, creates the user's data dirs, and updates `users.json`
+- [ ] **AUTH-02**: The uid travels through the Spotify authorization flow via the OAuth `state` parameter, preventing callback routing collisions
+- [ ] **AUTH-03**: Server automatically spawns the user's daemon process after the token is successfully written to disk
 
-### Test Coverage
+### Process Management
 
-- [ ] **TEST-01**: Unit tests verify each default OSS implementation preserves current behavior (FileEventEmitter writes jsonl, SQLiteTrackCache round-trips lyrics and results, DefaultSkipExecutor follows Spotify→Sonos order, NoOpAnalysisBackend completes without side effects)
-- [ ] **TEST-02**: Integration test verifies that injecting `None` or no-op implementations does not change daemon skip/allow outcomes
+- [ ] **PROC-01**: `web_ui` spawns per-user daemon processes via `asyncio.create_subprocess_exec` with uid-specific env vars (`STATE_PATH`, `EVENTS_PATH`, `LYRICS_DB_PATH`, `SPOTIFY_CACHE_PATH`)
+- [ ] **PROC-02**: A supervisor coroutine monitors each user's daemon and restarts it automatically on unexpected exit
+- [ ] **PROC-03**: `POLL_INTERVAL_SECONDS` defaults to `3` in multi-user mode to reduce Spotify API call rate across N daemons
+- [ ] **PROC-04**: On `web_ui` startup, all users listed in `users.json` have their daemon processes re-launched automatically
+
+### Deployment
+
+- [ ] **DEPLOY-01**: `docker-compose.yml` includes a Caddy service (`caddy:2-alpine`) with a Caddyfile that terminates TLS automatically via Let's Encrypt and proxies to `web_ui`
+- [ ] **DEPLOY-02**: `network_mode: host` is controlled by a `SONOS_ENABLED` env var — VPS deployments set `false`, local home-server deployments keep `true`
+- [ ] **DEPLOY-03**: `SPOTIFY_REDIRECT_URI` env var and Spotify Developer Dashboard redirect URI are set to the HTTPS callback URL
+
+### Frontend
+
+- [ ] **UI-01**: First visit with no uid cookie shows a full-page ID entry gate prompting for an access code
+- [ ] **UI-02**: On valid ID entry or post-OAuth callback, server sets an httpOnly uid cookie and JS writes uid to `localStorage`; subsequent visits load the dashboard directly without re-entering the code
+- [ ] **UI-03**: Invalid or unknown uid entered at the ID gate shows a clear error message rather than a silent failure
+- [ ] **UI-04**: Post-OAuth callback redirects browser to the dashboard where UI-02 cookie and localStorage persistence runs on arrival
 
 ## v2+ Requirements
 
-- Custom cloud implementations of all four seams (DynamoDB cache, SQS emitter, LLM analysis backend, Spotify-only executor) — lives outside OSS repo
-- CommandReceiver seam for cloud → local Sonos command routing — deferred until cloud service is built
-- Multi-tenant coroutine runner (N users per Fargate task) — deferred until scale demands it
+- Self-service OAuth onboarding (removes operator from the loop)
+- Admin web UI for operator (list users, daemon status, remove)
+- Per-user daemon start/stop control from operator CLI
+- Quota extension path for >5 users (BYOC model or Spotify Extended Quota)
+- Per-user custom filter profiles beyond the 4 presets
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Sonos support in cloud daemon | Cloud daemon uses Spotify API only; Sonos is LAN-only |
-| LLM inference code | Cloud-only feature; OSS repo exposes the seam (AnalysisBackend), not the implementation |
-| Cloud infrastructure (DynamoDB, SQS, Lambda) | Outside this repo entirely |
-| New user-facing features | Pure refactor milestone — no UI or behavioral changes |
+| >5 concurrent users | Spotify dev mode hard cap (March 2026); BYOC path deferred to v2 |
+| User passwords / JWT auth | Opaque uid is sufficient auth for 5-person trusted beta |
+| Self-serve signup UI | Manual onboarding is intentional — friction filters for quality |
+| Admin web panel | Operator CLI covers 5-user management; web UI is over-engineering |
+| Sonos support on VPS | LAN-only; VPS daemon uses Spotify API skip only |
+| Per-user Spotify app registrations | Single app with 5-user dev mode covers this milestone |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CACHE-01 | Phase 23 | Pending |
-| CACHE-02 | Phase 23 | Pending |
-| CACHE-03 | Phase 23 | Pending |
-| CACHE-04 | Phase 23 | Pending |
-| EMIT-01 | Phase 24 | Pending |
-| EMIT-02 | Phase 24 | Pending |
-| EMIT-03 | Phase 24 | Pending |
-| EMIT-04 | Phase 24 | Pending |
-| SKIP-01 | Phase 25 | Pending |
-| SKIP-02 | Phase 25 | Pending |
-| SKIP-03 | Phase 25 | Pending |
-| ANLYS-01 | Phase 26 | Pending |
-| ANLYS-02 | Phase 26 | Pending |
-| ANLYS-03 | Phase 26 | Pending |
-| ANLYS-04 | Phase 26 | Pending |
-| TEST-01 | Phase 23–26 | Pending |
-| TEST-02 | Phase 26 | Pending |
+| ISOL-01 | Phase 27 | Pending |
+| ISOL-02 | Phase 27 | Pending |
+| ISOL-03 | Phase 27 | Pending |
+| OPS-01 | Phase 27 | Pending |
+| OPS-02 | Phase 27 | Pending |
+| ROUTE-01 | Phase 28 | Pending |
+| ROUTE-02 | Phase 28 | Pending |
+| AUTH-01 | Phase 29 | Pending |
+| AUTH-02 | Phase 29 | Pending |
+| AUTH-03 | Phase 29 | Pending |
+| PROC-01 | Phase 30 | Pending |
+| PROC-02 | Phase 30 | Pending |
+| PROC-03 | Phase 30 | Pending |
+| PROC-04 | Phase 30 | Pending |
+| DEPLOY-01 | Phase 31 | Pending |
+| DEPLOY-02 | Phase 31 | Pending |
+| DEPLOY-03 | Phase 31 | Pending |
+| UI-01 | Phase 32 | Pending |
+| UI-02 | Phase 32 | Pending |
+| UI-03 | Phase 32 | Pending |
+| UI-04 | Phase 32 | Pending |
 
 **Coverage:**
-- v1.7 requirements: 17 total
-- Mapped to phases: 17
+- v1.8 requirements: 21 total
+- Mapped to phases: 21
 - Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-04-08*
-*Last updated: 2026-04-11 after v1.7 milestone start*
+*Requirements defined: 2026-04-16*
+*Last updated: 2026-04-16 after initial definition*

@@ -139,15 +139,29 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-## Current Milestone: v1.7 Cloud-Ready Architecture
+## Dormant Milestone: v1.7 Cloud-Ready Architecture
+
+**Status:** Dormant — Phase 23 (TrackCache) complete; Phases 24–26 deferred in favour of v1.8.
 
 **Goal:** Refactor the daemon to expose four injectable seams — making it cloud-deployable without touching core logic, while preserving identical OSS behavior.
 
 **Target features:**
-- Injectable `TrackCache` (unified lyrics + analysis result cache; SQLite default)
-- Injectable `EventEmitter` (FileEventEmitter owns jsonl + SSE; daemon calls emit())
-- Injectable `SkipExecutor` (formalizes existing Spotify → Sonos fallback chain)
-- Injectable `AnalysisBackend` (no-op default; cloud plugs in LLM inference pipeline)
+- Injectable `TrackCache` (unified lyrics + analysis result cache; SQLite default) — ✓ Phase 23 complete
+- Injectable `EventEmitter` (FileEventEmitter owns jsonl + SSE; daemon calls emit()) — deferred
+- Injectable `SkipExecutor` (formalizes existing Spotify → Sonos fallback chain) — deferred
+- Injectable `AnalysisBackend` (no-op default; cloud plugs in LLM inference pipeline) — deferred
 
 ---
-*Last updated: 2026-04-11 after v1.7 Cloud-Ready Architecture milestone start.*
+## Current Milestone: v1.8 Multi-User Beta
+
+**Goal:** Run up to 25 independent user instances on a hosted server — each with their own Spotify token, daemon, and isolated data — accessible via an opaque ID stored in browser localStorage.
+
+**Target features:**
+- Per-user daemon isolation (separate process + data directory per user)
+- Operator CLI onboarding: generate OAuth URL → receive Spotify callback → exchange token → start daemon → hand off ID
+- Shared web UI routing all users by ID (one server, N users)
+- ID-based dashboard access: user enters ID once, localStorage handles subsequent visits
+- Hosted deployment (public URL, Spotify OAuth callback hits server)
+
+---
+*Last updated: 2026-04-16 after v1.8 Multi-User Beta milestone start.*
