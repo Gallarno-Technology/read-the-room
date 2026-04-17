@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Multi-User Beta
-status: ready to plan
-stopped_at: Phase 27
-last_updated: "2026-04-16T00:00:00.000Z"
-last_activity: 2026-04-16
+status: executing
+stopped_at: Completed 27-02-PLAN.md (manage_users.py operator CLI)
+last_updated: "2026-04-17T02:22:00.000Z"
+last_activity: 2026-04-17
 progress:
   total_phases: 6
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 2
+  percent: 33
 ---
 
 # Project State
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Milestone v1.8 — Phase 27: User Registry + Operator CLI
+**Current focus:** Phase 27 — User Registry + Operator CLI (COMPLETE)
 
 ## Current Position
 
-Phase: 27 — User Registry + Operator CLI
-Plan: —
-Status: Not started
-Last activity: 2026-04-16 — Roadmap created for v1.8
+Phase: 27 (user-registry-operator-cli) — COMPLETE
+Plan: 2 of 2
+Status: Complete
+Last activity: 2026-04-17
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 43 (v1.0–v1.5)
+- Total plans completed: 45 (v1.0–v1.8 partial)
 - Average duration: ~3 min
-- Total execution time: ~123 min
+- Total execution time: ~129 min
 
 **By Phase (recent):**
 
@@ -51,6 +51,8 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 20-repository-hygiene P02 | 8 | 3 tasks | 9 files |
 | Phase 21-legal-docs P01 | 2 | 2 tasks | 2 files |
 | 23 | 2 | - | - |
+| Phase 27-user-registry-operator-cli P01 | 2 | 2 tasks | 2 files |
+| Phase 27-user-registry-operator-cli P02 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -71,6 +73,9 @@ Recent decisions affecting current work:
 - [v1.8 Roadmap]: Cookie-based uid routing (httpOnly) chosen over path-param routing per REQUIREMENTS.md; uid travels through OAuth `state` parameter to prevent callback collisions
 - [v1.8 Roadmap]: asyncio.create_subprocess_exec (stdlib) chosen for daemon supervision — resolve supervisord vs. asyncio open decision at Phase 30 planning
 - [v1.8 Roadmap]: lyrics_cache.db shared across all users (keyed by Spotify track ID) — ISOL-03
+- [Phase 27-user-registry-operator-cli]: UserRegistry(base_dir) pattern for testability — no hardcoded project root paths
+- [Phase 27-user-registry-operator-cli]: lyrics_cache.db stays at project root (ISOL-03) — shared across users, NOT inside users/{uid}/
+- [Phase 27-user-registry-operator-cli P02]: SpotifyOAuth state=uid bakes uid into OAuth URL state param — callback in Phase 29 reads it back; CacheFileHandler uses placeholder path overwritten by Phase 29
 
 ### Pending Todos
 
@@ -78,13 +83,11 @@ None.
 
 ### Blockers/Concerns
 
-- Phase 27 depends on Phase 23 (TrackCache) being complete — verify daemon env-var wiring is stable before routing refactor in Phase 28.
-- Phases 24-26 (dormant v1.7 work: EventEmitter, SkipExecutor, AnalysisBackend) are reserved but deferred — do not number into v1.8 phases.
 - spotipy CacheFileHandler has no file locking — daemon must own token refresh; web_ui spotipy must not trigger refreshes (Phase 29 pitfall).
 - OAuth callback race requires `state` → uid binding with a pending-auth map and one active onboarding flow at a time (Phase 29 pitfall).
 
 ## Session Continuity
 
-Last session: 2026-04-16
-Stopped at: Roadmap created — ready to plan Phase 27
+Last session: 2026-04-17T02:22:00.000Z
+Stopped at: Completed 27-02-PLAN.md (manage_users.py operator CLI)
 Resume file: None

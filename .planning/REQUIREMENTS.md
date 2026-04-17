@@ -18,8 +18,8 @@ Cookie-based uid routing; per-user daemon isolation; server-side OAuth callback.
 
 ### Operator
 
-- [ ] **OPS-01**: Operator can run `manage_users.py generate-url <name>` to print a new uid and Spotify OAuth URL with that uid baked into the `state` parameter
-- [ ] **OPS-02**: Operator can run `manage_users.py remove <uid>` to stop the user's daemon, delete their data directory, and remove their registry entry
+- [x] **OPS-01**: Operator can run `manage_users.py generate-url <name>` to print a new uid and Spotify OAuth URL with that uid baked into the `state` parameter
+- [x] **OPS-02**: Operator can run `manage_users.py remove <uid>` to stop the user's daemon, delete their data directory, and remove their registry entry
 
 ### Web Routing
 
@@ -78,8 +78,8 @@ Cookie-based uid routing; per-user daemon isolation; server-side OAuth callback.
 | ISOL-01 | Phase 27 | Pending |
 | ISOL-02 | Phase 27 | Pending |
 | ISOL-03 | Phase 27 | Pending |
-| OPS-01 | Phase 27 | Pending |
-| OPS-02 | Phase 27 | Pending |
+| OPS-01 | Phase 27 | Complete |
+| OPS-02 | Phase 27 | Complete |
 | ROUTE-01 | Phase 28 | Pending |
 | ROUTE-02 | Phase 28 | Pending |
 | AUTH-01 | Phase 29 | Pending |

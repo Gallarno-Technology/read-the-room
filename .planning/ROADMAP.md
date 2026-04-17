@@ -267,7 +267,7 @@ Plans:
 | 20. Repository Hygiene | v1.6 | 2/2 | Complete    | 2026-04-08 |
 | 21. Legal & Docs | v1.6 | 1/2 | In Progress|  |
 | 22. CI & Tooling | v1.6 | 0/? | Not started | - |
-| 27. User Registry + Operator CLI | v1.8 | 0/? | Not started | - |
+| 27. User Registry + Operator CLI | v1.8 | 0/2 | Planned    |  |
 | 28. Cookie Routing + Per-User SSE | v1.8 | 0/? | Not started | - |
 | 29. OAuth Onboarding Flow | v1.8 | 0/? | Not started | - |
 | 30. Per-User Daemon Management | v1.8 | 0/? | Not started | - |
