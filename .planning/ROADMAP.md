@@ -182,7 +182,7 @@ Plans:
   5. `lyrics_cache.db` is a single shared file at the project root — not duplicated inside any per-user directory
 **Plans**: 2 plans
 Plans:
-- [ ] 27-01-PLAN.md — UserRegistry class: uid generation, directory scaffolding, users.json persistence (ISOL-01, ISOL-02, ISOL-03)
+- [x] 27-01-PLAN.md — UserRegistry class: uid generation, directory scaffolding, users.json persistence (ISOL-01, ISOL-02, ISOL-03)
 - [ ] 27-02-PLAN.md — scripts/manage_users.py CLI: generate-url and remove subcommands (OPS-01, OPS-02)
 
 ### Phase 28: Cookie Routing + Per-User SSE
@@ -267,7 +267,7 @@ Plans:
 | 20. Repository Hygiene | v1.6 | 2/2 | Complete    | 2026-04-08 |
 | 21. Legal & Docs | v1.6 | 1/2 | In Progress|  |
 | 22. CI & Tooling | v1.6 | 0/? | Not started | - |
-| 27. User Registry + Operator CLI | v1.8 | 0/2 | Planned    |  |
+| 27. User Registry + Operator CLI | v1.8 | 2/2 | Complete   | 2026-04-17 |
 | 28. Cookie Routing + Per-User SSE | v1.8 | 0/? | Not started | - |
 | 29. OAuth Onboarding Flow | v1.8 | 0/? | Not started | - |
 | 30. Per-User Daemon Management | v1.8 | 0/? | Not started | - |

@@ -12,9 +12,9 @@ Cookie-based uid routing; per-user daemon isolation; server-side OAuth callback.
 
 ### Isolation
 
-- [ ] **ISOL-01**: Provisioned user has an isolated data directory (`users/{uid}/`) containing their own `state.json`, `data/events.jsonl`, `data/now_playing.json`, and `token_cache/`
-- [ ] **ISOL-02**: A flat registry (`users.json`) maps each uid to name and `created_at` timestamp
-- [ ] **ISOL-03**: `lyrics_cache.db` is shared across all users, keyed by Spotify track ID
+- [x] **ISOL-01**: Provisioned user has an isolated data directory (`users/{uid}/`) containing their own `state.json`, `data/events.jsonl`, `data/now_playing.json`, and `token_cache/`
+- [x] **ISOL-02**: A flat registry (`users.json`) maps each uid to name and `created_at` timestamp
+- [x] **ISOL-03**: `lyrics_cache.db` is shared across all users, keyed by Spotify track ID
 
 ### Operator
 
@@ -75,9 +75,9 @@ Cookie-based uid routing; per-user daemon isolation; server-side OAuth callback.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ISOL-01 | Phase 27 | Pending |
-| ISOL-02 | Phase 27 | Pending |
-| ISOL-03 | Phase 27 | Pending |
+| ISOL-01 | Phase 27 | Complete |
+| ISOL-02 | Phase 27 | Complete |
+| ISOL-03 | Phase 27 | Complete |
 | OPS-01 | Phase 27 | Complete |
 | OPS-02 | Phase 27 | Complete |
 | ROUTE-01 | Phase 28 | Pending |
