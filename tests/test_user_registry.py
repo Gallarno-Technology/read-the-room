@@ -173,3 +173,46 @@ def test_lyrics_cache_not_in_user_dir(tmp_path):
     user_dir = tmp_path / "users" / record["uid"]
     db_files = list(user_dir.rglob("lyrics_cache.db"))
     assert db_files == [], f"lyrics_cache.db should not be inside user dir, found: {db_files}"
+
+
+# ---------------------------------------------------------------------------
+# activate() tests
+# ---------------------------------------------------------------------------
+
+def test_activate_flips_status_to_active(tmp_path):
+    reg = make_registry(tmp_path)
+    record = reg.provision("alice")
+    uid = record["uid"]
+    assert record["status"] == "pending"
+    reg.activate(uid)
+    users = reg.load()
+    user = next(u for u in users if u["uid"] == uid)
+    assert user["status"] == "active"
+
+
+def test_activate_unknown_uid_raises(tmp_path):
+    reg = make_registry(tmp_path)
+    with pytest.raises(ValueError, match="Unknown uid"):
+        reg.activate("nonexistent-uid")
+
+
+def test_activate_writes_atomically(tmp_path):
+    """After activate(), users.json contains the updated status (atomic _save used)."""
+    reg = make_registry(tmp_path)
+    record = reg.provision("alice")
+    uid = record["uid"]
+    reg.activate(uid)
+    import json
+    data = json.loads((tmp_path / "users.json").read_text())
+    user = next(u for u in data["users"] if u["uid"] == uid)
+    assert user["status"] == "active"
+
+
+def test_activate_does_not_affect_other_users(tmp_path):
+    reg = make_registry(tmp_path)
+    rec_a = reg.provision("alice")
+    rec_b = reg.provision("bob")
+    reg.activate(rec_a["uid"])
+    users = reg.load()
+    bob = next(u for u in users if u["uid"] == rec_b["uid"])
+    assert bob["status"] == "pending"
