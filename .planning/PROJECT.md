@@ -47,6 +47,8 @@ Songs that violate family-safe rules are skipped automatically before children h
 - ✓ Repository hygiene — .dockerignore, git untracking, IP anonymization, branding rename, .env.example docs — v1.6 (Phase 20)
 - ✓ LICENSE (proprietary all-rights-reserved), CONTRIBUTING.md, and public-facing README published — v1.6 (Phase 21)
 - ✓ GitHub Actions CI (pytest + ruff), pyproject.toml tooling config, README badges — v1.6 (Phase 22)
+- ✓ web_ui routes all requests by uid cookie — per-user UserContext replaces global STATE_PATH/EVENTS_PATH/NOW_PLAYING_PATH globals — v1.8 (ROUTE-01, Phase 28)
+- ✓ SSE tail tasks isolated per uid — no cross-user event stream contamination — v1.8 (ROUTE-02, Phase 28)
 
 ### Active
 
@@ -164,4 +166,4 @@ This document evolves at phase transitions and milestone boundaries.
 - Hosted deployment (public URL, Spotify OAuth callback hits server)
 
 ---
-*Last updated: 2026-04-16 after v1.8 Multi-User Beta milestone start.*
+*Last updated: 2026-04-18 after Phase 28 (cookie-routing-per-user-sse) complete.*
