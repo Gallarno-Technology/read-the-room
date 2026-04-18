@@ -62,6 +62,21 @@ class UserRegistry:
 
         self._save(remaining)
 
+    def activate(self, uid: str) -> None:
+        """Flip user status from 'pending' to 'active'. Atomic write via _save().
+
+        Raises ValueError if uid not found in registry.
+        Called by web_ui OAuth callback after successful token exchange (Phase 29, AUTH-01).
+        """
+        users = self.load()
+        for user in users:
+            if user["uid"] == uid:
+                user["status"] = "active"
+                break
+        else:
+            raise ValueError(f"Unknown uid: {uid!r}")
+        self._save(users)
+
     def load(self) -> list[dict]:
         """Return list of all user dicts. Returns [] if users.json is missing."""
         if not self._registry_path.exists():
