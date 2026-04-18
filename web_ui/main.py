@@ -2,35 +2,38 @@
 
 FastAPI app serving the dashboard HTML and providing:
   GET  /              -> HTML dashboard (template rendered by Plan 03-02)
-  GET  /events        -> SSE stream of skip events from daemon's shared queue
+  GET  /events        -> SSE stream of skip events — per-user tail task (Phase 28)
   GET  /fsm           -> current FSM state {"family_safe_mode": bool}
   POST /fsm           -> toggle FSM {"enabled": bool} -> {"family_safe_mode": bool}
   GET  /now-playing   -> current track state from now_playing.json; {"status":"idle"} when absent
   POST /skip          -> skip current track via Spotify API; {"ok":true} on success
 
-Shares skip_event_queue with daemon.py when run in-process.
-When run as a separate process (docker-compose web_ui service),
-the queue bridge is a file-based fallback (Phase 3 extension point).
+Phase 28: All routes resolve per-user file paths from a uid httpOnly cookie via
+get_user_context(). Global STATE_PATH, EVENTS_PATH, NOW_PLAYING_PATH globals removed
+(D-09). _sp_init() accepts cache_path parameter (D-10).
 
-D-05: Runs as second service in docker-compose.yml, network_mode: host.
-D-08: Consumes skip_event_queue from daemon module (in-process import).
-D-09: FSM toggle uses same read-merge-write pattern as daemon save_state().
-D-10: No auth — LAN only.
+SSE tail architecture (D-05, D-06, D-07):
+  _tails: dict[str, asyncio.Task]  — one tail task per active uid (lazy start)
+  _subscribers: dict[str, list[asyncio.Queue]]  — per-uid list of tab queues
+asyncio is single-threaded; no locks needed on _tails or _subscribers.
 """
 import asyncio
 import json
 import logging
 import os
+import pathlib
+from dataclasses import dataclass
 from typing import AsyncGenerator
 
 from dotenv import load_dotenv
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth, CacheFileHandler
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Cookie, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from skip_client import SocoSkipClient
+from user_registry import UserRegistry
 
 load_dotenv()
 
@@ -41,29 +44,67 @@ logging.basicConfig(
     datefmt="%Y-%m-%dT%H:%M:%S",
 )
 
-STATE_PATH = os.environ.get("STATE_PATH", "state.json")
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
 app = FastAPI(title="Read the Room", docs_url=None, redoc_url=None)
 
+
 # ---------------------------------------------------------------------------
-# File-based IPC bridge — daemon writes events.jsonl; we tail it here.
-# Replaces the broken in-process asyncio.Queue import (Gap-2 fix).
-# Both containers share the file via a docker-compose ./data volume mount.
+# UserContext — per-request resolved from uid cookie (D-03, D-04)
 # ---------------------------------------------------------------------------
-EVENTS_PATH = os.environ.get("EVENTS_PATH", "data/events.jsonl")
-NOW_PLAYING_PATH = os.path.join(os.path.dirname(EVENTS_PATH) or ".", "now_playing.json")
+
+@dataclass
+class UserContext:
+    uid: str
+    state_path: str
+    events_path: str
+    now_playing_path: str
+    token_cache_path: str
 
 
-def _sp_init() -> "spotipy.Spotify | None":
-    """Create a fresh spotipy client reading the latest token from the shared cache.
+# Registry singleton — base_dir is project root (parent of web_ui/).
+# asyncio is single-threaded; no lock needed on this object.
+_registry = UserRegistry(base_dir=str(pathlib.Path(__file__).parent.parent))
+
+
+def get_user_context(uid: str | None = Cookie(default=None)) -> UserContext:
+    """Resolve per-user paths from uid httpOnly cookie.
+
+    Raises HTTPException(401) if cookie is absent, uid is unknown, or
+    user status is 'pending' (OAuth not yet complete — D-01, D-02).
+    No redirect in this phase; Phase 32 converts 401 at GET / to a redirect.
+    """
+    if uid is None:
+        raise HTTPException(status_code=401, detail="uid cookie required")
+    users = _registry.load()
+    user = next((u for u in users if u["uid"] == uid), None)
+    if user is None or user.get("status") == "pending":
+        raise HTTPException(status_code=401, detail="unknown uid")
+    try:
+        paths = _registry.user_paths(uid)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="unknown uid")
+    return UserContext(
+        uid=uid,
+        state_path=paths["state_path"],
+        events_path=paths["events_path"],
+        now_playing_path=paths["now_playing_path"],
+        token_cache_path=paths["cache_path"],
+    )
+
+
+# ---------------------------------------------------------------------------
+# Spotipy client — per-request, cache_path from UserContext (D-10)
+# ---------------------------------------------------------------------------
+
+def _sp_init(cache_path: str) -> "spotipy.Spotify | None":
+    """Create spotipy client using the given per-user token cache path (D-10).
 
     Called per-request (not cached at module level) so the auth manager always
     reads the current token from disk.  The daemon keeps the cache file fresh
     via its own refresh cycle; a stale module-level client would hold an expired
-    token in memory and fail after ~60 min (D-07).
+    token in memory and fail after ~60 min.
     """
-    cache_path = os.environ.get("SPOTIFY_CACHE_PATH")
     client_id = os.environ.get("SPOTIFY_CLIENT_ID")
     client_secret = os.environ.get("SPOTIFY_CLIENT_SECRET")
     redirect_uri = os.environ.get("SPOTIFY_REDIRECT_URI")
@@ -86,24 +127,31 @@ def _sp_init() -> "spotipy.Spotify | None":
     )
     return spotipy.Spotify(auth_manager=auth_manager)
 
-# Each SSE client gets its own subscriber queue (maxsize=100).
-_subscribers: list[asyncio.Queue] = []
+
+# ---------------------------------------------------------------------------
+# Per-uid SSE tail infrastructure (D-05, D-06, D-07, D-08)
+# asyncio single-threaded — no locks needed on _tails or _subscribers.
+# ---------------------------------------------------------------------------
+
+# _tails: uid -> running asyncio.Task for that user's file tail
+_tails: dict[str, asyncio.Task] = {}
+# _subscribers: uid -> list of per-tab asyncio.Queue instances
+_subscribers: dict[str, list[asyncio.Queue]] = {}
 
 
-async def _file_tail() -> None:
-    """Tail skip_events.jsonl and push new JSON-line events to all SSE subscribers.
+async def _file_tail_for_uid(uid: str, events_path: str) -> None:
+    """Tail events.jsonl for a specific uid and push new events to that uid's subscribers.
 
-    Starts reading from the END of the file on startup (skips history) so the browser
-    only sees events that occur while it is connected — consistent with the original
-    in-process queue behaviour.
+    Starts reading from the END of the file on start (D-08) — live events only.
+    Runs until cancelled (when last subscriber disconnects — D-07).
     """
-    log.info("web_ui: tailing %s for SSE events", EVENTS_PATH)
+    log.info("web_ui: tailing %s for uid=%s", events_path, uid)
     # Wait until the file exists (daemon may start slightly after web_ui)
-    while not os.path.exists(EVENTS_PATH):
+    while not os.path.exists(events_path):
         await asyncio.sleep(1)
 
-    with open(EVENTS_PATH) as fh:
-        fh.seek(0, 2)  # seek to end — skip existing history
+    with open(events_path) as fh:
+        fh.seek(0, 2)  # seek to end — skip existing history (D-08)
         while True:
             line = fh.readline()
             if not line:
@@ -117,38 +165,53 @@ async def _file_tail() -> None:
             except json.JSONDecodeError:
                 log.warning("web_ui: skipping malformed event line: %r", line)
                 continue
+            queues = _subscribers.get(uid, [])
             dead = []
-            for q in _subscribers:
+            for q in queues:
                 try:
                     q.put_nowait(event)
                 except asyncio.QueueFull:
                     dead.append(q)
             for q in dead:
-                _subscribers.remove(q)
+                try:
+                    _subscribers[uid].remove(q)
+                except (KeyError, ValueError):
+                    pass
 
 
-@app.on_event("startup")
-async def _startup() -> None:
-    asyncio.create_task(_file_tail())
+def _ensure_tail(uid: str, events_path: str) -> None:
+    """Start the tail task for uid if not already running (D-06 — lazy start)."""
+    task = _tails.get(uid)
+    if task is None or task.done():
+        _tails[uid] = asyncio.create_task(_file_tail_for_uid(uid, events_path))
+
+
+def _teardown_tail_if_empty(uid: str) -> None:
+    """Cancel the tail task for uid if no subscribers remain (D-07 — immediate teardown)."""
+    if not _subscribers.get(uid):
+        task = _tails.pop(uid, None)
+        if task and not task.done():
+            task.cancel()
 
 
 # ---------------------------------------------------------------------------
 # State helpers — replicate daemon save_state() read-merge-write pattern (D-09)
 # ---------------------------------------------------------------------------
-def _load_state() -> dict:
+
+def _load_state(state_path: str) -> dict:
     try:
-        with open(STATE_PATH) as f:
+        with open(state_path) as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return {"last_track_id": None, "family_safe_mode": False}
 
 
-def _save_state_merge(fields: dict) -> None:
+def _save_state_merge(state_path: str, fields: dict) -> None:
     """Read-merge-write: never drops keys the daemon owns. Direct write (no atomic rename
     — os.replace() raises EBUSY on bind-mounted files on Linux, per Phase 1 decision)."""
-    on_disk = _load_state()
+    on_disk = _load_state(state_path)
     on_disk.update(fields)
-    with open(STATE_PATH, "w") as f:
+    with open(state_path, "w") as f:
         json.dump(on_disk, f)
 
 
@@ -157,7 +220,7 @@ def _save_state_merge(fields: dict) -> None:
 # ---------------------------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request) -> HTMLResponse:
+async def dashboard(request: Request, ctx: UserContext = Depends(get_user_context)) -> HTMLResponse:
     """Serve the dashboard HTML. Template file created in Plan 03-02."""
     template_path = os.path.join(TEMPLATES_DIR, "index.html")
     try:
@@ -166,7 +229,7 @@ async def dashboard(request: Request) -> HTMLResponse:
     except FileNotFoundError:
         html = "<html><body><p>Dashboard template not yet installed (Plan 03-02).</p></body></html>"
     # Inject current FSM state so the button renders correctly on first load
-    state = _load_state()
+    state = _load_state(ctx.state_path)
     fsm_on = str(state.get("family_safe_mode", False)).lower()
     html = html.replace("__FSM_INITIAL__", fsm_on)
     active_profile = state.get("active_profile", "kids_present")
@@ -174,7 +237,7 @@ async def dashboard(request: Request) -> HTMLResponse:
     return HTMLResponse(content=html)
 
 
-async def _sse_event_generator(subscriber: asyncio.Queue) -> AsyncGenerator[str, None]:
+async def _sse_event_generator(uid: str, subscriber: asyncio.Queue) -> AsyncGenerator[str, None]:
     """Yield SSE-formatted strings from the subscriber queue indefinitely."""
     try:
         while True:
@@ -184,21 +247,28 @@ async def _sse_event_generator(subscriber: asyncio.Queue) -> AsyncGenerator[str,
     except asyncio.CancelledError:
         pass
     finally:
+        # Remove this subscriber queue and teardown tail if no subscribers remain (D-07)
         try:
-            _subscribers.remove(subscriber)
-        except ValueError:
+            _subscribers[uid].remove(subscriber)
+        except (KeyError, ValueError):
             pass
+        _teardown_tail_if_empty(uid)
 
 
 @app.get("/events")
-async def sse_events() -> StreamingResponse:
+async def sse_events(ctx: UserContext = Depends(get_user_context)) -> StreamingResponse:
     """SSE endpoint. Browser opens EventSource('/events'); daemon pushes skip events.
+
     Each client gets its own asyncio.Queue (max 100 items) to prevent slow clients
-    from blocking the broadcaster."""
+    from blocking the broadcaster. Tail task starts lazily on first connection (D-06).
+    """
     subscriber: asyncio.Queue = asyncio.Queue(maxsize=100)
-    _subscribers.append(subscriber)
+    if ctx.uid not in _subscribers:
+        _subscribers[ctx.uid] = []
+    _subscribers[ctx.uid].append(subscriber)
+    _ensure_tail(ctx.uid, ctx.events_path)
     return StreamingResponse(
-        _sse_event_generator(subscriber),
+        _sse_event_generator(ctx.uid, subscriber),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -212,18 +282,18 @@ class FSMRequest(BaseModel):
 
 
 @app.get("/fsm")
-async def get_fsm() -> JSONResponse:
+async def get_fsm(ctx: UserContext = Depends(get_user_context)) -> JSONResponse:
     """Return current FSM state."""
-    state = _load_state()
+    state = _load_state(ctx.state_path)
     return JSONResponse({"family_safe_mode": state.get("family_safe_mode", False)})
 
 
 @app.post("/fsm")
-async def set_fsm(body: FSMRequest) -> JSONResponse:
+async def set_fsm(body: FSMRequest, ctx: UserContext = Depends(get_user_context)) -> JSONResponse:
     """Toggle FSM. Reads state.json, merges {family_safe_mode: bool}, writes back (D-09).
     Returns updated state."""
     try:
-        _save_state_merge({"family_safe_mode": body.enabled})
+        _save_state_merge(ctx.state_path, {"family_safe_mode": body.enabled})
     except OSError as exc:
         log.error("POST /fsm write failed: %s", exc)
         raise HTTPException(status_code=500, detail="Could not write state.json")
@@ -247,14 +317,14 @@ class ProfileRequest(BaseModel):
 
 
 @app.get("/profile")
-async def get_profile() -> JSONResponse:
+async def get_profile(ctx: UserContext = Depends(get_user_context)) -> JSONResponse:
     """Return current active profile from state.json."""
-    state = _load_state()
+    state = _load_state(ctx.state_path)
     return JSONResponse({"active_profile": state.get("active_profile", "kids_present")})
 
 
 @app.post("/profile")
-async def set_profile(body: ProfileRequest) -> JSONResponse:
+async def set_profile(body: ProfileRequest, ctx: UserContext = Depends(get_user_context)) -> JSONResponse:
     """Save active profile to state.json via read-merge-write pattern (D-11, PROF-02).
 
     Returns 400 for unknown profile keys. Does NOT modify family_safe_mode (D-09, D-13).
@@ -262,7 +332,7 @@ async def set_profile(body: ProfileRequest) -> JSONResponse:
     if body.profile not in VALID_PROFILES:
         raise HTTPException(status_code=400, detail=f"Unknown profile: {body.profile!r}")
     try:
-        _save_state_merge({"active_profile": body.profile})
+        _save_state_merge(ctx.state_path, {"active_profile": body.profile})
     except OSError as exc:
         log.error("POST /profile write failed: %s", exc)
         raise HTTPException(status_code=500, detail="Could not write state.json")
@@ -274,7 +344,7 @@ async def set_profile(body: ProfileRequest) -> JSONResponse:
 # ---------------------------------------------------------------------------
 
 @app.get("/now-playing")
-async def now_playing() -> JSONResponse:
+async def now_playing(ctx: UserContext = Depends(get_user_context)) -> JSONResponse:
     """Return current track state from now_playing.json for page-load hydration.
 
     Returns {"status": "idle"} (HTTP 200) if the file does not yet exist.
@@ -282,7 +352,7 @@ async def now_playing() -> JSONResponse:
     No staleness detection — Phase 8 SSE reconnect is the staleness signal (D-03).
     """
     try:
-        with open(NOW_PLAYING_PATH) as f:
+        with open(ctx.now_playing_path) as f:
             data = json.load(f)
         return JSONResponse(data, headers={"Cache-Control": "no-store"})
     except (FileNotFoundError, json.JSONDecodeError):
@@ -294,7 +364,7 @@ async def now_playing() -> JSONResponse:
 # ---------------------------------------------------------------------------
 
 @app.get("/feed")
-async def feed() -> JSONResponse:
+async def feed(ctx: UserContext = Depends(get_user_context)) -> JSONResponse:
     """Return last 20 skip/five_skip_warning events, newest-first (HIST-03, D-01).
 
     Cache-Control: no-store prevents browsers from serving stale feed data on
@@ -302,7 +372,7 @@ async def feed() -> JSONResponse:
     explicit directives are present).
     """
     try:
-        with open(EVENTS_PATH) as f:
+        with open(ctx.events_path) as f:
             lines = f.readlines()
     except FileNotFoundError:
         return JSONResponse([], headers={"Cache-Control": "no-store"})
@@ -332,7 +402,7 @@ _soco_skip = SocoSkipClient()
 
 
 @app.post("/skip")
-async def skip_track() -> JSONResponse:
+async def skip_track(ctx: UserContext = Depends(get_user_context)) -> JSONResponse:
     """Skip the current track.
 
     Tries Spotify Web API first.  If the active device is restricted (Sonos
@@ -344,7 +414,7 @@ async def skip_track() -> JSONResponse:
     Returns {"ok": true} on success (HTTP 200).
     Returns HTTP 503 with {"detail": "skip_failed", "reason": "..."} on any error.
     """
-    client = _sp_init()
+    client = _sp_init(ctx.token_cache_path)
     if client is None:
         return JSONResponse(
             status_code=503,
