@@ -208,7 +208,10 @@ Plans:
   2. After the user grants consent, `GET /auth/callback` validates the `state` uid, exchanges the code, and writes the token to `users/{uid}/token_cache/`
   3. A callback carrying an invalid or unrecognized `state` parameter returns an error and does not write any token to disk
   4. The user's daemon starts automatically after token write completes — no additional operator command required
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [x] 29-01-PLAN.md — UserRegistry.activate(uid): flip pending user to active with atomic write + TDD tests (AUTH-01)
+- [ ] 29-02-PLAN.md — GET /auth/callback: validate state, exchange code, spawn daemon, set uid cookie + TDD tests (AUTH-01, AUTH-02, AUTH-03)
 
 ### Phase 30: Per-User Daemon Management
 **Goal**: Each authenticated user has a daemon that starts on server boot, restarts on crash, and does not overwhelm the shared Spotify API rate limit
@@ -272,7 +275,7 @@ Plans:
 | 22. CI & Tooling | v1.6 | 0/? | Not started | - |
 | 27. User Registry + Operator CLI | v1.8 | 2/2 | Complete    | 2026-04-17 |
 | 28. Cookie Routing + Per-User SSE | v1.8 | 1/2 | Complete    | 2026-04-18 |
-| 29. OAuth Onboarding Flow | v1.8 | 0/? | Not started | - |
+| 29. OAuth Onboarding Flow | v1.8 | 1/2 | In Progress | - |
 | 30. Per-User Daemon Management | v1.8 | 0/? | Not started | - |
 | 31. VPS Deployment + HTTPS | v1.8 | 0/? | Not started | - |
 | 32. Frontend ID Persistence | v1.8 | 0/? | Not started | - |

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Open Source
 status: executing
-stopped_at: Completed 28-02-PLAN.md
-last_updated: "2026-04-18T20:07:09.252Z"
-last_activity: 2026-04-18
+stopped_at: "Completed 29-01-PLAN.md"
+last_updated: "2026-04-18T22:55:05Z"
+last_activity: 2026-04-18 -- Phase 29 Plan 01 complete (UserRegistry.activate)
 progress:
-  total_phases: 11
+  total_phases: 12
   completed_phases: 11
-  total_plans: 28
-  completed_plans: 28
-  percent: 33
+  total_plans: 30
+  completed_plans: 29
+  percent: 37
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Phase 28 — cookie-routing-per-user-sse
+**Current focus:** Phase 29 — oauth-onboarding-flow
 
 ## Current Position
 
-Phase: 28
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-04-18
+Phase: 29 (oauth-onboarding-flow) — EXECUTING
+Plan: 2 of 2
+Status: Executing Phase 29
+Last activity: 2026-04-18 -- Phase 29 Plan 01 complete (UserRegistry.activate)
 
-Progress: [██░░░░░░░░] 33%
+Progress: [███░░░░░░░] 37%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [██░░░░░░░░] 33%
 | Phase 27-user-registry-operator-cli P02 | 2 | 2 tasks | 3 files |
 | Phase 28 P01 | 10 | 2 tasks | 3 files |
 | Phase 28-cookie-routing-per-user-sse P02 | 6 | 2 tasks | 1 files |
+| Phase 29-oauth-onboarding-flow P01 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,7 @@ Recent decisions affecting current work:
 - [Phase 28]: get_user_context raises HTTPException(401) directly for FastAPI Depends; pending uid treated same as unknown (D-02)
 - [Phase 28]: SSE tail starts lazily on first /events connection; cancelled immediately when last subscriber disconnects (D-06, D-07)
 - [Phase 28]: Task 1 (per-uid SSE infrastructure) was pre-implemented in Phase 28-01 — SSE tests added in 28-02 to complete ROUTE-02 verification
+- [Phase 29-01]: activate(uid) does not check if status is already 'active' — method sets status unconditionally for any found uid; D-04 validation happens at callback level in Plan 02
 
 ### Pending Todos
 
@@ -93,6 +95,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-18T20:00:37.666Z
-Stopped at: Completed 28-02-PLAN.md
-Resume file: None
+Last session: 2026-04-18T22:55:05Z
+Stopped at: Completed 29-01-PLAN.md
+Resume file: .planning/phases/29-oauth-onboarding-flow/29-02-PLAN.md
