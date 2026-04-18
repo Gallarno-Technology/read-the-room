@@ -24,7 +24,7 @@ Cookie-based uid routing; per-user daemon isolation; server-side OAuth callback.
 ### Web Routing
 
 - [x] **ROUTE-01**: All FastAPI route handlers resolve a `UserContext` (per-user file paths) from a `uid` httpOnly cookie on every request
-- [ ] **ROUTE-02**: SSE `/events` endpoint spawns a per-user file tail task on first connection rather than maintaining a single global tail at server startup
+- [x] **ROUTE-02**: SSE `/events` endpoint spawns a per-user file tail task on first connection rather than maintaining a single global tail at server startup
 
 ### OAuth Onboarding
 
@@ -81,7 +81,7 @@ Cookie-based uid routing; per-user daemon isolation; server-side OAuth callback.
 | OPS-01 | Phase 27 | Complete |
 | OPS-02 | Phase 27 | Complete |
 | ROUTE-01 | Phase 28 | Complete |
-| ROUTE-02 | Phase 28 | Pending |
+| ROUTE-02 | Phase 28 | Complete |
 | AUTH-01 | Phase 29 | Pending |
 | AUTH-02 | Phase 29 | Pending |
 | AUTH-03 | Phase 29 | Pending |
