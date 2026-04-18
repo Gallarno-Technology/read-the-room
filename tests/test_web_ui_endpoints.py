@@ -310,3 +310,175 @@ async def test_two_uids_get_independent_tail_tasks():
     task_a.cancel()
     task_b.cancel()
     _clear_sse_state()
+
+
+# ---------------------------------------------------------------------------
+# GET /auth/callback — OAuth onboarding flow (Phase 29, AUTH-01, AUTH-02, AUTH-03)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def callback_client(tmp_path):
+    """TestClient for callback tests — no dependency override (callback has no Depends).
+    Registry state and SpotifyOAuth are controlled per-test via patch.object / patch."""
+    with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
+        yield c, tmp_path
+
+
+def _pending_user_record(uid="callbackuid1"):
+    return {"uid": uid, "name": "Alice", "created_at": "2026-01-01T00:00:00+00:00", "status": "pending"}
+
+
+def _active_user_record(uid="callbackuid1"):
+    return {"uid": uid, "name": "Alice", "created_at": "2026-01-01T00:00:00+00:00", "status": "active"}
+
+
+def test_callback_success_redirects_to_root(tmp_path):
+    """Valid code + pending uid → 302 to / with uid cookie (AUTH-01, D-01)."""
+    uid = "callbackuid1"
+    fake_paths = {
+        "state_path": str(tmp_path / "state.json"),
+        "events_path": str(tmp_path / "events.jsonl"),
+        "cache_path": str(tmp_path / "token_cache" / ".cache"),
+    }
+    with patch.object(web_ui_main._registry, "load", return_value=[_pending_user_record(uid)]), \
+         patch.object(web_ui_main._registry, "user_paths", return_value=fake_paths), \
+         patch.object(web_ui_main._registry, "activate") as mock_activate, \
+         patch("web_ui.main.SpotifyOAuth") as mock_oauth_cls, \
+         patch("asyncio.create_subprocess_exec") as mock_spawn:
+        mock_auth = MagicMock()
+        mock_oauth_cls.return_value = mock_auth
+        mock_spawn.return_value = MagicMock()
+        with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
+            resp = c.get(f"/auth/callback?code=authcode123&state={uid}", follow_redirects=False)
+    assert resp.status_code == 302
+    assert resp.headers["location"] == "/"
+    assert "uid" in resp.cookies or "uid=" in resp.headers.get("set-cookie", "")
+    mock_activate.assert_called_once_with(uid)
+
+
+def test_callback_sets_uid_cookie(tmp_path):
+    """Successful callback sets httpOnly uid cookie (AUTH-02, D-02)."""
+    uid = "callbackuid1"
+    fake_paths = {
+        "state_path": str(tmp_path / "state.json"),
+        "events_path": str(tmp_path / "events.jsonl"),
+        "cache_path": str(tmp_path / "token_cache" / ".cache"),
+    }
+    with patch.object(web_ui_main._registry, "load", return_value=[_pending_user_record(uid)]), \
+         patch.object(web_ui_main._registry, "user_paths", return_value=fake_paths), \
+         patch.object(web_ui_main._registry, "activate"), \
+         patch("web_ui.main.SpotifyOAuth") as mock_oauth_cls, \
+         patch("asyncio.create_subprocess_exec"):
+        mock_oauth_cls.return_value = MagicMock()
+        with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
+            resp = c.get(f"/auth/callback?code=authcode123&state={uid}", follow_redirects=False)
+    set_cookie = resp.headers.get("set-cookie", "")
+    assert f"uid={uid}" in set_cookie
+    assert "HttpOnly" in set_cookie or "httponly" in set_cookie.lower()
+    assert "SameSite=lax" in set_cookie or "samesite=lax" in set_cookie.lower()
+
+
+def test_callback_error_param_returns_400():
+    """Spotify error query param (user denied) → 400 HTML (D-03)."""
+    with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
+        resp = c.get("/auth/callback?error=access_denied&state=someuid")
+    assert resp.status_code == 400
+    assert "denied" in resp.text.lower() or "access_denied" in resp.text
+
+
+def test_callback_missing_code_returns_400():
+    """No code param → 400 HTML."""
+    with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
+        resp = c.get("/auth/callback?state=someuid")
+    assert resp.status_code == 400
+    assert "code" in resp.text.lower() or "missing" in resp.text.lower()
+
+
+def test_callback_missing_state_returns_400():
+    """No state param → 400 HTML (AUTH-02)."""
+    with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
+        resp = c.get("/auth/callback?code=abc123")
+    assert resp.status_code == 400
+    assert "state" in resp.text.lower() or "missing" in resp.text.lower()
+
+
+def test_callback_unknown_uid_returns_400():
+    """uid not in registry → 400 HTML (D-04)."""
+    with patch.object(web_ui_main._registry, "load", return_value=[]):
+        with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
+            resp = c.get("/auth/callback?code=abc123&state=unknownuid")
+    assert resp.status_code == 400
+
+
+def test_callback_already_active_uid_returns_400():
+    """uid with status='active' → 400 HTML (D-04 — only pending allowed)."""
+    uid = "callbackuid1"
+    with patch.object(web_ui_main._registry, "load", return_value=[_active_user_record(uid)]):
+        with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
+            resp = c.get(f"/auth/callback?code=abc123&state={uid}")
+    assert resp.status_code == 400
+
+
+def test_callback_token_exchange_failure_returns_500(tmp_path):
+    """SpotifyOAuth raises → 500 HTML (D-03 error page)."""
+    uid = "callbackuid1"
+    fake_paths = {
+        "state_path": str(tmp_path / "state.json"),
+        "events_path": str(tmp_path / "events.jsonl"),
+        "cache_path": str(tmp_path / "token_cache" / ".cache"),
+    }
+    with patch.object(web_ui_main._registry, "load", return_value=[_pending_user_record(uid)]), \
+         patch.object(web_ui_main._registry, "user_paths", return_value=fake_paths), \
+         patch("web_ui.main.SpotifyOAuth") as mock_oauth_cls:
+        mock_auth = MagicMock()
+        mock_auth.get_access_token.side_effect = Exception("Spotify API error")
+        mock_oauth_cls.return_value = mock_auth
+        with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
+            resp = c.get(f"/auth/callback?code=badcode&state={uid}")
+    assert resp.status_code == 500
+    assert "token exchange failed" in resp.text.lower() or "failed" in resp.text.lower()
+
+
+def test_callback_spawn_failure_still_redirects(tmp_path):
+    """OSError on daemon spawn → still returns 302 (D-10)."""
+    uid = "callbackuid1"
+    fake_paths = {
+        "state_path": str(tmp_path / "state.json"),
+        "events_path": str(tmp_path / "events.jsonl"),
+        "cache_path": str(tmp_path / "token_cache" / ".cache"),
+    }
+    with patch.object(web_ui_main._registry, "load", return_value=[_pending_user_record(uid)]), \
+         patch.object(web_ui_main._registry, "user_paths", return_value=fake_paths), \
+         patch.object(web_ui_main._registry, "activate"), \
+         patch("web_ui.main.SpotifyOAuth") as mock_oauth_cls, \
+         patch("asyncio.create_subprocess_exec", side_effect=OSError("no such file")):
+        mock_oauth_cls.return_value = MagicMock()
+        with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
+            resp = c.get(f"/auth/callback?code=authcode123&state={uid}", follow_redirects=False)
+    assert resp.status_code == 302
+    assert resp.headers["location"] == "/"
+
+
+def test_callback_spawns_daemon(tmp_path):
+    """Successful callback calls asyncio.create_subprocess_exec with sys.executable and daemon.py (AUTH-03)."""
+    uid = "callbackuid1"
+    fake_paths = {
+        "state_path": str(tmp_path / "state.json"),
+        "events_path": str(tmp_path / "events.jsonl"),
+        "cache_path": str(tmp_path / "token_cache" / ".cache"),
+    }
+    with patch.object(web_ui_main._registry, "load", return_value=[_pending_user_record(uid)]), \
+         patch.object(web_ui_main._registry, "user_paths", return_value=fake_paths), \
+         patch.object(web_ui_main._registry, "activate"), \
+         patch("web_ui.main.SpotifyOAuth") as mock_oauth_cls, \
+         patch("asyncio.create_subprocess_exec") as mock_spawn:
+        mock_oauth_cls.return_value = MagicMock()
+        mock_spawn.return_value = MagicMock()
+        with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
+            c.get(f"/auth/callback?code=authcode123&state={uid}", follow_redirects=False)
+    assert mock_spawn.called
+    call_args = mock_spawn.call_args
+    # First two positional args must be sys.executable and a path ending in daemon.py
+    import sys
+    assert call_args.args[0] == sys.executable
+    assert call_args.args[1].endswith("daemon.py")
