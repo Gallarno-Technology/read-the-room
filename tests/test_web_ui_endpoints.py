@@ -343,7 +343,7 @@ def test_callback_success_redirects_to_root(tmp_path):
     with patch.object(web_ui_main._registry, "load", return_value=[_pending_user_record(uid)]), \
          patch.object(web_ui_main._registry, "user_paths", return_value=fake_paths), \
          patch.object(web_ui_main._registry, "activate") as mock_activate, \
-         patch("web_ui.main.SpotifyOAuth") as mock_oauth_cls, \
+         patch("main.SpotifyOAuth") as mock_oauth_cls, \
          patch("asyncio.create_subprocess_exec") as mock_spawn:
         mock_auth = MagicMock()
         mock_oauth_cls.return_value = mock_auth
@@ -367,7 +367,7 @@ def test_callback_sets_uid_cookie(tmp_path):
     with patch.object(web_ui_main._registry, "load", return_value=[_pending_user_record(uid)]), \
          patch.object(web_ui_main._registry, "user_paths", return_value=fake_paths), \
          patch.object(web_ui_main._registry, "activate"), \
-         patch("web_ui.main.SpotifyOAuth") as mock_oauth_cls, \
+         patch("main.SpotifyOAuth") as mock_oauth_cls, \
          patch("asyncio.create_subprocess_exec"):
         mock_oauth_cls.return_value = MagicMock()
         with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
@@ -429,7 +429,7 @@ def test_callback_token_exchange_failure_returns_500(tmp_path):
     }
     with patch.object(web_ui_main._registry, "load", return_value=[_pending_user_record(uid)]), \
          patch.object(web_ui_main._registry, "user_paths", return_value=fake_paths), \
-         patch("web_ui.main.SpotifyOAuth") as mock_oauth_cls:
+         patch("main.SpotifyOAuth") as mock_oauth_cls:
         mock_auth = MagicMock()
         mock_auth.get_access_token.side_effect = Exception("Spotify API error")
         mock_oauth_cls.return_value = mock_auth
@@ -450,7 +450,7 @@ def test_callback_spawn_failure_still_redirects(tmp_path):
     with patch.object(web_ui_main._registry, "load", return_value=[_pending_user_record(uid)]), \
          patch.object(web_ui_main._registry, "user_paths", return_value=fake_paths), \
          patch.object(web_ui_main._registry, "activate"), \
-         patch("web_ui.main.SpotifyOAuth") as mock_oauth_cls, \
+         patch("main.SpotifyOAuth") as mock_oauth_cls, \
          patch("asyncio.create_subprocess_exec", side_effect=OSError("no such file")):
         mock_oauth_cls.return_value = MagicMock()
         with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
@@ -470,7 +470,7 @@ def test_callback_spawns_daemon(tmp_path):
     with patch.object(web_ui_main._registry, "load", return_value=[_pending_user_record(uid)]), \
          patch.object(web_ui_main._registry, "user_paths", return_value=fake_paths), \
          patch.object(web_ui_main._registry, "activate"), \
-         patch("web_ui.main.SpotifyOAuth") as mock_oauth_cls, \
+         patch("main.SpotifyOAuth") as mock_oauth_cls, \
          patch("asyncio.create_subprocess_exec") as mock_spawn:
         mock_oauth_cls.return_value = MagicMock()
         mock_spawn.return_value = MagicMock()

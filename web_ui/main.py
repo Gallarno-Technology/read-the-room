@@ -22,6 +22,7 @@ import json
 import logging
 import os
 import pathlib
+import sys
 from dataclasses import dataclass
 from typing import AsyncGenerator
 
@@ -29,7 +30,7 @@ from dotenv import load_dotenv
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth, CacheFileHandler
 from fastapi import Cookie, Depends, FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from skip_client import SocoSkipClient
@@ -45,6 +46,9 @@ logging.basicConfig(
 )
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
+
+# Scope must exactly match scripts/manage_users.py SCOPE — scope mismatch causes Spotify 403.
+CALLBACK_SCOPE = "user-read-currently-playing user-modify-playback-state"
 
 app = FastAPI(title="Read the Room", docs_url=None, redoc_url=None)
 
@@ -65,6 +69,23 @@ class UserContext:
 # Registry singleton — base_dir is project root (parent of web_ui/).
 # asyncio is single-threaded; no lock needed on this object.
 _registry = UserRegistry(base_dir=str(pathlib.Path(__file__).parent.parent))
+
+
+def _error_html(status_code: int, reason: str) -> HTMLResponse:
+    """Return a minimal human-readable error page for OAuth callback failures (D-03).
+
+    No JSON — the user came from a browser and expects readable output.
+    """
+    html = (
+        "<!DOCTYPE html>"
+        "<html><head><title>Authorization Error</title></head>"
+        "<body>"
+        "<h2>Authorization Failed</h2>"
+        f"<pre>{reason}</pre>"
+        "<p>Please contact the operator to get a new authorization link.</p>"
+        "</body></html>"
+    )
+    return HTMLResponse(content=html, status_code=status_code)
 
 
 def get_user_context(uid: str | None = Cookie(default=None)) -> UserContext:
@@ -391,6 +412,97 @@ async def feed(ctx: UserContext = Depends(get_user_context)) -> JSONResponse:
             if len(events) >= 20:
                 break
     return JSONResponse(events, headers={"Cache-Control": "no-store"})
+
+
+# ---------------------------------------------------------------------------
+# OAuth Callback — server-side Authorization Code Flow completion (Phase 29)
+# AUTH-01: validate state, exchange code, write token, activate user
+# AUTH-02: uid travels via state param — callback reads request.query_params["state"]
+# AUTH-03: daemon spawned fire-and-forget after token write
+# ---------------------------------------------------------------------------
+
+@app.get("/auth/callback", response_model=None)
+async def auth_callback(request: Request) -> HTMLResponse | RedirectResponse:
+    """Spotify OAuth callback — validates state, exchanges code, spawns daemon.
+
+    No Depends(get_user_context) — uid not yet in cookie when this runs.
+    """
+    error = request.query_params.get("error")
+    code = request.query_params.get("code")
+    uid = request.query_params.get("state")
+
+    # Handle Spotify-side denial or missing params (D-03)
+    if error:
+        return _error_html(400, f"Authorization was denied: {error}")
+    if not code:
+        return _error_html(400, "Missing authorization code from Spotify")
+    if not uid:
+        return _error_html(400, "Missing state parameter")
+
+    # Validate uid is known and status is "pending" (D-04)
+    users = _registry.load()
+    user = next((u for u in users if u["uid"] == uid), None)
+    if user is None or user.get("status") != "pending":
+        return _error_html(400, "Unrecognized or already-active authorization request")
+
+    # Exchange authorization code for token (D-06)
+    # Per-request SpotifyOAuth — NOT module-level (anti-pattern: stale tokens)
+    try:
+        paths = _registry.user_paths(uid)
+        cache_handler = CacheFileHandler(cache_path=paths["cache_path"])
+        auth_manager = SpotifyOAuth(
+            client_id=os.environ["SPOTIFY_CLIENT_ID"],
+            client_secret=os.environ["SPOTIFY_CLIENT_SECRET"],
+            redirect_uri=os.environ["SPOTIFY_REDIRECT_URI"],
+            scope=CALLBACK_SCOPE,
+            open_browser=False,
+            cache_handler=cache_handler,
+            state=uid,
+        )
+        # check_cache=False forces fresh exchange — skips any stale cached token
+        auth_manager.get_access_token(code, as_dict=False, check_cache=False)
+    except Exception as exc:
+        log.error("web_ui: token exchange failed for uid=%s: %s", uid, exc)
+        return _error_html(500, f"Token exchange failed: {exc}")
+
+    # Flip user status to "active" in users.json (D-07, AUTH-01)
+    try:
+        _registry.activate(uid)
+    except Exception as exc:
+        log.error("web_ui: registry activate failed for uid=%s: %s", uid, exc)
+        return _error_html(500, f"Failed to activate user: {exc}")
+
+    # Spawn daemon fire-and-forget (D-08, D-09, D-10, AUTH-03)
+    daemon_path = str(pathlib.Path(__file__).parent.parent / "daemon.py")
+    env = os.environ.copy()
+    env["STATE_PATH"] = paths["state_path"]
+    env["EVENTS_PATH"] = paths["events_path"]
+    # LYRICS_DB_PATH is shared at project root (ISOL-03) — not in user_paths()
+    env["LYRICS_DB_PATH"] = str(pathlib.Path(__file__).parent.parent / "lyrics_cache.db")
+    env["SPOTIFY_CACHE_PATH"] = paths["cache_path"]
+    try:
+        await asyncio.create_subprocess_exec(
+            sys.executable, daemon_path,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
+            env=env,
+        )
+        log.info("web_ui: daemon spawned for uid=%s", uid)
+    except OSError as exc:
+        # D-10: log and continue — redirect still happens even if spawn fails
+        log.error("web_ui: daemon spawn failed for uid=%s: %s", uid, exc)
+
+    # Set uid cookie and redirect to dashboard (D-01, D-02)
+    response = RedirectResponse(url="/", status_code=302)
+    response.set_cookie(
+        key="uid",
+        value=uid,
+        httponly=True,
+        samesite="lax",
+        path="/",
+        # secure=False — deferred to Phase 31 (HTTPS via Caddy not yet wired)
+    )
+    return response
 
 
 # ---------------------------------------------------------------------------
