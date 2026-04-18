@@ -82,7 +82,7 @@
 **Milestone Goal:** Run up to 5 independent user instances on a hosted server — each with their own Spotify token, daemon, and isolated data — accessible via an opaque ID stored in browser localStorage.
 
 - [x] **Phase 27: User Registry + Operator CLI** — Per-user data directory isolation and operator onboarding commands (completed 2026-04-17)
-- [ ] **Phase 28: Cookie Routing + Per-User SSE** — All routes resolve per-user context; SSE streams are isolated and leak-free
+- [x] **Phase 28: Cookie Routing + Per-User SSE** — All routes resolve per-user context; SSE streams are isolated and leak-free (completed 2026-04-18)
 - [ ] **Phase 29: OAuth Onboarding Flow** — Server-side OAuth callback completes token exchange and daemon launch
 - [ ] **Phase 30: Per-User Daemon Management** — Each user's daemon spawns, supervises, and restarts automatically
 - [ ] **Phase 31: VPS Deployment + HTTPS** — Caddy TLS termination and environment-conditional Sonos networking
@@ -271,7 +271,7 @@ Plans:
 | 21. Legal & Docs | v1.6 | 1/2 | In Progress|  |
 | 22. CI & Tooling | v1.6 | 0/? | Not started | - |
 | 27. User Registry + Operator CLI | v1.8 | 2/2 | Complete    | 2026-04-17 |
-| 28. Cookie Routing + Per-User SSE | v1.8 | 1/2 | In Progress|  |
+| 28. Cookie Routing + Per-User SSE | v1.8 | 1/2 | Complete    | 2026-04-18 |
 | 29. OAuth Onboarding Flow | v1.8 | 0/? | Not started | - |
 | 30. Per-User Daemon Management | v1.8 | 0/? | Not started | - |
 | 31. VPS Deployment + HTTPS | v1.8 | 0/? | Not started | - |
