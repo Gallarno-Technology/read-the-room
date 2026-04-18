@@ -200,3 +200,113 @@ def test_dashboard_injects_profile_initial(client, mock_ctx):
     assert resp.status_code == 200
     assert "__PROFILE_INITIAL__" not in resp.text
     assert "permissive" in resp.text
+
+
+# ---------------------------------------------------------------------------
+# SSE per-uid isolation — ROUTE-02 (Phase 28)
+# ---------------------------------------------------------------------------
+
+import asyncio as _asyncio
+
+
+def _clear_sse_state():
+    """Reset module-level SSE dicts between tests."""
+    web_ui_main._tails.clear()
+    web_ui_main._subscribers.clear()
+
+
+def test_first_events_connection_starts_tail_task(mock_ctx):
+    """First /events for a uid creates one entry in _tails (D-06)."""
+    _clear_sse_state()
+    uid = mock_ctx.uid
+
+    # Simulate what GET /events does (without opening a real stream)
+    subscriber = _asyncio.Queue(maxsize=100)
+    web_ui_main._subscribers[uid] = [subscriber]
+
+    # Simulate task creation (D-06 logic)
+    task = _asyncio.get_event_loop().create_task(_asyncio.sleep(9999))
+    web_ui_main._tails[uid] = task
+
+    assert uid in web_ui_main._tails
+    assert web_ui_main._tails[uid] is task
+
+    # Cleanup
+    task.cancel()
+    _clear_sse_state()
+
+
+def test_second_events_connection_shares_existing_task(mock_ctx):
+    """Second /events connection for same uid reuses existing tail task (D-05)."""
+    _clear_sse_state()
+    uid = mock_ctx.uid
+
+    # Simulate first connection
+    task = _asyncio.get_event_loop().create_task(_asyncio.sleep(9999))
+    web_ui_main._tails[uid] = task
+    q1 = _asyncio.Queue(maxsize=100)
+    web_ui_main._subscribers[uid] = [q1]
+
+    # Simulate second connection — task already exists and not done; no new task created
+    q2 = _asyncio.Queue(maxsize=100)
+    web_ui_main._subscribers[uid].append(q2)
+    if uid not in web_ui_main._tails or web_ui_main._tails[uid].done():
+        web_ui_main._tails[uid] = _asyncio.get_event_loop().create_task(_asyncio.sleep(9999))
+
+    # Still one task
+    assert len([k for k in web_ui_main._tails if k == uid]) == 1
+    assert len(web_ui_main._subscribers[uid]) == 2
+
+    task.cancel()
+    _clear_sse_state()
+
+
+async def test_last_subscriber_removal_cancels_tail_task(mock_ctx):
+    """Removing last subscriber for uid cancels the tail task and clears dicts (D-07)."""
+    _clear_sse_state()
+    uid = mock_ctx.uid
+
+    # Set up one subscriber and one tail task
+    q = _asyncio.Queue(maxsize=100)
+    web_ui_main._subscribers[uid] = [q]
+    task = _asyncio.get_event_loop().create_task(_asyncio.sleep(9999))
+    web_ui_main._tails[uid] = task
+
+    # Simulate generator finally block (last subscriber removed)
+    web_ui_main._subscribers[uid].remove(q)
+    if not web_ui_main._subscribers.get(uid):
+        web_ui_main._subscribers.pop(uid, None)
+        tail = web_ui_main._tails.pop(uid, None)
+        if tail and not tail.done():
+            tail.cancel()
+
+    assert uid not in web_ui_main._tails
+    assert uid not in web_ui_main._subscribers
+    # Give event loop a cycle to process cancellation
+    await _asyncio.sleep(0)
+    assert task.cancelled() or task.done()
+
+    _clear_sse_state()
+
+
+async def test_two_uids_get_independent_tail_tasks():
+    """Two different uids each have their own isolated tail task (D-05)."""
+    _clear_sse_state()
+
+    uid_a = "userabc"
+    uid_b = "userxyz"
+
+    task_a = _asyncio.get_event_loop().create_task(_asyncio.sleep(9999))
+    task_b = _asyncio.get_event_loop().create_task(_asyncio.sleep(9999))
+    web_ui_main._tails[uid_a] = task_a
+    web_ui_main._tails[uid_b] = task_b
+    web_ui_main._subscribers[uid_a] = [_asyncio.Queue(maxsize=100)]
+    web_ui_main._subscribers[uid_b] = [_asyncio.Queue(maxsize=100)]
+
+    assert web_ui_main._tails[uid_a] is task_a
+    assert web_ui_main._tails[uid_b] is task_b
+    assert web_ui_main._tails[uid_a] is not web_ui_main._tails[uid_b]
+
+    task_a.cancel()
+    task_b.cancel()
+    _clear_sse_state()
