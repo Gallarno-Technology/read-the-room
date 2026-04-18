@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Open Source
-status: completed
-stopped_at: Completed 27-02-PLAN.md (manage_users.py operator CLI)
-last_updated: "2026-04-17T02:27:48.437Z"
-last_activity: 2026-04-17
+status: executing
+stopped_at: Completed 28-01-PLAN.md
+last_updated: "2026-04-18T19:54:08.509Z"
+last_activity: 2026-04-18 -- Phase 28 execution started
 progress:
-  total_phases: 12
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_phases: 11
+  completed_phases: 10
+  total_plans: 28
+  completed_plans: 27
   percent: 33
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Phase 27 — User Registry + Operator CLI (COMPLETE)
+**Current focus:** Phase 28 — cookie-routing-per-user-sse
 
 ## Current Position
 
-Phase: 28
-Plan: Not started
-Status: Complete
-Last activity: 2026-04-17
+Phase: 28 (cookie-routing-per-user-sse) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 28
+Last activity: 2026-04-18 -- Phase 28 execution started
 
 Progress: [██░░░░░░░░] 33%
 
@@ -53,6 +53,7 @@ Progress: [██░░░░░░░░] 33%
 | 23 | 2 | - | - |
 | Phase 27-user-registry-operator-cli P01 | 2 | 2 tasks | 2 files |
 | Phase 27-user-registry-operator-cli P02 | 2 | 2 tasks | 3 files |
+| Phase 28 P01 | 10 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,8 @@ Recent decisions affecting current work:
 - [Phase 27-user-registry-operator-cli]: UserRegistry(base_dir) pattern for testability — no hardcoded project root paths
 - [Phase 27-user-registry-operator-cli]: lyrics_cache.db stays at project root (ISOL-03) — shared across users, NOT inside users/{uid}/
 - [Phase 27-user-registry-operator-cli P02]: SpotifyOAuth state=uid bakes uid into OAuth URL state param — callback in Phase 29 reads it back; CacheFileHandler uses placeholder path overwritten by Phase 29
+- [Phase 28]: get_user_context raises HTTPException(401) directly for FastAPI Depends; pending uid treated same as unknown (D-02)
+- [Phase 28]: SSE tail starts lazily on first /events connection; cancelled immediately when last subscriber disconnects (D-06, D-07)
 
 ### Pending Todos
 
@@ -88,6 +91,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-17T02:22:00.000Z
-Stopped at: Completed 27-02-PLAN.md (manage_users.py operator CLI)
+Last session: 2026-04-18T19:54:08.507Z
+Stopped at: Completed 28-01-PLAN.md
 Resume file: None

@@ -194,7 +194,10 @@ Plans:
   2. All endpoints (`/now-playing`, `/skip`, `/events`, `/profile`) serve data scoped to the cookie-identified user's file paths
   3. Opening `/events` in two browser tabs for different users delivers independent, non-overlapping event streams
   4. Closing a browser tab stops the SSE tail task for that user without leaking open file handles or lingering subscriber entries
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [x] 28-01-PLAN.md — UserContext dataclass, get_user_context Depends, all non-SSE routes wired per-user (ROUTE-01)
+- [ ] 28-02-PLAN.md — Per-uid SSE tail tasks with lazy start and immediate teardown (ROUTE-02)
 
 ### Phase 29: OAuth Onboarding Flow
 **Goal**: An operator-initiated OAuth flow completes server-side, writes the token to the correct user path, and lands the new user on their authenticated dashboard
@@ -268,7 +271,7 @@ Plans:
 | 21. Legal & Docs | v1.6 | 1/2 | In Progress|  |
 | 22. CI & Tooling | v1.6 | 0/? | Not started | - |
 | 27. User Registry + Operator CLI | v1.8 | 2/2 | Complete    | 2026-04-17 |
-| 28. Cookie Routing + Per-User SSE | v1.8 | 0/? | Not started | - |
+| 28. Cookie Routing + Per-User SSE | v1.8 | 1/2 | In Progress|  |
 | 29. OAuth Onboarding Flow | v1.8 | 0/? | Not started | - |
 | 30. Per-User Daemon Management | v1.8 | 0/? | Not started | - |
 | 31. VPS Deployment + HTTPS | v1.8 | 0/? | Not started | - |
