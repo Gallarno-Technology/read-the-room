@@ -149,3 +149,67 @@ def test_remove_deletes_directory(patched_registry):
 def test_remove_unknown_uid_returns_1(patched_registry):
     result = cmd_remove("nonexistent_uid_string")
     assert result == 1
+
+
+# ---------------------------------------------------------------------------
+# list tests
+# ---------------------------------------------------------------------------
+
+from scripts.manage_users import cmd_list  # noqa: E402
+
+
+def test_list_empty_registry_prints_message(patched_registry, capsys):
+    """cmd_list() with empty registry prints 'No users registered.' and returns 0."""
+    result = cmd_list()
+    captured = capsys.readouterr()
+    assert result == 0
+    assert "No users registered." in captured.out
+
+
+def test_list_pending_user_shows_truncated_uid_name_and_status(patched_registry, capsys):
+    """cmd_list() with one pending user shows truncated uid, name, and 'pending'."""
+    reg = UserRegistry(base_dir=str(patched_registry))
+    record = reg.provision("alice")
+    uid = record["uid"]
+    result = cmd_list()
+    captured = capsys.readouterr()
+    assert result == 0
+    assert uid[:8] + "..." in captured.out
+    assert "alice" in captured.out
+    assert "pending" in captured.out
+
+
+def test_list_active_user_shows_active_status(patched_registry, capsys):
+    """cmd_list() with one active user shows 'active' in status column."""
+    reg = UserRegistry(base_dir=str(patched_registry))
+    record = reg.provision("bob")
+    reg.activate(record["uid"])
+    result = cmd_list()
+    captured = capsys.readouterr()
+    assert result == 0
+    assert "active" in captured.out
+
+
+def test_list_max_users_shows_all_rows(patched_registry, capsys):
+    """cmd_list() with MAX_USERS users prints all 5 rows."""
+    reg = UserRegistry(base_dir=str(patched_registry))
+    names = [f"user{i}" for i in range(MAX_USERS)]
+    for name in names:
+        reg.provision(name)
+    result = cmd_list()
+    captured = capsys.readouterr()
+    assert result == 0
+    for name in names:
+        assert name in captured.out
+
+
+def test_list_does_not_expose_full_uid(patched_registry, capsys):
+    """cmd_list() output does not expose the full uid."""
+    reg = UserRegistry(base_dir=str(patched_registry))
+    record = reg.provision("carol")
+    uid = record["uid"]
+    cmd_list()
+    captured = capsys.readouterr()
+    # Full uid must not appear; only the truncated prefix (first 8 chars + "...") is shown
+    assert uid not in captured.out
+    assert uid[:8] + "..." in captured.out
