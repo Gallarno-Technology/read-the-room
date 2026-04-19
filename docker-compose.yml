@@ -33,3 +33,14 @@ services:
       - ./state.json:/app/state.json  # FSM toggle reads/writes this file (D-09)
       - ./data:/app/data              # Shared event log (events.jsonl) and now_playing.json (Phase 6)
       - ./token_cache:/app/token_cache    # Shared OAuth token cache with daemon (Phase 7)
+
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    network_mode: host     # Must share host network to reach localhost:8888 (web_ui)
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data   # Persists Caddy internal CA so self-signed cert survives restarts
+
+volumes:
+  caddy_data:
