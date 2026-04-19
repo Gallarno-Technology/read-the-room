@@ -11,6 +11,9 @@ Usage:
         Removes the user's data directory and registry entry.
         (Daemon stop is handled by Phase 30 — not wired here.)
 
+    python scripts/manage_users.py list
+        Prints all registered users with their truncated uid, name, and status.
+
 Invoked from the project root so relative paths (users/, users.json) resolve correctly.
 """
 import os
@@ -102,10 +105,29 @@ def cmd_remove(uid: str) -> int:
     return 0
 
 
+def cmd_list() -> int:
+    """Print all registered users with truncated uid, name, and status.
+
+    Returns exit code (0 = success).
+    """
+    registry = UserRegistry(base_dir=".")
+    users = registry.load()
+    if not users:
+        print("No users registered.")
+        return 0
+    print(f"{'UID':12}  {'NAME':20}  STATUS")
+    print("-" * 42)
+    for u in users:
+        short_uid = u["uid"][:8] + "..."
+        print(f"{short_uid:12}  {u['name']:20}  {u['status']}")
+    return 0
+
+
 def usage() -> None:
     print("Usage:")
     print("  python scripts/manage_users.py generate-url <name>")
     print("  python scripts/manage_users.py remove <uid>")
+    print("  python scripts/manage_users.py list")
 
 
 def main() -> None:
@@ -130,6 +152,9 @@ def main() -> None:
             usage()
             sys.exit(1)
         sys.exit(cmd_remove(args[1]))
+
+    elif subcommand == "list":
+        sys.exit(cmd_list())
 
     else:
         print(f"ERROR: Unknown subcommand: {subcommand!r}")
