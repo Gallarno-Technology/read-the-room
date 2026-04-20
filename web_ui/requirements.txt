@@ -3,3 +3,6 @@ uvicorn[standard]==0.34.0
 python-dotenv==1.2.2
 spotipy==2.26.0
 soco==0.30.14
+better-profanity==0.7.0
+lrclibapi==0.3.1
+aiosqlite==0.22.1
