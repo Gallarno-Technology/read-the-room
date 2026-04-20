@@ -125,9 +125,7 @@ class UserRegistry:
                 pass  # create empty file
 
     def _save(self, users: list[dict]) -> None:
-        """Atomic write of users list to users.json via temp file + os.replace()."""
-        tmp_path = self._registry_path.with_suffix(".json.tmp")
-        with open(tmp_path, "w") as f:
+        """Write users list to users.json. Direct write (bind-mount safe)."""
+        with open(self._registry_path, "w") as f:
             json.dump({"users": users}, f, indent=2)
             f.write("\n")
-        os.replace(tmp_path, self._registry_path)
