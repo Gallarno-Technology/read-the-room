@@ -574,8 +574,12 @@ async def auth_callback(request: Request) -> HTMLResponse | RedirectResponse:
     try:
         _registry.activate(uid)
     except Exception as exc:
-        log.error("web_ui: registry activate failed for uid=%s: %s", uid, exc)
-        return _error_html(500, f"Failed to activate user: {exc}")
+        log.error(
+            "web_ui: registry activate failed for uid=%s — token written but user not activated; "
+            "run 'manage_users.py remove %s' to clean up orphaned entry: %s",
+            uid, uid, exc,
+        )
+        return _error_html(500, "Failed to activate user: account cleanup required")
 
     # Spawn daemon and start supervisor task (D-06, PROC-02, AUTH-03)
     # _spawn_daemon handles env vars, PID file, and _daemons dict storage.
