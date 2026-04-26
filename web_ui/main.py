@@ -265,7 +265,16 @@ async def _supervisor_for_uid(uid: str) -> None:
             return
         # Unexpected exit — restart immediately (D-07)
         log.warning("web_ui: uid=%s daemon exited with code %s — restarting", uid, exit_code)
-        await _spawn_daemon(uid)
+        try:
+            await _spawn_daemon(uid)
+        except Exception as spawn_exc:
+            log.error(
+                "web_ui: supervisor uid=%s — restart spawn failed: %s; "
+                "retrying in 30s",
+                uid, spawn_exc,
+            )
+            await asyncio.sleep(30)
+            continue
         # Loop continues — supervisor awaits the new process
 
 
