@@ -576,24 +576,14 @@ async def auth_callback(request: Request) -> HTMLResponse | RedirectResponse:
         log.error("web_ui: registry activate failed for uid=%s: %s", uid, exc)
         return _error_html(500, f"Failed to activate user: {exc}")
 
-    # Spawn daemon fire-and-forget (D-08, D-09, D-10, AUTH-03)
-    daemon_path = str(pathlib.Path(__file__).parent.parent / "daemon.py")
-    env = os.environ.copy()
-    env["STATE_PATH"] = paths["state_path"]
-    env["EVENTS_PATH"] = paths["events_path"]
-    # LYRICS_DB_PATH is shared at project root (ISOL-03) — not in user_paths()
-    env["LYRICS_DB_PATH"] = str(pathlib.Path(__file__).parent.parent / "lyrics_cache.db")
-    env["SPOTIFY_CACHE_PATH"] = paths["cache_path"]
+    # Spawn daemon and start supervisor task (D-06, PROC-02, AUTH-03)
+    # _spawn_daemon handles env vars, PID file, and _daemons dict storage.
+    # supervisor task ensures daemon is restarted on crash.
     try:
-        await asyncio.create_subprocess_exec(
-            sys.executable, daemon_path,
-            stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.PIPE,
-            env=env,
-        )
-        log.info("web_ui: daemon spawned for uid=%s", uid)
+        await _spawn_daemon(uid)
+        asyncio.create_task(_supervisor_for_uid(uid))
     except OSError as exc:
-        # D-10: log and continue — redirect still happens even if spawn fails
+        # Log and continue — redirect still happens even if spawn fails (D-06)
         log.error("web_ui: daemon spawn failed for uid=%s: %s", uid, exc)
 
     # Set uid cookie and redirect to dashboard (D-01, D-02)
