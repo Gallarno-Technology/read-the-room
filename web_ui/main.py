@@ -600,7 +600,7 @@ async def auth_callback(request: Request) -> HTMLResponse | RedirectResponse:
     try:
         await _spawn_daemon(uid)
         asyncio.create_task(_supervisor_for_uid(uid))
-    except OSError as exc:
+    except Exception as exc:
         # Log and continue — redirect still happens even if spawn fails (D-06)
         log.error("web_ui: daemon spawn failed for uid=%s: %s", uid, exc)
 
