@@ -280,6 +280,6 @@ Plans:
 | 27. User Registry + Operator CLI | v1.8 | 2/2 | Complete    | 2026-04-17 |
 | 28. Cookie Routing + Per-User SSE | v1.8 | 1/2 | Complete    | 2026-04-18 |
 | 29. OAuth Onboarding Flow | v1.8 | 1/2 | Complete    | 2026-04-18 |
-| 30. Per-User Daemon Management | v1.8 | 1/3 | In Progress | 2026-04-26 |
+| 30. Per-User Daemon Management | v1.8 | 2/3 | In Progress | 2026-04-26 |
 | 31. VPS Deployment + HTTPS | v1.8 | 0/? | Not started | - |
 | 32. Frontend ID Persistence | v1.8 | 0/? | Not started | - |

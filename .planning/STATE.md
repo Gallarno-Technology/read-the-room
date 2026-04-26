@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Multi-User Beta
 status: executing
-stopped_at: Phase 30 Plan 01 complete — TDD RED scaffolds committed
-last_updated: "2026-04-26T14:44:35Z"
+stopped_at: Phase 30 Plan 02 complete — supervisor infrastructure implemented and callback refactored
+last_updated: "2026-04-26T14:50:12Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 13
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 ## Current Position
 
 Phase: 30
-Plan: 01 complete
+Plan: 02 complete
 Status: Executing Phase 30
 Last activity: 2026-04-26
 
@@ -57,6 +57,7 @@ Progress: [████░░░░░░] 38%
 | Phase 28-cookie-routing-per-user-sse P02 | 6 | 2 tasks | 1 files |
 | Phase 29-oauth-onboarding-flow P01 | 2 | 2 tasks | 2 files |
 | Phase 30-per-user-daemon-management P01 | 2 | 2 tasks | 3 files |
+| Phase 30-per-user-daemon-management P02 | 2 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,8 @@ Recent decisions affecting current work:
 - [Phase 29-01]: activate(uid) does not check if status is already 'active' — method sets status unconditionally for any found uid; D-04 validation happens at callback level in Plan 02
 - [Phase 30-01]: Test _stop_daemon_via_pid directly (not via cmd_remove) for cleaner isolation; ImportError at test runtime (not collection) ensures FAILED not ERROR
 - [Phase 30-01]: asyncio.run() drives supervisor coroutines from synchronous test functions — matches existing pattern for pure-async coroutines not needing TestClient
+- [Phase 30-02]: lifespan context manager defined before app = FastAPI() — Python resolves function-body names at call time, not definition time; _registry/_spawn_daemon/_supervisor_for_uid available at startup despite appearing later in file
+- [Phase 30-02]: Supervisor tasks cancelled on FastAPI shutdown to prevent asyncio "pending task destroyed" warnings in test teardown
 
 ### Pending Todos
 
@@ -105,6 +108,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-26T14:44:35Z
-Stopped at: Phase 30 Plan 01 complete — TDD RED scaffolds committed
-Resume file: .planning/phases/30-per-user-daemon-management/30-01-SUMMARY.md
+Last session: 2026-04-26T14:50:12Z
+Stopped at: Phase 30 Plan 02 complete — supervisor infrastructure implemented and callback refactored
+Resume file: .planning/phases/30-per-user-daemon-management/30-02-SUMMARY.md

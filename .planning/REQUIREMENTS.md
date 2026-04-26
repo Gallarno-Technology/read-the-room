@@ -34,10 +34,10 @@ Cookie-based uid routing; per-user daemon isolation; server-side OAuth callback.
 
 ### Process Management
 
-- [ ] **PROC-01**: `web_ui` spawns per-user daemon processes via `asyncio.create_subprocess_exec` with uid-specific env vars (`STATE_PATH`, `EVENTS_PATH`, `LYRICS_DB_PATH`, `SPOTIFY_CACHE_PATH`)
-- [ ] **PROC-02**: A supervisor coroutine monitors each user's daemon and restarts it automatically on unexpected exit
-- [ ] **PROC-03**: `POLL_INTERVAL_SECONDS` defaults to `3` in multi-user mode to reduce Spotify API call rate across N daemons
-- [ ] **PROC-04**: On `web_ui` startup, all users listed in `users.json` have their daemon processes re-launched automatically
+- [x] **PROC-01**: `web_ui` spawns per-user daemon processes via `asyncio.create_subprocess_exec` with uid-specific env vars (`STATE_PATH`, `EVENTS_PATH`, `LYRICS_DB_PATH`, `SPOTIFY_CACHE_PATH`)
+- [x] **PROC-02**: A supervisor coroutine monitors each user's daemon and restarts it automatically on unexpected exit
+- [x] **PROC-03**: `POLL_INTERVAL_SECONDS` defaults to `3` in multi-user mode to reduce Spotify API call rate across N daemons
+- [x] **PROC-04**: On `web_ui` startup, all users listed in `users.json` have their daemon processes re-launched automatically
 
 ### Deployment
 
@@ -85,10 +85,10 @@ Cookie-based uid routing; per-user daemon isolation; server-side OAuth callback.
 | AUTH-01 | Phase 29 | Pending |
 | AUTH-02 | Phase 29 | Pending |
 | AUTH-03 | Phase 29 | Pending |
-| PROC-01 | Phase 30 | Pending |
-| PROC-02 | Phase 30 | Pending |
-| PROC-03 | Phase 30 | Pending |
-| PROC-04 | Phase 30 | Pending |
+| PROC-01 | Phase 30 Plan 02 | Complete |
+| PROC-02 | Phase 30 Plan 02 | Complete |
+| PROC-03 | Phase 30 Plan 02 | Complete |
+| PROC-04 | Phase 30 Plan 02 | Complete |
 | DEPLOY-01 | Phase 31 | Pending |
 | DEPLOY-02 | Phase 31 | Pending |
 | DEPLOY-03 | Phase 31 | Pending |
