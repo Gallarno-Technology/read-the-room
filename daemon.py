@@ -170,14 +170,15 @@ def _append_event(event: dict) -> None:
     """Append a JSON line to the events log (all daemon event types).
 
     Assigns a monotonic integer id to every event (HIST-03).
+    Creates a copy of the event dict to avoid mutating the caller's object.
     """
     global _event_counter
     _event_counter += 1
-    event["id"] = _event_counter
+    payload = {**event, "id": _event_counter}
     try:
         os.makedirs(os.path.dirname(EVENTS_PATH) or ".", exist_ok=True)
         with open(EVENTS_PATH, "a") as f:
-            f.write(json.dumps(event) + "\n")
+            f.write(json.dumps(payload) + "\n")
             f.flush()
     except OSError as exc:
         log.error("[EVENTS] failed to write event log: %s", exc)
