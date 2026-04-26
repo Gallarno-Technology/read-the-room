@@ -14,6 +14,7 @@ import logging
 import os
 import random
 import signal
+import sys
 import time
 from pathlib import Path
 from typing import Optional
@@ -338,6 +339,8 @@ async def poll_loop(
     was_idle: bool = False     # dedup flag — gates idle write to once per transition (D-05)
     last_heartbeat = time.monotonic()
 
+    _consecutive_401s = 0  # D-01: consecutive 401 counter; sys.exit(2) after 3
+
     log.info(
         "Daemon started. Poll interval=%.1fs, heartbeat=%.1fs",
         POLL_INTERVAL,
@@ -348,6 +351,7 @@ async def poll_loop(
         Path('/app/.healthcheck').touch()
         try:
             result = sp.current_playback()
+            _consecutive_401s = 0  # D-02: reset on any successful Spotify API call
 
             if result is None or result.get("item") is None:
                 # 204 No Content (nothing playing) or item=null (podcast/ad)
@@ -588,8 +592,16 @@ async def poll_loop(
                 continue  # Skip the normal asyncio.sleep at the end of the loop
 
             elif exc.http_status == 401:
-                # Token refresh failed — log error; spotipy will retry on next call
-                log.error("Auth error (401): %s — token refresh may have failed", exc)
+                _consecutive_401s += 1
+                log.error(
+                    "Auth error (401): %s — consecutive count: %d",
+                    exc, _consecutive_401s,
+                )
+                if _consecutive_401s >= 3:
+                    log.error(
+                        "3 consecutive 401s — token revoked, exiting with code 2"
+                    )
+                    sys.exit(2)
 
             else:
                 log.error("Spotify API error %s: %s", exc.http_status, exc)
