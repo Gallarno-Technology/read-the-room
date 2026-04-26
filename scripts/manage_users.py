@@ -9,7 +9,7 @@ Usage:
 
     python scripts/manage_users.py remove <uid>
         Removes the user's data directory and registry entry.
-        (Daemon stop is handled by Phase 30 — not wired here.)
+        Sends SIGTERM to the running daemon (if any) before deleting data.
 
     python scripts/manage_users.py list
         Prints all registered users with their truncated uid, name, and status.
@@ -17,7 +17,9 @@ Usage:
 Invoked from the project root so relative paths (users/, users.json) resolve correctly.
 """
 import os
+import signal
 import sys
+import time
 
 # Allow `python scripts/manage_users.py` from project root to find user_registry
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -88,12 +90,47 @@ def cmd_generate_url(name: str) -> int:
     return 0
 
 
+def _stop_daemon_via_pid(uid: str, base_dir: str) -> None:
+    """Send SIGTERM to uid's daemon via PID file. Wait 5s, then SIGKILL.
+
+    Per D-12: called by cmd_remove before deleting user directory.
+    Handles FileNotFoundError (no PID file) and ProcessLookupError (dead process) gracefully.
+    """
+    pid_path = os.path.join(base_dir, "users", uid, "daemon.pid")
+    try:
+        pid = int(open(pid_path).read().strip())
+    except FileNotFoundError:
+        return  # no PID file — daemon not running or already stopped
+    except (ValueError, OSError) as exc:
+        print(f"WARNING: could not read daemon.pid for uid={uid}: {exc}")
+        return
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return  # process already dead
+    # Wait up to 5 seconds for clean shutdown
+    deadline = time.monotonic() + 5.0
+    while time.monotonic() < deadline:
+        try:
+            os.kill(pid, 0)  # probe — raises ProcessLookupError if dead
+        except ProcessLookupError:
+            return  # clean exit within timeout
+        time.sleep(0.1)
+    # Still alive after 5s — SIGKILL
+    try:
+        os.kill(pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass  # race: died between probe and kill
+
+
 def cmd_remove(uid: str) -> int:
     """Remove a user's data directory and registry entry.
 
+    Sends SIGTERM to the running daemon (if any) via PID file before
+    deleting data — completing OPS-02 daemon-stop debt from Phase 27 (D-12).
     Returns exit code (0 = success, 1 = error).
-    Note: Daemon stop is deferred to Phase 30 — Phase 27 is data-only (D-12).
     """
+    _stop_daemon_via_pid(uid, ".")
     registry = UserRegistry(base_dir=".")
     try:
         registry.remove(uid)
