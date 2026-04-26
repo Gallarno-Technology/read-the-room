@@ -23,6 +23,7 @@ import logging
 import os
 import pathlib
 import sys
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import AsyncGenerator
 
@@ -50,7 +51,35 @@ TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 # Scope must exactly match scripts/manage_users.py SCOPE — scope mismatch causes Spotify 403.
 CALLBACK_SCOPE = "user-read-currently-playing user-modify-playback-state"
 
-app = FastAPI(title="Read the Room", docs_url=None, redoc_url=None)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Boot-time daemon launch for all active users (PROC-04, D-09).
+
+    Spawns a daemon and starts a supervisor task for each user with
+    status == 'active' in users.json. On shutdown, cancels supervisor tasks
+    to prevent 'Task was destroyed but it is pending!' warnings in tests.
+    """
+    supervisor_tasks: list[asyncio.Task] = []
+    users = _registry.load()
+    for user in users:
+        if user.get("status") == "active":
+            uid = user["uid"]
+            try:
+                await _spawn_daemon(uid)
+                task = asyncio.create_task(_supervisor_for_uid(uid))
+                supervisor_tasks.append(task)
+                log.info("web_ui: lifespan — started daemon + supervisor for uid=%s", uid)
+            except Exception as exc:
+                log.error("web_ui: lifespan — failed to start daemon for uid=%s: %s", uid, exc)
+    yield
+    # Shutdown: cancel supervisor tasks (prevents asyncio "pending task" warnings)
+    for task in supervisor_tasks:
+        if not task.done():
+            task.cancel()
+
+
+app = FastAPI(title="Read the Room", lifespan=lifespan, docs_url=None, redoc_url=None)
 
 
 # ---------------------------------------------------------------------------
@@ -158,6 +187,81 @@ def _sp_init(cache_path: str) -> "spotipy.Spotify | None":
 _tails: dict[str, asyncio.Task] = {}
 # _subscribers: uid -> list of per-tab asyncio.Queue instances
 _subscribers: dict[str, list[asyncio.Queue]] = {}
+
+# _daemons: uid -> live asyncio.subprocess.Process for that user's daemon
+# asyncio is single-threaded; no lock needed.
+_daemons: dict[str, asyncio.subprocess.Process] = {}
+
+
+async def _spawn_daemon(uid: str) -> asyncio.subprocess.Process:
+    """Spawn a daemon process for uid. Write PID file. Store in _daemons.
+
+    Per D-06: called by lifespan (boot) and /auth/callback (new user).
+    Sets all uid-specific env vars plus POLL_INTERVAL_SECONDS=3 (PROC-03).
+    stderr=DEVNULL: avoids pipe-buffer stall (RESEARCH.md Pitfall 5).
+    """
+    daemon_path = str(pathlib.Path(__file__).parent.parent / "daemon.py")
+    paths = _registry.user_paths(uid)
+    env = os.environ.copy()
+    env["STATE_PATH"] = paths["state_path"]
+    env["EVENTS_PATH"] = paths["events_path"]
+    env["LYRICS_DB_PATH"] = str(pathlib.Path(__file__).parent.parent / "lyrics_cache.db")
+    env["SPOTIFY_CACHE_PATH"] = paths["cache_path"]
+    env["POLL_INTERVAL_SECONDS"] = "3"  # PROC-03
+    proc = await asyncio.create_subprocess_exec(
+        sys.executable, daemon_path,
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL,
+        env=env,
+    )
+    # Write PID file (D-11) — log warning on failure, do not raise
+    pid_path = pathlib.Path(__file__).parent.parent / "users" / uid / "daemon.pid"
+    try:
+        pid_path.write_text(str(proc.pid))
+    except OSError as exc:
+        log.warning("web_ui: could not write daemon.pid for uid=%s: %s", uid, exc)
+    _daemons[uid] = proc
+    log.info("web_ui: daemon spawned pid=%d for uid=%s", proc.pid, uid)
+    return proc
+
+
+async def _supervisor_for_uid(uid: str) -> None:
+    """Supervise daemon for uid. Restart on unexpected exit. Stop on clean exit or removal.
+
+    Per D-04: launched as asyncio.Task by lifespan and /auth/callback.
+    Per D-07: restarts immediately on unexpected exit (no delay at 5-user scale).
+    Per D-08: no max retry count.
+    Per D-13: re-checks registry after each exit; stops if uid no longer active.
+    """
+    while True:
+        proc = _daemons.get(uid)
+        if proc is None:
+            log.info("web_ui: supervisor uid=%s — no process in _daemons, exiting", uid)
+            return
+        exit_code = await proc.wait()
+        # D-13: re-check registry after exit — handles remove-while-running
+        users = _registry.load()
+        active_uids = {u["uid"] for u in users if u.get("status") == "active"}
+        if uid not in active_uids:
+            log.info("web_ui: supervisor uid=%s — uid removed from registry, exiting supervisor", uid)
+            _daemons.pop(uid, None)
+            return
+        if exit_code == 0:
+            log.info("web_ui: supervisor uid=%s — clean exit (code 0), not restarting", uid)
+            _daemons.pop(uid, None)
+            return
+        if exit_code == 2:
+            log.warning(
+                "web_ui: uid=%s daemon exited with code 2 (token revoked) — "
+                "re-onboard user via manage_users.py",
+                uid,
+            )
+            _daemons.pop(uid, None)
+            return
+        # Unexpected exit — restart immediately (D-07)
+        log.warning("web_ui: uid=%s daemon exited with code %s — restarting", uid, exit_code)
+        await _spawn_daemon(uid)
+        # Loop continues — supervisor awaits the new process
 
 
 async def _file_tail_for_uid(uid: str, events_path: str) -> None:
@@ -500,6 +604,7 @@ async def auth_callback(request: Request) -> HTMLResponse | RedirectResponse:
         httponly=True,
         samesite="lax",
         path="/",
+        max_age=60 * 60 * 24 * 30,  # 30 days — survives browser restarts
         # secure=False — deferred to Phase 31 (HTTPS via Caddy not yet wired)
     )
     return response
