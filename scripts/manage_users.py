@@ -31,6 +31,8 @@ from user_registry import MAX_USERS, UserRegistry
 
 load_dotenv()
 
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 REQUIRED_ENV_VARS_FOR_URL = [
     "SPOTIFY_CLIENT_ID",
     "SPOTIFY_CLIENT_SECRET",
@@ -51,7 +53,7 @@ def cmd_generate_url(name: str) -> int:
         print("Copy .env.example to .env and fill in your Spotify credentials.")
         return 1
 
-    registry = UserRegistry(base_dir=".")
+    registry = UserRegistry(base_dir=_PROJECT_ROOT)
     try:
         record = registry.provision(name)
     except RuntimeError as exc:
@@ -63,7 +65,7 @@ def cmd_generate_url(name: str) -> int:
     # Build OAuth URL with uid baked into the state parameter (D-10)
     # CacheFileHandler is required by SpotifyOAuth but token exchange happens
     # in Phase 29 — we use a placeholder path here that will be overwritten later.
-    cache_path = f"users/{uid}/token_cache/.cache"
+    cache_path = os.path.join(_PROJECT_ROOT, "users", uid, "token_cache", ".cache")
     cache_handler = CacheFileHandler(cache_path=cache_path)
     auth_manager = SpotifyOAuth(
         client_id=os.environ["SPOTIFY_CLIENT_ID"],
@@ -131,8 +133,8 @@ def cmd_remove(uid: str) -> int:
     deleting data — completing OPS-02 daemon-stop debt from Phase 27 (D-12).
     Returns exit code (0 = success, 1 = error).
     """
-    _stop_daemon_via_pid(uid, ".")
-    registry = UserRegistry(base_dir=".")
+    _stop_daemon_via_pid(uid, _PROJECT_ROOT)
+    registry = UserRegistry(base_dir=_PROJECT_ROOT)
     try:
         registry.remove(uid)
     except ValueError as exc:
