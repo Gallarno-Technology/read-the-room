@@ -98,7 +98,8 @@ def _stop_daemon_via_pid(uid: str, base_dir: str) -> None:
     """
     pid_path = os.path.join(base_dir, "users", uid, "daemon.pid")
     try:
-        pid = int(open(pid_path).read().strip())
+        with open(pid_path) as f:
+            pid = int(f.read().strip())
     except FileNotFoundError:
         return  # no PID file — daemon not running or already stopped
     except (ValueError, OSError) as exc:
