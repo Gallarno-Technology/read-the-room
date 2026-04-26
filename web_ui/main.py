@@ -135,13 +135,17 @@ def get_user_context(uid: str | None = Cookie(default=None)) -> UserContext:
         paths = _registry.user_paths(uid)
     except ValueError:
         raise HTTPException(status_code=401, detail="unknown uid")
-    return UserContext(
-        uid=uid,
-        state_path=paths["state_path"],
-        events_path=paths["events_path"],
-        now_playing_path=paths["now_playing_path"],
-        token_cache_path=paths["cache_path"],
-    )
+    try:
+        return UserContext(
+            uid=uid,
+            state_path=paths["state_path"],
+            events_path=paths["events_path"],
+            now_playing_path=paths["now_playing_path"],
+            token_cache_path=paths["cache_path"],
+        )
+    except KeyError as exc:
+        log.error("web_ui: user_paths missing expected key for uid=%s: %s", uid, exc)
+        raise HTTPException(status_code=500, detail="user configuration error")
 
 
 # ---------------------------------------------------------------------------
