@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.6
-milestone_name: Open Source
+milestone: v1.8
+milestone_name: Multi-User Beta
 status: executing
-stopped_at: Completed 29-01-PLAN.md
-last_updated: "2026-04-18T23:08:06.522Z"
-last_activity: 2026-04-18
+stopped_at: Phase 30 Plan 01 complete — TDD RED scaffolds committed
+last_updated: "2026-04-26T14:44:35Z"
+last_activity: 2026-04-26
 progress:
-  total_phases: 12
+  total_phases: 13
   completed_phases: 12
-  total_plans: 30
-  completed_plans: 30
-  percent: 37
+  total_plans: 31
+  completed_plans: 31
+  percent: 38
 ---
 
 # Project State
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Phase 29 — oauth-onboarding-flow
+**Current focus:** Phase 30 — per-user-daemon-management
 
 ## Current Position
 
-Phase: 29
-Plan: Not started
-Status: Executing Phase 29
-Last activity: 2026-04-18
+Phase: 30
+Plan: 01 complete
+Status: Executing Phase 30
+Last activity: 2026-04-26
 
-Progress: [███░░░░░░░] 37%
+Progress: [████░░░░░░] 38%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 45 (v1.0–v1.8 partial)
+- Total plans completed: 46 (v1.0–v1.8 partial)
 - Average duration: ~3 min
-- Total execution time: ~129 min
+- Total execution time: ~133 min
 
 **By Phase (recent):**
 
@@ -56,6 +56,7 @@ Progress: [███░░░░░░░] 37%
 | Phase 28 P01 | 10 | 2 tasks | 3 files |
 | Phase 28-cookie-routing-per-user-sse P02 | 6 | 2 tasks | 1 files |
 | Phase 29-oauth-onboarding-flow P01 | 2 | 2 tasks | 2 files |
+| Phase 30-per-user-daemon-management P01 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -83,10 +84,19 @@ Recent decisions affecting current work:
 - [Phase 28]: SSE tail starts lazily on first /events connection; cancelled immediately when last subscriber disconnects (D-06, D-07)
 - [Phase 28]: Task 1 (per-uid SSE infrastructure) was pre-implemented in Phase 28-01 — SSE tests added in 28-02 to complete ROUTE-02 verification
 - [Phase 29-01]: activate(uid) does not check if status is already 'active' — method sets status unconditionally for any found uid; D-04 validation happens at callback level in Plan 02
+- [Phase 30-01]: Test _stop_daemon_via_pid directly (not via cmd_remove) for cleaner isolation; ImportError at test runtime (not collection) ensures FAILED not ERROR
+- [Phase 30-01]: asyncio.run() drives supervisor coroutines from synchronous test functions — matches existing pattern for pure-async coroutines not needing TestClient
 
 ### Pending Todos
 
 None.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260419-p21 | Add a list to manage_users.py that lists registered users and state | 2026-04-19 | 4c885fe | [260419-p21-add-a-list-to-manage-users-py-that-lists](.planning/quick/260419-p21-add-a-list-to-manage-users-py-that-lists/) |
+| 260419-qh7 | Add Caddy reverse proxy with self-signed HTTPS for 192.168.1.220 | 2026-04-19 | 8588cb7 | [260419-qh7-add-caddy-reverse-proxy-with-self-signed](.planning/quick/260419-qh7-add-caddy-reverse-proxy-with-self-signed/) |
 
 ### Blockers/Concerns
 
@@ -95,6 +105,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-18T22:55:05Z
-Stopped at: Completed 29-01-PLAN.md
-Resume file: .planning/phases/29-oauth-onboarding-flow/29-02-PLAN.md
+Last session: 2026-04-26T14:44:35Z
+Stopped at: Phase 30 Plan 01 complete — TDD RED scaffolds committed
+Resume file: .planning/phases/30-per-user-daemon-management/30-01-SUMMARY.md

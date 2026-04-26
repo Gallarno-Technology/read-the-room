@@ -224,7 +224,7 @@ Plans:
   4. A daemon that exits due to token expiry does not crash-loop — the supervisor detects clean exits and holds off on restart
 **Plans**: 3 plans
 Plans:
-- [ ] 30-01-PLAN.md — Wave 0 test scaffolds: failing tests for _spawn_daemon, supervisor, lifespan, 401 counter, PID kill (PROC-01, PROC-02, PROC-03, PROC-04)
+- [x] 30-01-PLAN.md — Wave 0 test scaffolds: failing tests for _spawn_daemon, supervisor, lifespan, 401 counter, PID kill (PROC-01, PROC-02, PROC-03, PROC-04)
 - [ ] 30-02-PLAN.md — web_ui/main.py supervisor layer: _spawn_daemon, _supervisor_for_uid, lifespan, OAuth callback refactor (PROC-01, PROC-02, PROC-03, PROC-04)
 - [ ] 30-03-PLAN.md — daemon.py consecutive 401 counter + manage_users.py PID kill for remove (PROC-02, PROC-04)
 
@@ -280,6 +280,6 @@ Plans:
 | 27. User Registry + Operator CLI | v1.8 | 2/2 | Complete    | 2026-04-17 |
 | 28. Cookie Routing + Per-User SSE | v1.8 | 1/2 | Complete    | 2026-04-18 |
 | 29. OAuth Onboarding Flow | v1.8 | 1/2 | Complete    | 2026-04-18 |
-| 30. Per-User Daemon Management | v1.8 | 0/3 | Not started | - |
+| 30. Per-User Daemon Management | v1.8 | 1/3 | In Progress | 2026-04-26 |
 | 31. VPS Deployment + HTTPS | v1.8 | 0/? | Not started | - |
 | 32. Frontend ID Persistence | v1.8 | 0/? | Not started | - |
