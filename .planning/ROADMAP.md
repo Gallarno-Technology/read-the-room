@@ -84,7 +84,7 @@
 - [x] **Phase 27: User Registry + Operator CLI** — Per-user data directory isolation and operator onboarding commands (completed 2026-04-17)
 - [x] **Phase 28: Cookie Routing + Per-User SSE** — All routes resolve per-user context; SSE streams are isolated and leak-free (completed 2026-04-18)
 - [x] **Phase 29: OAuth Onboarding Flow** — Server-side OAuth callback completes token exchange and daemon launch (completed 2026-04-18)
-- [ ] **Phase 30: Per-User Daemon Management** — Each user's daemon spawns, supervises, and restarts automatically
+- [x] **Phase 30: Per-User Daemon Management** — Each user's daemon spawns, supervises, and restarts automatically (completed 2026-04-26)
 - [ ] **Phase 31: VPS Deployment + HTTPS** — Caddy TLS termination and environment-conditional Sonos networking
 - [ ] **Phase 32: Frontend ID Persistence** — ID entry gate on first visit; cookie + localStorage on success
 
