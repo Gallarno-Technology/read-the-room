@@ -225,8 +225,8 @@ Plans:
 **Plans**: 3 plans
 Plans:
 - [x] 30-01-PLAN.md — Wave 0 test scaffolds: failing tests for _spawn_daemon, supervisor, lifespan, 401 counter, PID kill (PROC-01, PROC-02, PROC-03, PROC-04)
-- [ ] 30-02-PLAN.md — web_ui/main.py supervisor layer: _spawn_daemon, _supervisor_for_uid, lifespan, OAuth callback refactor (PROC-01, PROC-02, PROC-03, PROC-04)
-- [ ] 30-03-PLAN.md — daemon.py consecutive 401 counter + manage_users.py PID kill for remove (PROC-02, PROC-04)
+- [x] 30-02-PLAN.md — web_ui/main.py supervisor layer: _spawn_daemon, _supervisor_for_uid, lifespan, OAuth callback refactor (PROC-01, PROC-02, PROC-03, PROC-04)
+- [x] 30-03-PLAN.md — daemon.py consecutive 401 counter + manage_users.py PID kill for remove (PROC-02, PROC-04)
 
 ### Phase 31: VPS Deployment + HTTPS
 **Goal**: The service is reachable over HTTPS from the public internet with automatic TLS, and the Sonos networking mode is environment-controlled

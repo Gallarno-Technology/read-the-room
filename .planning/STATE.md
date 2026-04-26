@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Multi-User Beta
 status: executing
-stopped_at: Phase 30 Plan 02 complete — supervisor infrastructure implemented and callback refactored
-last_updated: "2026-04-26T14:50:12Z"
+stopped_at: Phase 30 Plan 03 complete — consecutive 401 counter in daemon.py and _stop_daemon_via_pid in manage_users.py
+last_updated: "2026-04-26T15:15:00Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 13
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-16)
 ## Current Position
 
 Phase: 30
-Plan: 02 complete
+Plan: 03 complete
 Status: Executing Phase 30
 Last activity: 2026-04-26
 
@@ -58,6 +58,7 @@ Progress: [████░░░░░░] 38%
 | Phase 29-oauth-onboarding-flow P01 | 2 | 2 tasks | 2 files |
 | Phase 30-per-user-daemon-management P01 | 2 | 2 tasks | 3 files |
 | Phase 30-per-user-daemon-management P02 | 2 | 2 tasks | 1 files |
+| Phase 30-per-user-daemon-management P03 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,8 @@ Recent decisions affecting current work:
 - [Phase 30-01]: asyncio.run() drives supervisor coroutines from synchronous test functions — matches existing pattern for pure-async coroutines not needing TestClient
 - [Phase 30-02]: lifespan context manager defined before app = FastAPI() — Python resolves function-body names at call time, not definition time; _registry/_spawn_daemon/_supervisor_for_uid available at startup despite appearing later in file
 - [Phase 30-02]: Supervisor tasks cancelled on FastAPI shutdown to prevent asyncio "pending task destroyed" warnings in test teardown
+- [Phase 30-03]: import sys added to daemon.py — was absent despite being needed for sys.exit(2) in 401 counter
+- [Phase 30-03]: _stop_daemon_via_pid uses time.monotonic() deadline while-loop (not for-range) to be compatible with test patching of time.monotonic
 
 ### Pending Todos
 
@@ -108,6 +111,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-26T14:50:12Z
-Stopped at: Phase 30 Plan 02 complete — supervisor infrastructure implemented and callback refactored
-Resume file: .planning/phases/30-per-user-daemon-management/30-02-SUMMARY.md
+Last session: 2026-04-26T15:15:00Z
+Stopped at: Phase 30 Plan 03 complete — consecutive 401 counter in daemon.py and _stop_daemon_via_pid in manage_users.py
+Resume file: .planning/phases/30-per-user-daemon-management/30-03-SUMMARY.md
