@@ -18,6 +18,7 @@ SSE tail architecture (D-05, D-06, D-07):
 asyncio is single-threaded; no locks needed on _tails or _subscribers.
 """
 import asyncio
+import html as _html
 import json
 import logging
 import os
@@ -110,7 +111,7 @@ def _error_html(status_code: int, reason: str) -> HTMLResponse:
         "<html><head><title>Authorization Error</title></head>"
         "<body>"
         "<h2>Authorization Failed</h2>"
-        f"<pre>{reason}</pre>"
+        f"<pre>{_html.escape(reason)}</pre>"
         "<p>Please contact the operator to get a new authorization link.</p>"
         "</body></html>"
     )
