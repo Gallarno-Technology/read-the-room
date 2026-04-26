@@ -5,8 +5,11 @@ and enable tmp_path filesystem isolation. SpotifyOAuth is mocked to avoid real
 network calls and credential requirements.
 """
 import json
+import os
+import signal
+import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 
 import pytest
 
@@ -213,3 +216,128 @@ def test_list_does_not_expose_full_uid(patched_registry, capsys):
     # Full uid must not appear; only the truncated prefix (first 8 chars + "...") is shown
     assert uid not in captured.out
     assert uid[:8] + "..." in captured.out
+
+
+# ---------------------------------------------------------------------------
+# Phase 30: _stop_daemon_via_pid tests (OPS-02, D-12) — TDD RED scaffolds
+# These tests FAIL against unmodified codebase (_stop_daemon_via_pid not yet defined).
+# ---------------------------------------------------------------------------
+
+def test_remove_sends_sigterm_to_daemon(tmp_path):
+    """_stop_daemon_via_pid sends SIGTERM to the pid from daemon.pid file (D-12).
+
+    Fails with ImportError: _stop_daemon_via_pid not yet defined in manage_users.py.
+    """
+    from scripts.manage_users import _stop_daemon_via_pid  # ImportError until Phase 30
+
+    uid = "testuid_sigterm"
+    pid_dir = tmp_path / "users" / uid
+    pid_dir.mkdir(parents=True)
+    fake_pid = 99997
+    (pid_dir / "daemon.pid").write_text(str(fake_pid))
+
+    kill_calls = []
+
+    def fake_kill(pid, sig):
+        kill_calls.append((pid, sig))
+        if sig == 0:
+            # Process is dead after SIGTERM — raise ProcessLookupError on probe
+            raise ProcessLookupError()
+
+    with patch("os.kill", side_effect=fake_kill):
+        _stop_daemon_via_pid(uid, str(tmp_path))
+
+    assert (fake_pid, signal.SIGTERM) in kill_calls, (
+        f"SIGTERM must be sent to pid {fake_pid}; got kill calls: {kill_calls}"
+    )
+
+
+def test_remove_sigkills_if_process_survives(tmp_path):
+    """_stop_daemon_via_pid sends SIGKILL if process is still alive after SIGTERM (D-12).
+
+    Fails with ImportError: _stop_daemon_via_pid not yet defined.
+    """
+    from scripts.manage_users import _stop_daemon_via_pid
+
+    uid = "testuid_sigkill"
+    pid_dir = tmp_path / "users" / uid
+    pid_dir.mkdir(parents=True)
+    fake_pid = 99996
+    (pid_dir / "daemon.pid").write_text(str(fake_pid))
+
+    kill_calls = []
+
+    def fake_kill(pid, sig):
+        kill_calls.append((pid, sig))
+        # Process never dies — os.kill(pid, 0) always succeeds (no ProcessLookupError)
+        # SIGTERM and SIGKILL don't raise; probe (sig==0) also doesn't raise
+        # Simulating: process ignores SIGTERM and stays alive
+
+    # We also need to mock time.sleep and time.monotonic to avoid real waiting
+    start_time = [0.0]
+    fake_monotonic_calls = [0]
+
+    def fake_monotonic():
+        # Advance time rapidly so the 5s deadline is reached quickly
+        fake_monotonic_calls[0] += 1
+        # After a few probe calls, jump past deadline
+        if fake_monotonic_calls[0] > 5:
+            return 10.0  # past 5s deadline
+        return float(fake_monotonic_calls[0]) * 0.5
+
+    with patch("os.kill", side_effect=fake_kill), \
+         patch("time.sleep"), \
+         patch("time.monotonic", side_effect=fake_monotonic):
+        _stop_daemon_via_pid(uid, str(tmp_path))
+
+    sigkill_calls = [(p, s) for p, s in kill_calls if s == signal.SIGKILL]
+    assert len(sigkill_calls) >= 1, (
+        f"SIGKILL must be sent after timeout; got kill calls: {kill_calls}"
+    )
+    assert sigkill_calls[0][0] == fake_pid
+
+
+def test_remove_handles_missing_pid_file(tmp_path):
+    """_stop_daemon_via_pid succeeds gracefully when daemon.pid does not exist (D-12).
+
+    Fails with ImportError: _stop_daemon_via_pid not yet defined.
+    """
+    from scripts.manage_users import _stop_daemon_via_pid
+
+    uid = "testuid_nopid"
+    pid_dir = tmp_path / "users" / uid
+    pid_dir.mkdir(parents=True)
+    # NO daemon.pid file created
+
+    # Should not raise any exception
+    try:
+        _stop_daemon_via_pid(uid, str(tmp_path))
+    except FileNotFoundError:
+        pytest.fail("_stop_daemon_via_pid must handle missing PID file gracefully (no FileNotFoundError)")
+
+
+def test_remove_handles_already_dead_process(tmp_path):
+    """_stop_daemon_via_pid succeeds when process is already dead (SIGTERM raises ProcessLookupError).
+
+    Fails with ImportError: _stop_daemon_via_pid not yet defined.
+    """
+    from scripts.manage_users import _stop_daemon_via_pid
+
+    uid = "testuid_dead"
+    pid_dir = tmp_path / "users" / uid
+    pid_dir.mkdir(parents=True)
+    fake_pid = 99995
+    (pid_dir / "daemon.pid").write_text(str(fake_pid))
+
+    def fake_kill(pid, sig):
+        # Process is already dead — SIGTERM raises ProcessLookupError immediately
+        raise ProcessLookupError()
+
+    # Should not raise any exception
+    try:
+        with patch("os.kill", side_effect=fake_kill):
+            _stop_daemon_via_pid(uid, str(tmp_path))
+    except ProcessLookupError:
+        pytest.fail(
+            "_stop_daemon_via_pid must handle already-dead process gracefully (no ProcessLookupError)"
+        )

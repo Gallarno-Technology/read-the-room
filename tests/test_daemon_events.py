@@ -2,6 +2,7 @@
 import asyncio
 import json
 import os
+import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch, call
 import pytest
@@ -9,6 +10,7 @@ import pytest_asyncio
 
 import daemon
 from content_checker import TrackEvalResult
+from spotipy.exceptions import SpotifyException
 
 
 # ---------------------------------------------------------------------------
@@ -638,3 +640,131 @@ async def test_idle_debounce(data_dir):
         lines = [json.loads(l) for l in events_file.read_text().strip().splitlines() if l.strip()]
         idle_events = [l for l in lines if l.get("type") == "idle"]
         assert len(idle_events) == 0, f"No idle events expected after 2 polls, got {len(idle_events)}"
+
+
+# ---------------------------------------------------------------------------
+# Phase 30: Consecutive 401 counter — TDD RED scaffolds (D-01, D-02)
+# These tests FAIL against unmodified codebase (no counter yet in daemon.py).
+# ---------------------------------------------------------------------------
+
+async def _drive_poll_loop_with_401s(
+    n_401s: int,
+    then_succeed: bool = False,
+    more_401s_after: int = 0,
+    data_dir=None,
+):
+    """Helper to drive poll_loop with a controlled sequence of 401 errors and successes.
+
+    Args:
+        n_401s: Number of consecutive SpotifyException(401) calls at start.
+        then_succeed: If True, follow the 401s with one successful playback call.
+        more_401s_after: After the success (if then_succeed), raise this many more 401s.
+        data_dir: Optional tmp directory fixture for file paths.
+    """
+    soco_skip = AsyncMock()
+    soco_skip.skip.return_value = True
+    soco_skip.pause.return_value = True
+    spotify_skip = AsyncMock()
+    spotify_skip.skip.return_value = True
+
+    checker = MagicMock()
+    checker.check = AsyncMock(return_value=TrackEvalResult(action="allow", reason="clean", severity=0))
+
+    daemon.stop_event.clear()
+
+    call_count = [0]
+    original_sleep = asyncio.sleep
+
+    # Build the sequence of responses for sp.current_playback()
+    responses = []
+    for _ in range(n_401s):
+        responses.append(SpotifyException(http_status=401, code=-1, msg="Unauthorized"))
+    if then_succeed:
+        # One successful playback call returns None (no track playing)
+        responses.append(None)
+        for _ in range(more_401s_after):
+            responses.append(SpotifyException(http_status=401, code=-1, msg="Unauthorized"))
+
+    # After all scripted responses, set stop_event so poll_loop exits cleanly
+    total_calls = [0]
+    def playback_side_effect():
+        idx = total_calls[0]
+        total_calls[0] += 1
+        if idx < len(responses):
+            val = responses[idx]
+            if isinstance(val, Exception):
+                raise val
+            return val
+        # Past the scripted calls — stop the loop
+        daemon.stop_event.set()
+        return None
+
+    async def _controlled_sleep(t):
+        call_count[0] += 1
+        # Stop loop after all scripted calls exhausted (safety valve)
+        if total_calls[0] >= len(responses):
+            daemon.stop_event.set()
+        await original_sleep(0)
+
+    sp = MagicMock()
+    sp.current_playback.side_effect = playback_side_effect
+
+    state = {"last_track_id": None, "family_safe_mode": False, "consecutive_skips": 0}
+    with patch("daemon.load_state", return_value=state), \
+         patch("daemon.save_state"), \
+         patch("asyncio.sleep", side_effect=_controlled_sleep), \
+         patch("pathlib.Path.touch"):
+        await daemon.poll_loop(sp, checker, soco_skip, spotify_skip)
+
+
+@pytest.mark.asyncio
+async def test_three_consecutive_401s_trigger_exit2(data_dir):
+    """Three consecutive 401 errors cause sys.exit(2) (D-01).
+
+    Fails against unmodified daemon.py: no consecutive counter exists.
+    """
+    with pytest.raises(SystemExit) as excinfo:
+        await _drive_poll_loop_with_401s(n_401s=3, data_dir=data_dir)
+    assert excinfo.value.code == 2, (
+        f"Three consecutive 401s must trigger sys.exit(2); got code {excinfo.value.code}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_consecutive_401_counter_resets_on_success(data_dir):
+    """Counter resets to 0 on success; 2 + success + 1 must NOT trigger exit(2) (D-02).
+
+    Sequence: 401, 401, success, 401 → total consecutive at end is 1, not 3.
+    Fails against unmodified daemon.py: no reset logic exists.
+    """
+    # This test should complete without SystemExit — if the counter is NOT reset,
+    # only 2 consecutive 401s before success means it wouldn't reach 3 anyway.
+    # To properly test reset: we need 2 + success + 2 = max consecutive is 2 < 3 (no exit).
+    # If the counter does NOT reset: cumulative would be 4 after the final 401 — triggers exit.
+    # So this tests that a success resets the counter.
+    try:
+        await _drive_poll_loop_with_401s(
+            n_401s=2,
+            then_succeed=True,
+            more_401s_after=2,
+            data_dir=data_dir,
+        )
+    except SystemExit as exc:
+        pytest.fail(
+            f"Counter must reset on success — sys.exit({exc.code}) triggered unexpectedly. "
+            "With 2 + success + 2, max consecutive is 2 — no exit should occur."
+        )
+
+
+@pytest.mark.asyncio
+async def test_single_401_does_not_exit(data_dir):
+    """A single 401 followed by clean loop exit must NOT trigger sys.exit(2) (D-01 boundary).
+
+    This test documents the contract that a single 401 is tolerated.
+    """
+    try:
+        await _drive_poll_loop_with_401s(n_401s=1, data_dir=data_dir)
+    except SystemExit as exc:
+        pytest.fail(
+            f"A single 401 must not trigger sys.exit(2); got sys.exit({exc.code})"
+        )
