@@ -2,7 +2,7 @@ services:
   daemon:
     build: .
     restart: always        # D-13: replaces macOS LaunchAgent KeepAlive; auto-restarts on crash
-    network_mode: host     # D-12: required for SoCo UPnP/multicast to reach Sonos speakers (Phase 2)
+    network_mode: ${NETWORK_MODE:-host}  # D-04/D-05: VPS sets NETWORK_MODE=bridge; local leaves unset (host for Sonos UPnP)
     env_file: .env         # D-14: all runtime config from .env; no interpolation needed in compose file
     user: "${UID}:${GID}"  # Run as host UID:GID so bind-mount files are user-owned, not root-owned
     volumes:
@@ -25,7 +25,7 @@ services:
       context: .
       dockerfile: web_ui/Dockerfile
     restart: always
-    network_mode: host
+    network_mode: ${NETWORK_MODE:-host}  # D-04/D-05: VPS sets NETWORK_MODE=bridge; local leaves unset (host for Sonos UPnP)
     env_file: .env
     user: "${UID}:${GID}"
     volumes:
@@ -37,7 +37,7 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: always
-    network_mode: host     # Must share host network to reach localhost:8888 (web_ui)
+    network_mode: ${NETWORK_MODE:-host}  # D-04: on bridge, caddy reaches web_ui via service name (WEB_UI_UPSTREAM=web_ui:8888)
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data   # Persists Caddy internal CA so self-signed cert survives restarts
