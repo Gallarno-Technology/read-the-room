@@ -613,7 +613,7 @@ async def auth_callback(request: Request) -> HTMLResponse | RedirectResponse:
         samesite="lax",
         path="/",
         max_age=60 * 60 * 24 * 30,  # 30 days — survives browser restarts
-        # secure=False — deferred to Phase 31 (HTTPS via Caddy not yet wired)
+        secure=True,
     )
     return response
 
