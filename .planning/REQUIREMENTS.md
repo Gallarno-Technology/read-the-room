@@ -41,9 +41,9 @@ Cookie-based uid routing; per-user daemon isolation; server-side OAuth callback.
 
 ### Deployment
 
-- [ ] **DEPLOY-01**: `docker-compose.yml` includes a Caddy service (`caddy:2-alpine`) with a Caddyfile that terminates TLS automatically via Let's Encrypt and proxies to `web_ui`
-- [ ] **DEPLOY-02**: `network_mode: host` is controlled by a `SONOS_ENABLED` env var — VPS deployments set `false`, local home-server deployments keep `true`
-- [ ] **DEPLOY-03**: `SPOTIFY_REDIRECT_URI` env var and Spotify Developer Dashboard redirect URI are set to the HTTPS callback URL
+- [x] **DEPLOY-01**: `docker-compose.yml` includes a Caddy service (`caddy:2-alpine`) with a Caddyfile that terminates TLS automatically via Let's Encrypt and proxies to `web_ui`
+- [x] **DEPLOY-02**: `network_mode: host` is controlled by a `NETWORK_MODE` env var — VPS deployments set `NETWORK_MODE=bridge`, local home-server deployments leave unset (defaults to `host`). Docker Compose requires direct value substitution; `SONOS_ENABLED` boolean was rejected (D-04, Phase 31).
+- [x] **DEPLOY-03**: `SPOTIFY_REDIRECT_URI` env var and Spotify Developer Dashboard redirect URI are set to the HTTPS callback URL
 
 ### Frontend
 
@@ -89,9 +89,9 @@ Cookie-based uid routing; per-user daemon isolation; server-side OAuth callback.
 | PROC-02 | Phase 30 Plan 02 | Complete |
 | PROC-03 | Phase 30 Plan 02 | Complete |
 | PROC-04 | Phase 30 Plan 02 | Complete |
-| DEPLOY-01 | Phase 31 | Pending |
-| DEPLOY-02 | Phase 31 | Pending |
-| DEPLOY-03 | Phase 31 | Pending |
+| DEPLOY-01 | Phase 31 | Complete |
+| DEPLOY-02 | Phase 31 | Complete |
+| DEPLOY-03 | Phase 31 | Complete |
 | UI-01 | Phase 32 | Pending |
 | UI-02 | Phase 32 | Pending |
 | UI-03 | Phase 32 | Pending |

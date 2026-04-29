@@ -85,7 +85,7 @@
 - [x] **Phase 28: Cookie Routing + Per-User SSE** — All routes resolve per-user context; SSE streams are isolated and leak-free (completed 2026-04-18)
 - [x] **Phase 29: OAuth Onboarding Flow** — Server-side OAuth callback completes token exchange and daemon launch (completed 2026-04-18)
 - [x] **Phase 30: Per-User Daemon Management** — Each user's daemon spawns, supervises, and restarts automatically (completed 2026-04-26)
-- [ ] **Phase 31: VPS Deployment + HTTPS** — Caddy TLS termination and environment-conditional Sonos networking
+- [x] **Phase 31: VPS Deployment + HTTPS** — Caddy TLS termination and environment-conditional Sonos networking (Complete: 2026-04-28)
 - [ ] **Phase 32: Frontend ID Persistence** — ID entry gate on first visit; cookie + localStorage on success
 
 ## Phase Details
@@ -235,10 +235,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. `docker compose up` on a VPS brings up the Caddy service and serves HTTPS on port 443 with a valid Let's Encrypt certificate — no manual certbot required
   2. The Spotify OAuth redirect callback lands on the HTTPS URL, not `localhost`, completing the flow successfully
-  3. Setting `SONOS_ENABLED=false` in `.env` removes `network_mode: host` from the `web_ui` container; setting it `true` keeps host networking — no compose file edits required
+  3. Setting `NETWORK_MODE=bridge` in `.env` switches all three services to bridge networking for VPS deployment; leaving it unset defaults to `host` for Sonos UPnP on local home servers — no compose file edits required (`SONOS_ENABLED` boolean rejected at Phase 31 planning: D-04)
 **Plans**: 1 plan
 Plans:
-- [ ] 31-01-PLAN.md — Caddyfile parameterized for Let's Encrypt, docker-compose.yml NETWORK_MODE env var, .env.example VPS docs, web_ui/main.py secure cookie (DEPLOY-01, DEPLOY-02, DEPLOY-03)
+- [x] 31-01-PLAN.md — Caddyfile parameterized for Let's Encrypt, docker-compose.yml NETWORK_MODE env var, .env.example VPS docs, web_ui/main.py secure cookie (DEPLOY-01, DEPLOY-02, DEPLOY-03)
 
 ### Phase 32: Frontend ID Persistence
 **Goal**: A user enters their access code once and every subsequent visit loads their dashboard directly without re-entering it
@@ -283,5 +283,5 @@ Plans:
 | 28. Cookie Routing + Per-User SSE | v1.8 | 1/2 | Complete    | 2026-04-18 |
 | 29. OAuth Onboarding Flow | v1.8 | 1/2 | Complete    | 2026-04-18 |
 | 30. Per-User Daemon Management | v1.8 | 2/3 | In Progress | 2026-04-26 |
-| 31. VPS Deployment + HTTPS | v1.8 | 0/1 | Not started | - |
+| 31. VPS Deployment + HTTPS | v1.8 | 1/1 | Complete | 2026-04-28 |
 | 32. Frontend ID Persistence | v1.8 | 0/? | Not started | - |
