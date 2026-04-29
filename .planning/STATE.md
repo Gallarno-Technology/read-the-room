@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Multi-User Beta
 status: executing
-stopped_at: Phase 31 planned — VPS Deployment + HTTPS (1 plan, 1 wave)
-last_updated: "2026-04-28T00:00:00Z"
+stopped_at: Phase 31 complete — Caddy HTTPS, NETWORK_MODE env control, secure cookie
+last_updated: "2026-04-28T00:15:00Z"
 last_activity: 2026-04-28
 progress:
   total_phases: 13
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Phase 31 — VPS Deployment + HTTPS
+**Current focus:** Phase 32 — Frontend ID Persistence
 
 ## Current Position
 
-Phase: 31
-Plan: Ready to execute (1 plan)
-Status: Planned — ready to execute
+Phase: 32
+Plan: Not yet planned
+Status: Phase 31 complete — advancing to Phase 32
 Last activity: 2026-04-28
 
 Progress: [█████░░░░░] 46%
@@ -113,4 +113,4 @@ None.
 
 Last session: 2026-04-26T15:15:00Z
 Stopped at: Phase 30 Plan 03 complete — consecutive 401 counter in daemon.py and _stop_daemon_via_pid in manage_users.py
-Resume file: .planning/phases/30-per-user-daemon-management/30-03-SUMMARY.md
+Resume file: .planning/phases/31-vps-deployment-https/31-01-SUMMARY.md
