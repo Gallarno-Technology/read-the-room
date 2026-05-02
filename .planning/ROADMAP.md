@@ -79,14 +79,14 @@
 
 ### 🔜 v1.8 Multi-User Beta
 
-**Milestone Goal:** Run up to 5 independent user instances on a hosted server — each with their own Spotify token, daemon, and isolated data — accessible via an opaque ID stored in browser localStorage.
+**Milestone Goal:** Run up to 5 independent user instances on a hosted server — each with their own Spotify token, daemon, and isolated data — accessible via an opaque ID stored in an httpOnly uid cookie.
 
 - [x] **Phase 27: User Registry + Operator CLI** — Per-user data directory isolation and operator onboarding commands (completed 2026-04-17)
 - [x] **Phase 28: Cookie Routing + Per-User SSE** — All routes resolve per-user context; SSE streams are isolated and leak-free (completed 2026-04-18)
 - [x] **Phase 29: OAuth Onboarding Flow** — Server-side OAuth callback completes token exchange and daemon launch (completed 2026-04-18)
 - [x] **Phase 30: Per-User Daemon Management** — Each user's daemon spawns, supervises, and restarts automatically (completed 2026-04-26)
 - [x] **Phase 31: VPS Deployment + HTTPS** — Caddy TLS termination and environment-conditional Sonos networking (Complete: 2026-04-28)
-- [ ] **Phase 32: Frontend ID Persistence** — ID entry gate on first visit; cookie + localStorage on success
+- [ ] **Phase 32: Frontend ID Persistence** — ID entry gate on first visit; httpOnly uid cookie set on success
 
 ## Phase Details
 
@@ -246,10 +246,13 @@ Plans:
 **Requirements**: UI-01, UI-02, UI-03, UI-04
 **Success Criteria** (what must be TRUE):
   1. A browser with no uid cookie visiting the root URL sees a full-page ID entry gate, not the dashboard
-  2. Entering a valid ID at the gate sets the httpOnly uid cookie and writes the uid to `localStorage`; the dashboard loads immediately without a second prompt
+  2. Entering a valid ID at the gate sets the httpOnly uid cookie; the dashboard loads immediately without a second prompt
   3. Entering an unknown or malformed ID at the gate shows a clear inline error message — no silent redirect or blank screen
-  4. A browser arriving at the post-OAuth callback URL has the uid cookie and `localStorage` entry set automatically and then loads the dashboard — no second ID entry required
-**Plans**: TBD
+  4. A browser arriving at the post-OAuth callback URL has the uid cookie set automatically and then loads the dashboard — no second ID entry required
+**Plans**: 2 plans
+Plans:
+- [x] 32-01-PLAN.md — Wave 0: test scaffolds (Phase 32 routes) + login.html template (UI-01, UI-02, UI-03)
+- [x] 32-02-PLAN.md — Backend: refactor GET /, add GET /login and POST /login handlers (UI-01, UI-02, UI-03, UI-04)
 **UI hint**: yes
 
 ## Progress
