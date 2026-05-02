@@ -358,9 +358,37 @@ def _save_state_merge(state_path: str, fields: dict) -> None:
 # Routes
 # ---------------------------------------------------------------------------
 
-@app.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request, ctx: UserContext = Depends(get_user_context)) -> HTMLResponse:
-    """Serve the dashboard HTML. Template file created in Plan 03-02."""
+@app.get("/", response_class=HTMLResponse, response_model=None)
+async def dashboard(
+    request: Request,
+    uid: str | None = Cookie(default=None),
+) -> HTMLResponse | RedirectResponse:
+    """Serve the dashboard HTML.
+
+    Phase 32 D-02: No Depends(get_user_context) — this is an HTML route that must
+    redirect browsers instead of returning 401 JSON. Manual cookie check replaces
+    the dependency.
+    """
+    # Phase 32 D-02: redirect unauthenticated browsers to the ID gate
+    if uid is None:
+        return RedirectResponse(url="/login", status_code=302)
+    users = _registry.load()
+    user = next((u for u in users if u["uid"] == uid), None)
+    if user is None or user.get("status") != "active":
+        # D-10: pending status treated identically to unknown
+        return RedirectResponse(url="/login", status_code=302)
+    try:
+        paths = _registry.user_paths(uid)
+    except ValueError:
+        return RedirectResponse(url="/login", status_code=302)
+    ctx = UserContext(
+        uid=uid,
+        state_path=paths["state_path"],
+        events_path=paths["events_path"],
+        now_playing_path=paths["now_playing_path"],
+        token_cache_path=paths["cache_path"],
+    )
+    # Serve dashboard — identical to original body below this point
     template_path = os.path.join(TEMPLATES_DIR, "index.html")
     try:
         with open(template_path) as f:
@@ -453,6 +481,10 @@ VALID_PROFILES: frozenset = frozenset({
 
 class ProfileRequest(BaseModel):
     profile: str
+
+
+class LoginRequest(BaseModel):
+    uid: str
 
 
 @app.get("/profile")
