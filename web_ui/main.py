@@ -355,6 +355,22 @@ def _save_state_merge(state_path: str, fields: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Pydantic request models — used by routes below
+# ---------------------------------------------------------------------------
+
+class FSMRequest(BaseModel):
+    enabled: bool
+
+
+class ProfileRequest(BaseModel):
+    profile: str
+
+
+class LoginRequest(BaseModel):
+    uid: str
+
+
+# ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
 
@@ -404,6 +420,43 @@ async def dashboard(
     return HTMLResponse(content=html)
 
 
+@app.get("/login", response_class=HTMLResponse)
+async def login_page() -> HTMLResponse:
+    """Serve the login gate page (Phase 32 D-04).
+
+    Always serves login.html regardless of cookie state — no redirect-if-authed.
+    """
+    template_path = os.path.join(TEMPLATES_DIR, "login.html")
+    with open(template_path) as f:
+        html = f.read()
+    return HTMLResponse(content=html)
+
+
+@app.post("/login")
+async def login(body: LoginRequest) -> JSONResponse:
+    """Validate access code, set uid cookie, return ok flag (Phase 32 D-07/D-08/D-09).
+
+    Returns HTTP 200 in both success and error cases so gate JS can always read
+    the body without special error-handling branches (D-09).
+    """
+    users = _registry.load()
+    user = next((u for u in users if u["uid"] == body.uid), None)
+    if user is None or user.get("status") != "active":
+        # D-09: HTTP 200 with ok=false; D-10: pending treated as unknown
+        return JSONResponse({"ok": False, "error": "Unknown access code"})
+    response = JSONResponse({"ok": True})
+    response.set_cookie(
+        key="uid",
+        value=body.uid,
+        httponly=True,
+        samesite="lax",
+        path="/",
+        max_age=60 * 60 * 24 * 30,  # 30 days — exact attrs from auth_callback (Phase 29/31)
+        secure=True,
+    )
+    return response
+
+
 async def _sse_event_generator(uid: str, subscriber: asyncio.Queue) -> AsyncGenerator[str, None]:
     """Yield SSE-formatted strings from the subscriber queue indefinitely."""
     try:
@@ -444,10 +497,6 @@ async def sse_events(ctx: UserContext = Depends(get_user_context)) -> StreamingR
     )
 
 
-class FSMRequest(BaseModel):
-    enabled: bool
-
-
 @app.get("/fsm")
 async def get_fsm(ctx: UserContext = Depends(get_user_context)) -> JSONResponse:
     """Return current FSM state."""
@@ -477,14 +526,6 @@ VALID_PROFILES: frozenset = frozenset({
     "above_the_covers",
     "permissive",
 })
-
-
-class ProfileRequest(BaseModel):
-    profile: str
-
-
-class LoginRequest(BaseModel):
-    uid: str
 
 
 @app.get("/profile")
