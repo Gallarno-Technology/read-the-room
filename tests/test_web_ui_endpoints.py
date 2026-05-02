@@ -74,7 +74,6 @@ def unauthed_client():
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("method,path,body", [
-    ("GET", "/", None),
     ("GET", "/fsm", None),
     ("POST", "/fsm", {"enabled": True}),
     ("GET", "/now-playing", None),
@@ -90,18 +89,109 @@ def test_missing_cookie_returns_401(unauthed_client, method, path, body):
 
 
 def test_unknown_uid_returns_401(unauthed_client):
-    """uid cookie with unknown value returns 401 (D-01)."""
-    resp = unauthed_client.get("/", cookies={"uid": "doesnotexist"})
+    """uid cookie with unknown value on an API route returns 401 (D-01, D-03)."""
+    resp = unauthed_client.get("/fsm", cookies={"uid": "doesnotexist"})
     assert resp.status_code == 401
 
 
 def test_pending_uid_returns_401():
-    """uid with status=pending is treated as invalid — returns 401 (D-02)."""
+    """uid with status=pending is treated as invalid — returns 401 on API routes (D-02, D-03)."""
     pending_user = {"uid": "pendinguid", "name": "Alice", "created_at": "2026-04-18T00:00:00+00:00", "status": "pending"}
     with patch.object(web_ui_main._registry, "load", return_value=[pending_user]):
         with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
-            resp = c.get("/", cookies={"uid": "pendinguid"})
+            resp = c.get("/fsm", cookies={"uid": "pendinguid"})
         assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Phase 32 — ID gate routing (UI-01, UI-02, UI-03, UI-04)
+# ---------------------------------------------------------------------------
+
+def test_no_cookie_redirects_to_login(unauthed_client):
+    """GET / with no uid cookie returns 302 to /login (Phase 32 D-02, UI-01)."""
+    resp = unauthed_client.get("/", follow_redirects=False)
+    assert resp.status_code == 302
+    assert resp.headers["location"] == "/login"
+
+
+def test_unknown_uid_redirects_to_login(unauthed_client):
+    """GET / with unknown uid cookie returns 302 to /login (Phase 32 D-02, UI-01)."""
+    resp = unauthed_client.get("/", cookies={"uid": "doesnotexist"}, follow_redirects=False)
+    assert resp.status_code == 302
+    assert resp.headers["location"] == "/login"
+
+
+def test_login_page_serves_html(unauthed_client):
+    """GET /login returns 200 with login.html HTML content (Phase 32 D-04, UI-01)."""
+    resp = unauthed_client.get("/login")
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
+    assert "login-form" in resp.text
+
+
+def test_post_login_valid_uid():
+    """POST /login with active uid returns ok=true and sets uid cookie (UI-02)."""
+    active_user = {"uid": "activeuid", "name": "Alice", "status": "active"}
+    with patch.object(web_ui_main._registry, "load", return_value=[active_user]):
+        with patch.object(web_ui_main._registry, "user_paths", return_value={
+            "state_path": "/tmp/state.json",
+            "events_path": "/tmp/events.jsonl",
+            "now_playing_path": "/tmp/now_playing.json",
+            "cache_path": "/tmp/cache",
+        }):
+            with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
+                resp = c.post("/login", json={"uid": "activeuid"})
+    assert resp.status_code == 200
+    assert resp.json() == {"ok": True}
+    assert "uid" in resp.cookies
+
+
+def test_post_login_unknown_uid():
+    """POST /login with unknown uid returns ok=false at HTTP 200 (UI-03, D-09)."""
+    with patch.object(web_ui_main._registry, "load", return_value=[]):
+        with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
+            resp = c.post("/login", json={"uid": "notreal"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is False
+    assert "error" in body
+
+
+def test_post_login_pending_uid():
+    """POST /login with pending uid returns ok=false (UI-03, D-10)."""
+    pending_user = {"uid": "pendinguid", "name": "Bob", "status": "pending"}
+    with patch.object(web_ui_main._registry, "load", return_value=[pending_user]):
+        with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
+            resp = c.post("/login", json={"uid": "pendinguid"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is False
+
+
+def test_valid_uid_cookie_serves_dashboard(tmp_path):
+    """GET / with valid active uid cookie returns 200 dashboard HTML (UI-02)."""
+    uid = "activeuid"
+    user_dir = tmp_path / "users" / uid
+    (user_dir / "data").mkdir(parents=True)
+    (user_dir / "token_cache").mkdir(parents=True)
+    state_path = user_dir / "state.json"
+    state_path.write_text(json.dumps({"family_safe_mode": False, "active_profile": "kids_present"}))
+    (user_dir / "data" / "events.jsonl").write_text("")
+    (user_dir / "data" / "now_playing.json").write_text("")
+
+    active_user = {"uid": uid, "name": "Alice", "status": "active"}
+    paths = {
+        "state_path": str(state_path),
+        "events_path": str(user_dir / "data" / "events.jsonl"),
+        "now_playing_path": str(user_dir / "data" / "now_playing.json"),
+        "cache_path": str(user_dir / "token_cache" / ".cache"),
+    }
+    with patch.object(web_ui_main._registry, "load", return_value=[active_user]):
+        with patch.object(web_ui_main._registry, "user_paths", return_value=paths):
+            with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
+                resp = c.get("/", cookies={"uid": uid}, follow_redirects=False)
+    assert resp.status_code == 200
+    assert "text/html" in resp.headers["content-type"]
 
 
 # ---------------------------------------------------------------------------
