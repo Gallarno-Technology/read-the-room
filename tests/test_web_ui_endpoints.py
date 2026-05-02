@@ -281,12 +281,27 @@ def test_post_profile_does_not_change_fsm(client, mock_ctx):
     assert data["active_profile"] == "were_all_adults"
 
 
-def test_dashboard_injects_profile_initial(client, mock_ctx):
-    """GET / replaces __PROFILE_INITIAL__ with active_profile from state.json (PROF-04)."""
+def test_dashboard_injects_profile_initial(mock_ctx):
+    """GET / replaces __PROFILE_INITIAL__ with active_profile from state.json (PROF-04).
+
+    Phase 32 D-02: GET / now reads uid cookie directly (no Depends(get_user_context)).
+    Must send a valid uid cookie and patch _registry so the route can validate it.
+    """
     pathlib.Path(mock_ctx.state_path).write_text(
         json.dumps({"family_safe_mode": False, "active_profile": "permissive"})
     )
-    resp = client.get("/")
+    uid = mock_ctx.uid
+    active_user = {"uid": uid, "name": "Test User", "status": "active"}
+    paths = {
+        "state_path": mock_ctx.state_path,
+        "events_path": mock_ctx.events_path,
+        "now_playing_path": mock_ctx.now_playing_path,
+        "cache_path": mock_ctx.token_cache_path,
+    }
+    with patch.object(web_ui_main._registry, "load", return_value=[active_user]):
+        with patch.object(web_ui_main._registry, "user_paths", return_value=paths):
+            with TestClient(web_ui_main.app, raise_server_exceptions=False) as c:
+                resp = c.get("/", cookies={"uid": uid}, follow_redirects=False)
     assert resp.status_code == 200
     assert "__PROFILE_INITIAL__" not in resp.text
     assert "permissive" in resp.text
