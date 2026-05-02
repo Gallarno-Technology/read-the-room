@@ -351,7 +351,7 @@ async def poll_loop(
     while not stop_event.is_set():
         Path('/app/.healthcheck').touch()
         try:
-            result = sp.current_playback()
+            result = sp.currently_playing()
             _consecutive_401s = 0  # D-02: reset on any successful Spotify API call
 
             if result is None or result.get("item") is None:
