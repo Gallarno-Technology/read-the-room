@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-03)
 Phase: v1.8 complete
 Plan: All 13 plans complete
 Status: Milestone closed 2026-05-03
-Last activity: 2026-05-03
+Last activity: 2026-05-03 - Completed quick task 260503-q01: Remove legacy default daemon from docker-compose
 
 Progress: [██████████] 100%
 
@@ -113,6 +113,7 @@ None.
 |---|-------------|------|--------|-----------|
 | 260419-p21 | Add a list to manage_users.py that lists registered users and state | 2026-04-19 | 4c885fe | [260419-p21-add-a-list-to-manage-users-py-that-lists](.planning/quick/260419-p21-add-a-list-to-manage-users-py-that-lists/) |
 | 260419-qh7 | Add Caddy reverse proxy with self-signed HTTPS for 192.168.1.220 | 2026-04-19 | 8588cb7 | [260419-qh7-add-caddy-reverse-proxy-with-self-signed](.planning/quick/260419-qh7-add-caddy-reverse-proxy-with-self-signed/) |
+| 260503-q01 | Remove legacy default daemon service from docker-compose after multi-user migration | 2026-05-03 | — | [260503-q01-remove-default-daemon](.planning/quick/260503-q01-remove-default-daemon/) |
 
 ### Blockers/Concerns
 
