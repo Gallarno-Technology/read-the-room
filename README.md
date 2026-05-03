@@ -113,6 +113,10 @@ git pull && docker compose up -d --build
 
 Data files (`state.json`, `lyrics_cache.db`, `token_cache/`, `data/`) are bind-mounted on the host and survive rebuilds — no manual migration needed.
 
+## Hosted Deployment (Fly.io)
+
+The `read-the-room.fly.dev` instance runs the same image but stores per-user state on a Fly volume instead of host bind mounts. New users must be provisioned via SSH before they can sign in at `/login`. See [FLY-ONBOARDING.md](FLY-ONBOARDING.md) for the steps.
+
 ## License
 
 This repository is proprietary software. See [LICENSE](LICENSE) for the full terms.

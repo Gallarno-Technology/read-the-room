@@ -2,6 +2,8 @@
 .env
 state.json
 token_cache/
+users.json
+users/
 
 # Python
 __pycache__/
