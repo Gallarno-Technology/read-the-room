@@ -49,6 +49,11 @@ Songs that violate family-safe rules are skipped automatically before children h
 - ✓ GitHub Actions CI (pytest + ruff), pyproject.toml tooling config, README badges — v1.6 (Phase 22)
 - ✓ web_ui routes all requests by uid cookie — per-user UserContext replaces global STATE_PATH/EVENTS_PATH/NOW_PLAYING_PATH globals — v1.8 (ROUTE-01, Phase 28)
 - ✓ SSE tail tasks isolated per uid — no cross-user event stream contamination — v1.8 (ROUTE-02, Phase 28)
+- ✓ UserRegistry + manage_users.py operator CLI: generate-url provisions users, remove cleans up data and stops daemon — v1.8 (ISOL-01/02/03, OPS-01/02, Phase 27)
+- ✓ GET /auth/callback: server-side OAuth callback validates state uid, exchanges code, activates user, spawns daemon, sets httpOnly cookie — v1.8 (AUTH-01/02/03, Phase 29)
+- ✓ asyncio supervisor in web_ui: per-user daemon spawn, restart-on-crash, lifespan boot, consecutive-401 exit signal — v1.8 (PROC-01/02/03/04, Phase 30)
+- ✓ Caddy Let's Encrypt TLS with env-controlled NETWORK_MODE (bridge for VPS, host for LAN Sonos) — v1.8 (DEPLOY-01/02/03, Phase 31)
+- ✓ Login gate: GET / redirects to /login on missing uid; POST /login validates and sets 30-day httpOnly cookie; OAuth callback lands on dashboard directly — v1.8 (UI-01/02/03/04, Phase 32)
 
 ### Active
 
@@ -72,6 +77,7 @@ Songs that violate family-safe rules are skipped automatically before children h
 
 ## Context
 
+- **Shipped v1.8 Multi-User Beta** on 2026-05-03: 6 phases (27–32), 13 plans — user registry, operator CLI, per-user routing, OAuth callback, daemon supervisor, VPS TLS, login gate
 - **Shipped v1.6 Open Source** on 2026-04-11: 6 phases (17–22), 10 plans — rebrand, profile info icon, mobile polish, repository hygiene, legal/docs, CI & tooling
 - **Shipped v1.5** (Phases 17–19): Rebranded to "Read the Room", added profile info icon, mobile viewport polish
 - **Shipped v1.4** on 2026-04-05: 3 phases (14–16), 7 plans — idle detection, skip history persistence, and filter profiles with split-button dashboard UI
@@ -122,6 +128,18 @@ Songs that violate family-safe rules are skipped automatically before children h
 | ruff added to requirements.txt (not installed separately in CI) | Single `pip install -r requirements.txt` step covers all deps including linter — no extra CI install step | ✓ Good |
 | asyncio_mode = "auto" in pyproject.toml | Forward-compatible with pytest-asyncio 1.0 strict mode default change; suppresses deprecation warnings | ✓ Good |
 | CI badge uses Proprietary not MIT | REQUIREMENTS.md CI-04 said "MIT badge" but LICENSE is all-rights-reserved — badge must match actual license | ✓ Good — intentional deviation from requirements |
+| Cookie-based uid routing (httpOnly) | Path-param routing leaks uid in URLs and server logs; httpOnly cookie is invisible to JS | ✓ Good |
+| uid travels through OAuth state param | Prevents callback routing collisions with no server-side pending-auth map | ✓ Good |
+| asyncio.create_subprocess_exec for daemon supervision | Stdlib; no supervisord dependency; integrates cleanly with FastAPI lifespan | ✓ Good |
+| lyrics_cache.db shared across users | Keyed by Spotify track ID; no per-user duplication; consistent ISOL-03 semantics | ✓ Good |
+| UserRegistry(base_dir) pattern | Constructor takes base_dir for testability — no hardcoded project root paths | ✓ Good |
+| get_user_context raises 401 for pending uid | Pending uid treated same as unknown — prevents half-onboarded users accessing data | ✓ Good |
+| SSE tail lazy start + immediate teardown | Lazy start avoids orphaned tasks; teardown on last subscriber disconnect prevents file handle leak | ✓ Good |
+| Supervisor cancels tasks on FastAPI shutdown | Prevents asyncio "pending task destroyed" warnings during test teardown | ✓ Good |
+| SIGTERM then SIGKILL in _stop_daemon_via_pid | Graceful shutdown first; monotonic deadline loop compatible with time.monotonic patching in tests | ✓ Good |
+| NETWORK_MODE env var (bridge/host) | No compose file edits needed for VPS vs LAN; SONOS_ENABLED boolean rejected at Phase 31 planning | ✓ Good |
+| POST /login returns HTTP 200 for all outcomes | Gate JS reads body without 4xx error handling; Pydantic model rejects malformed input via 422 | ✓ Good |
+| response_model=None on union response routes | FastAPI cannot generate Pydantic model from HTMLResponse \| RedirectResponse union | ✓ Good — established pattern for auth routes |
 
 ## Evolution
 
@@ -154,16 +172,11 @@ This document evolves at phase transitions and milestone boundaries.
 - Injectable `AnalysisBackend` (no-op default; cloud plugs in LLM inference pipeline) — deferred
 
 ---
-## Current Milestone: v1.8 Multi-User Beta
+## Milestone: v1.8 Multi-User Beta — ✅ SHIPPED 2026-05-03
 
-**Goal:** Run up to 25 independent user instances on a hosted server — each with their own Spotify token, daemon, and isolated data — accessible via an opaque ID stored in browser localStorage.
+6 phases (27–32), 13 plans. Delivered: per-user daemon isolation, operator CLI onboarding, httpOnly cookie routing, server-side OAuth callback, asyncio supervisor, Caddy Let's Encrypt TLS, and login gate.
 
-**Target features:**
-- Per-user daemon isolation (separate process + data directory per user)
-- Operator CLI onboarding: generate OAuth URL → receive Spotify callback → exchange token → start daemon → hand off ID
-- Shared web UI routing all users by ID (one server, N users)
-- ID-based dashboard access: user enters ID once, localStorage handles subsequent visits
-- Hosted deployment (public URL, Spotify OAuth callback hits server)
+See `.planning/milestones/v1.8-ROADMAP.md` for full phase archive.
 
 ---
-*Last updated: 2026-04-18 after Phase 28 (cookie-routing-per-user-sse) complete.*
+*Last updated: 2026-05-03 after v1.8 milestone complete.*

@@ -2,35 +2,45 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Multi-User Beta
-status: executing
-stopped_at: Phase 32 planned — 2 plans ready to execute
-last_updated: "2026-05-01T00:00:00Z"
-last_activity: 2026-05-01
+status: complete
+stopped_at: v1.8 milestone closed 2026-05-03
+last_updated: "2026-05-03T00:00:00Z"
+last_activity: 2026-05-03
 progress:
-  total_phases: 13
-  completed_phases: 13
-  total_plans: 33
-  completed_plans: 31
-  percent: 46
+  total_phases: 6
+  completed_phases: 6
+  total_plans: 13
+  completed_plans: 13
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-16)
+See: .planning/PROJECT.md (updated 2026-05-03)
 
 **Core value:** Songs that violate family-safe rules are skipped automatically before children hear them — with zero manual effort when Family Safe Mode is on.
-**Current focus:** Phase 32 — Frontend ID Persistence
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 32
-Plan: Ready to execute (2 plans, 2 waves)
-Status: Phase 32 planned — ready to execute
-Last activity: 2026-05-01
+Phase: v1.8 complete
+Plan: All 13 plans complete
+Status: Milestone closed 2026-05-03
+Last activity: 2026-05-03
 
-Progress: [█████░░░░░] 46%
+Progress: [██████████] 100%
+
+## Deferred Items
+
+Items acknowledged and deferred at milestone close on 2026-05-03:
+
+| Category | Item | Status |
+|----------|------|--------|
+| debug | daemon-clobbers-state-json | investigating (stale — fixed in Phase 1) |
+| debug | lyrics-pipeline-not-active | awaiting_human_verify (stale — fixed in Phase 2) |
+| debug | sonos-not-detected | investigating (stale — fixed in Phases 3-4) |
 
 ## Performance Metrics
 
@@ -106,11 +116,10 @@ None.
 
 ### Blockers/Concerns
 
-- spotipy CacheFileHandler has no file locking — daemon must own token refresh; web_ui spotipy must not trigger refreshes (Phase 29 pitfall).
-- OAuth callback race requires `state` → uid binding with a pending-auth map and one active onboarding flow at a time (Phase 29 pitfall).
+None — v1.8 complete.
 
 ## Session Continuity
 
-Last session: 2026-04-26T15:15:00Z
-Stopped at: Phase 30 Plan 03 complete — consecutive 401 counter in daemon.py and _stop_daemon_via_pid in manage_users.py
-Resume file: .planning/phases/31-vps-deployment-https/31-01-SUMMARY.md
+Last session: 2026-05-03
+Stopped at: v1.8 milestone closed — all 6 phases, 13 plans complete
+Resume: Run /gsd-new-milestone to start v1.9 or v2.0

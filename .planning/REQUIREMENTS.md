@@ -28,9 +28,9 @@ Cookie-based uid routing; per-user daemon isolation; server-side OAuth callback.
 
 ### OAuth Onboarding
 
-- [ ] **AUTH-01**: `GET /auth/callback` receives the Spotify OAuth redirect, validates the `state` parameter matches the pending uid, exchanges the code for a token, writes the token to `users/{uid}/token_cache/`, creates the user's data dirs, and updates `users.json`
-- [ ] **AUTH-02**: The uid travels through the Spotify authorization flow via the OAuth `state` parameter, preventing callback routing collisions
-- [ ] **AUTH-03**: Server automatically spawns the user's daemon process after the token is successfully written to disk
+- [x] **AUTH-01**: `GET /auth/callback` receives the Spotify OAuth redirect, validates the `state` parameter matches the pending uid, exchanges the code for a token, writes the token to `users/{uid}/token_cache/`, creates the user's data dirs, and updates `users.json`
+- [x] **AUTH-02**: The uid travels through the Spotify authorization flow via the OAuth `state` parameter, preventing callback routing collisions
+- [x] **AUTH-03**: Server automatically spawns the user's daemon process after the token is successfully written to disk
 
 ### Process Management
 
@@ -47,10 +47,10 @@ Cookie-based uid routing; per-user daemon isolation; server-side OAuth callback.
 
 ### Frontend
 
-- [ ] **UI-01**: First visit with no uid cookie shows a full-page ID entry gate prompting for an access code
-- [ ] **UI-02**: On valid ID entry or post-OAuth callback, server sets an httpOnly uid cookie and JS writes uid to `localStorage`; subsequent visits load the dashboard directly without re-entering the code
-- [ ] **UI-03**: Invalid or unknown uid entered at the ID gate shows a clear error message rather than a silent failure
-- [ ] **UI-04**: Post-OAuth callback redirects browser to the dashboard where UI-02 cookie and localStorage persistence runs on arrival
+- [x] **UI-01**: First visit with no uid cookie shows a full-page ID entry gate prompting for an access code
+- [x] **UI-02**: On valid ID entry or post-OAuth callback, server sets an httpOnly uid cookie and JS writes uid to `localStorage`; subsequent visits load the dashboard directly without re-entering the code
+- [x] **UI-03**: Invalid or unknown uid entered at the ID gate shows a clear error message rather than a silent failure
+- [x] **UI-04**: Post-OAuth callback redirects browser to the dashboard where UI-02 cookie and localStorage persistence runs on arrival
 
 ## v2+ Requirements
 
@@ -82,9 +82,9 @@ Cookie-based uid routing; per-user daemon isolation; server-side OAuth callback.
 | OPS-02 | Phase 27 | Complete |
 | ROUTE-01 | Phase 28 | Complete |
 | ROUTE-02 | Phase 28 | Complete |
-| AUTH-01 | Phase 29 | Pending |
-| AUTH-02 | Phase 29 | Pending |
-| AUTH-03 | Phase 29 | Pending |
+| AUTH-01 | Phase 29 | Complete |
+| AUTH-02 | Phase 29 | Complete |
+| AUTH-03 | Phase 29 | Complete |
 | PROC-01 | Phase 30 Plan 02 | Complete |
 | PROC-02 | Phase 30 Plan 02 | Complete |
 | PROC-03 | Phase 30 Plan 02 | Complete |
@@ -92,10 +92,10 @@ Cookie-based uid routing; per-user daemon isolation; server-side OAuth callback.
 | DEPLOY-01 | Phase 31 | Complete |
 | DEPLOY-02 | Phase 31 | Complete |
 | DEPLOY-03 | Phase 31 | Complete |
-| UI-01 | Phase 32 | Pending |
-| UI-02 | Phase 32 | Pending |
-| UI-03 | Phase 32 | Pending |
-| UI-04 | Phase 32 | Pending |
+| UI-01 | Phase 32 | Complete |
+| UI-02 | Phase 32 | Complete |
+| UI-03 | Phase 32 | Complete |
+| UI-04 | Phase 32 | Complete |
 
 **Coverage:**
 - v1.8 requirements: 21 total
@@ -104,4 +104,4 @@ Cookie-based uid routing; per-user daemon isolation; server-side OAuth callback.
 
 ---
 *Requirements defined: 2026-04-16*
-*Last updated: 2026-04-16 after initial definition*
+*Last updated: 2026-05-03 — all 21 requirements complete; v1.8 milestone closed*

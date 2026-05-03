@@ -8,8 +8,8 @@
 - ✅ **v1.3 Drug & Sexual Reference Detection** — Phases 9-13 (shipped 2026-04-04)
 - ✅ **v1.4 Dashboard Polish & Filter Profiles** — Phases 14-16 (shipped 2026-04-05)
 - ✅ **v1.5 Dashboard Polish & Mobile UX** — Phases 17-19 (shipped 2026-04-06)
-- 🚧 **v1.6 Open Source** — Phases 20-22 (in progress)
-- 🔜 **v1.8 Multi-User Beta** — Phases 27-32
+- ✅ **v1.6 Open Source** — Phases 20-22 (shipped 2026-04-11)
+- ✅ **v1.8 Multi-User Beta** — Phases 27-32 (shipped 2026-05-03)
 
 ## Phases
 
@@ -69,24 +69,26 @@
 
 </details>
 
-### 🚧 v1.6 Open Source (In Progress)
+<details>
+<summary>✅ v1.6 Open Source (Phases 20-22) — SHIPPED 2026-04-11</summary>
 
-**Milestone Goal:** Prepare the repository for public release so strangers can clone, understand, and run Read the Room.
+- [x] Phase 20: Repository Hygiene (2/2 plans) — completed 2026-04-08
+- [x] Phase 21: Legal & Docs (2/2 plans) — completed 2026-04-09
+- [x] Phase 22: CI & Tooling (2/2 plans) — completed 2026-04-11
 
-- [x] **Phase 20: Repository Hygiene** — Remove personal data, fix credential exposure, sanitize branding and IPs (completed 2026-04-08)
-- [ ] **Phase 21: Legal & Docs** — Add LICENSE, rewrite README for strangers, create CONTRIBUTING.md
-- [ ] **Phase 22: CI & Tooling** — GitHub Actions CI, pyproject.toml, ruff lint/format, README badges
+</details>
 
-### 🔜 v1.8 Multi-User Beta
+<details>
+<summary>✅ v1.8 Multi-User Beta (Phases 27-32) — SHIPPED 2026-05-03</summary>
 
-**Milestone Goal:** Run up to 5 independent user instances on a hosted server — each with their own Spotify token, daemon, and isolated data — accessible via an opaque ID stored in an httpOnly uid cookie.
+- [x] Phase 27: User Registry + Operator CLI (2/2 plans) — completed 2026-04-17
+- [x] Phase 28: Cookie Routing + Per-User SSE (2/2 plans) — completed 2026-04-18
+- [x] Phase 29: OAuth Onboarding Flow (2/2 plans) — completed 2026-04-18
+- [x] Phase 30: Per-User Daemon Management (3/3 plans) — completed 2026-04-26
+- [x] Phase 31: VPS Deployment + HTTPS (1/1 plan) — completed 2026-04-28
+- [x] Phase 32: Frontend ID Persistence (2/2 plans) — completed 2026-05-02
 
-- [x] **Phase 27: User Registry + Operator CLI** — Per-user data directory isolation and operator onboarding commands (completed 2026-04-17)
-- [x] **Phase 28: Cookie Routing + Per-User SSE** — All routes resolve per-user context; SSE streams are isolated and leak-free (completed 2026-04-18)
-- [x] **Phase 29: OAuth Onboarding Flow** — Server-side OAuth callback completes token exchange and daemon launch (completed 2026-04-18)
-- [x] **Phase 30: Per-User Daemon Management** — Each user's daemon spawns, supervises, and restarts automatically (completed 2026-04-26)
-- [x] **Phase 31: VPS Deployment + HTTPS** — Caddy TLS termination and environment-conditional Sonos networking (Complete: 2026-04-28)
-- [ ] **Phase 32: Frontend ID Persistence** — ID entry gate on first visit; httpOnly uid cookie set on success
+</details>
 
 ## Phase Details
 
@@ -282,9 +284,9 @@ Plans:
 | 20. Repository Hygiene | v1.6 | 2/2 | Complete    | 2026-04-08 |
 | 21. Legal & Docs | v1.6 | 1/2 | In Progress|  |
 | 22. CI & Tooling | v1.6 | 0/? | Not started | - |
-| 27. User Registry + Operator CLI | v1.8 | 2/2 | Complete    | 2026-04-17 |
-| 28. Cookie Routing + Per-User SSE | v1.8 | 1/2 | Complete    | 2026-04-18 |
-| 29. OAuth Onboarding Flow | v1.8 | 1/2 | Complete    | 2026-04-18 |
-| 30. Per-User Daemon Management | v1.8 | 2/3 | In Progress | 2026-04-26 |
+| 27. User Registry + Operator CLI | v1.8 | 2/2 | Complete | 2026-04-17 |
+| 28. Cookie Routing + Per-User SSE | v1.8 | 2/2 | Complete | 2026-04-18 |
+| 29. OAuth Onboarding Flow | v1.8 | 2/2 | Complete | 2026-04-18 |
+| 30. Per-User Daemon Management | v1.8 | 3/3 | Complete | 2026-04-26 |
 | 31. VPS Deployment + HTTPS | v1.8 | 1/1 | Complete | 2026-04-28 |
-| 32. Frontend ID Persistence | v1.8 | 0/? | Not started | - |
+| 32. Frontend ID Persistence | v1.8 | 2/2 | Complete | 2026-05-02 |
