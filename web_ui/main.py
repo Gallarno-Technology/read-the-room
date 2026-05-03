@@ -202,8 +202,9 @@ async def _spawn_daemon(uid: str) -> asyncio.subprocess.Process:
     """Spawn a daemon process for uid. Write PID file. Store in _daemons.
 
     Per D-06: called by lifespan (boot) and /auth/callback (new user).
-    Sets all uid-specific env vars plus POLL_INTERVAL_SECONDS=3 (PROC-03).
-    stderr=DEVNULL: avoids pipe-buffer stall (RESEARCH.md Pitfall 5).
+    POLL_INTERVAL_SECONDS is inherited from the parent env (daemon.py defaults to 1s).
+    stdout/stderr are inherited from uvicorn so daemon log lines reach Fly's
+    log capture — the prior DEVNULL hid 429s and other failures.
     """
     daemon_path = str(pathlib.Path(__file__).parent.parent / "daemon.py")
     paths = _registry.user_paths(uid)
@@ -212,11 +213,10 @@ async def _spawn_daemon(uid: str) -> asyncio.subprocess.Process:
     env["EVENTS_PATH"] = paths["events_path"]
     env["LYRICS_DB_PATH"] = str(pathlib.Path(__file__).parent.parent / "lyrics_cache.db")
     env["SPOTIFY_CACHE_PATH"] = paths["cache_path"]
-    env["POLL_INTERVAL_SECONDS"] = "3"  # PROC-03
     proc = await asyncio.create_subprocess_exec(
         sys.executable, daemon_path,
-        stdout=asyncio.subprocess.DEVNULL,
-        stderr=asyncio.subprocess.DEVNULL,
+        stdout=None,
+        stderr=None,
         env=env,
     )
     # Write PID file (D-11) — log warning on failure, do not raise
@@ -458,10 +458,18 @@ async def login(body: LoginRequest) -> JSONResponse:
 
 
 async def _sse_event_generator(uid: str, subscriber: asyncio.Queue) -> AsyncGenerator[str, None]:
-    """Yield SSE-formatted strings from the subscriber queue indefinitely."""
+    """Yield SSE-formatted strings from the subscriber queue indefinitely.
+
+    Sends a `:` comment heartbeat every 15s if no events arrive — keeps Fly's edge
+    proxy from closing the stream as idle. Browsers ignore comment lines.
+    """
     try:
         while True:
-            event = await subscriber.get()
+            try:
+                event = await asyncio.wait_for(subscriber.get(), timeout=15)
+            except asyncio.TimeoutError:
+                yield ": keepalive\n\n"
+                continue
             payload = json.dumps(event)
             yield f"data: {payload}\n\n"
     except asyncio.CancelledError:
