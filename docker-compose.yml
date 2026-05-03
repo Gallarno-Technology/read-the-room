@@ -9,6 +9,7 @@ services:
       # Bind mounts to host — all paths must be pre-created on host before first `docker compose up`
       # Pre-create: echo '{"last_track_id": null}' > state.json && mkdir -p token_cache && touch lyrics_cache.db && echo '[]' > users.json
       - ./users.json:/app/users.json      # User registry shared with web_ui and manage_users.py
+      - ./users:/app/users                # Per-user token cache, daemon PID, and event data
       - ./state.json:/app/state.json      # Persists track state across container restarts/rebuilds
       - ./token_cache:/app/token_cache    # Persists OAuth token across container restarts/rebuilds
       - ./lyrics_cache.db:/app/lyrics_cache.db  # Persists lyrics SQLite cache across restarts (Phase 2)
@@ -30,6 +31,7 @@ services:
     user: "${UID}:${GID}"
     volumes:
       - ./users.json:/app/users.json      # User registry shared with daemon and manage_users.py
+      - ./users:/app/users                # Per-user token cache, daemon PID, and event data
       - ./state.json:/app/state.json  # FSM toggle reads/writes this file (D-09)
       - ./data:/app/data              # Shared event log (events.jsonl) and now_playing.json (Phase 6)
       - ./token_cache:/app/token_cache    # Shared OAuth token cache with daemon (Phase 7)
@@ -38,6 +40,7 @@ services:
     image: caddy:2-alpine
     restart: always
     network_mode: ${NETWORK_MODE:-host}  # D-04: on bridge, caddy reaches web_ui via service name (WEB_UI_UPSTREAM=web_ui:8888)
+    env_file: .env
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data   # Persists Caddy internal CA so self-signed cert survives restarts
