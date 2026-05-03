@@ -7,6 +7,11 @@ state.json
 data/
 lyrics_cache.db
 
+# Per-user registry and state — lives on Fly volume at /data, symlinked in
+# by web_ui/entrypoint.sh. Local docker-compose bind-mounts these instead.
+users.json
+users/
+
 # Python bytecode
 __pycache__/
 *.pyc
