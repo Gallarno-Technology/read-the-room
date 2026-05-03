@@ -1,26 +1,4 @@
 services:
-  daemon:
-    build: .
-    restart: always        # D-13: replaces macOS LaunchAgent KeepAlive; auto-restarts on crash
-    network_mode: ${NETWORK_MODE:-host}  # D-04/D-05: VPS sets NETWORK_MODE=bridge; local leaves unset (host for Sonos UPnP)
-    env_file: .env         # D-14: all runtime config from .env; no interpolation needed in compose file
-    user: "${UID}:${GID}"  # Run as host UID:GID so bind-mount files are user-owned, not root-owned
-    volumes:
-      # Bind mounts to host — all paths must be pre-created on host before first `docker compose up`
-      # Pre-create: echo '{"last_track_id": null}' > state.json && mkdir -p token_cache && touch lyrics_cache.db && echo '[]' > users.json
-      - ./users.json:/app/users.json      # User registry shared with web_ui and manage_users.py
-      - ./users:/app/users                # Per-user token cache, daemon PID, and event data
-      - ./state.json:/app/state.json      # Persists track state across container restarts/rebuilds
-      - ./token_cache:/app/token_cache    # Persists OAuth token across container restarts/rebuilds
-      - ./lyrics_cache.db:/app/lyrics_cache.db  # Persists lyrics SQLite cache across restarts (Phase 2)
-      - ./data:/app/data                  # Shared event log (events.jsonl) and now_playing.json (Phase 6)
-    healthcheck:
-      test: ["CMD", "python", "-c", "import os, time; f='/app/.healthcheck'; assert time.time()-os.stat(f).st_mtime<60"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 15s
-
   web_ui:
     build:
       context: .
@@ -30,11 +8,9 @@ services:
     env_file: .env
     user: "${UID}:${GID}"
     volumes:
-      - ./users.json:/app/users.json      # User registry shared with daemon and manage_users.py
-      - ./users:/app/users                # Per-user token cache, daemon PID, and event data
-      - ./state.json:/app/state.json  # FSM toggle reads/writes this file (D-09)
-      - ./data:/app/data              # Shared event log (events.jsonl) and now_playing.json (Phase 6)
-      - ./token_cache:/app/token_cache    # Shared OAuth token cache with daemon (Phase 7)
+      - ./users.json:/app/users.json      # User registry
+      - ./users:/app/users                # Per-user state, token cache, daemon PID, and event data
+      - ./lyrics_cache.db:/app/lyrics_cache.db  # Persists lyrics SQLite cache across restarts
 
   caddy:
     image: caddy:2-alpine
