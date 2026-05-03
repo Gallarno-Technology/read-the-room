@@ -52,16 +52,16 @@ Read the Room is a self-hosted background service that monitors Spotify playback
    export UID=$(id -u) GID=$(id -g)
    ```
 
-5. **Authenticate with Spotify (one time)**
-   ```bash
-   make auth
-   ```
-   This opens a URL — open it in a browser and approve access in Spotify. The browser will redirect to a page that fails to load (this is expected). Copy the full URL from the address bar and paste it back into the terminal. The token is saved to `token_cache/` and reused automatically.
-
-6. **Start the service**
+5. **Start the service**
    ```bash
    docker compose up -d
    ```
+
+6. **Provision a user (one time per person)**
+   ```bash
+   python scripts/manage_users.py generate-url <name>
+   ```
+   This prints a UID and a Spotify authorization URL. Open the URL in a browser, approve access in Spotify, and the callback will activate the user and start their daemon. The UID is the access code for `/login`.
 
 7. **Open the dashboard** — [http://localhost:8888](http://localhost:8888)
 
