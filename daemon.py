@@ -571,13 +571,14 @@ async def poll_loop(
 
         except SpotifyException as exc:
             if exc.http_status == 429:
-                # D-07: 429 backoff — read Retry-After header, apply jitter, sleep interruptibly
-                # getattr guard: SpotifyException.headers may be None on non-HTTP paths
+                # 429 backoff — honour Retry-After verbatim. Capping the wait below
+                # the server's instruction makes things worse: every premature retry
+                # refills Spotify's 30s rolling window, so the cooldown effectively
+                # never ends. 2-hour ceiling is a sanity guard against absurd values.
                 headers = getattr(exc, "headers", {}) or {}
                 retry_after = int(headers.get("Retry-After", 5))
-                # Exponential backoff with full jitter, capped at 120 seconds
-                jitter = random.uniform(0, retry_after * 0.5)
-                wait = min(retry_after + jitter, 120.0)
+                jitter = random.uniform(0, min(retry_after * 0.1, 5.0))
+                wait = min(retry_after + jitter, 7200.0)
                 log.warning(
                     "Rate limited (429). Backing off %.1fs (Retry-After=%s)",
                     wait,
@@ -607,6 +608,13 @@ async def poll_loop(
             else:
                 log.error("Spotify API error %s: %s", exc.http_status, exc)
 
+        except EOFError:
+            log.error(
+                "Spotify auth requires interactive input — no valid token in cache at %s. "
+                "Authenticate via the web UI then redeploy.",
+                os.environ.get("SPOTIFY_CACHE_PATH", "unknown"),
+            )
+            sys.exit(1)
         except Exception as exc:  # noqa: BLE001
             log.error("Unexpected error in poll loop: %s", exc, exc_info=True)
 
@@ -637,6 +645,14 @@ async def main() -> None:
         cache_handler=cache_handler,
     )
     sp = spotipy.Spotify(auth_manager=auth_manager)
+
+    cached_token = cache_handler.get_cached_token()
+    if not cached_token:
+        log.error(
+            "No Spotify token in cache at %s — authenticate via the web UI first",
+            os.environ["SPOTIFY_CACHE_PATH"],
+        )
+        sys.exit(1)
 
     # Register SIGTERM and SIGINT handlers via asyncio event loop (not signal.signal)
     # loop.add_signal_handler schedules the callback on the event loop thread,
