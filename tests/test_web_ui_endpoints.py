@@ -418,6 +418,46 @@ async def test_two_uids_get_independent_tail_tasks():
 
 
 # ---------------------------------------------------------------------------
+# SSE-reconnect kick — quick task 260504-jkb
+# ---------------------------------------------------------------------------
+
+def test_sse_connect_touches_poll_kick(mock_ctx):
+    """A new /events subscriber connection touches users/{uid}/poll_kick.
+
+    The daemon consumes that file at the end of its next poll iteration so
+    the dashboard hydrates promptly instead of waiting up to POLL_INTERVAL_IDLE.
+    File-based IPC was chosen over PID/signal so the kick survives daemon
+    restarts and requires no PID tracking.
+
+    We invoke the handler coroutine directly (rather than via TestClient.stream)
+    because the SSE generator blocks on subscriber.get(); we only care that the
+    file exists by the time StreamingResponse is constructed, which happens
+    BEFORE the body generator runs.
+    """
+    _clear_sse_state()
+    expected_kick = pathlib.Path(os.path.dirname(mock_ctx.state_path)) / "poll_kick"
+    if expected_kick.exists():
+        expected_kick.unlink()
+
+    # Call the handler coroutine directly — synchronous-construction phase is
+    # sufficient to assert the kick was touched.
+    response = _asyncio.run(web_ui_main.sse_events(ctx=mock_ctx))
+    try:
+        assert response.status_code == 200
+        assert expected_kick.exists(), (
+            f"poll_kick was not created at {expected_kick} after /events connect"
+        )
+    finally:
+        # Clean up: cancel the tail task that the handler started.
+        for task in list(web_ui_main._tails.values()):
+            if not task.done():
+                task.cancel()
+        if expected_kick.exists():
+            expected_kick.unlink()
+        _clear_sse_state()
+
+
+# ---------------------------------------------------------------------------
 # GET /auth/callback — OAuth onboarding flow (Phase 29, AUTH-01, AUTH-02, AUTH-03)
 # ---------------------------------------------------------------------------
 
@@ -601,7 +641,15 @@ def _active_user_record_p30(uid: str, name: str = "Test User") -> dict:
 # --- _spawn_daemon env vars (PROC-01, PROC-03) ---
 
 def test_spawn_daemon_sets_env_vars(tmp_path):
-    """_spawn_daemon passes uid-specific env vars incl. POLL_INTERVAL_SECONDS=3 (PROC-01, PROC-03)."""
+    """_spawn_daemon passes uid-specific env vars (PROC-01, PROC-03).
+
+    Quick task 260504-jkb: POLL_INTERVAL_SECONDS is no longer asserted —
+    the daemon now defaults to adaptive POLL_INTERVAL_ACTIVE/IDLE tiers and
+    _spawn_daemon never set POLL_INTERVAL_SECONDS explicitly (it was only
+    inherited from the parent env via os.environ.copy()). The deprecated
+    Fly secret should be unset post-deploy. Whatever the parent env has set
+    still flows through; this test only asserts the four required keys.
+    """
     uid = "spawntestuid1"
     fake_paths = {
         "state_path": str(tmp_path / "state.json"),
@@ -623,7 +671,6 @@ def test_spawn_daemon_sets_env_vars(tmp_path):
     assert "EVENTS_PATH" in spawned_env
     assert "LYRICS_DB_PATH" in spawned_env
     assert "SPOTIFY_CACHE_PATH" in spawned_env
-    assert spawned_env.get("POLL_INTERVAL_SECONDS") == "3"
 
 
 # --- _spawn_daemon PID file (D-11) ---
