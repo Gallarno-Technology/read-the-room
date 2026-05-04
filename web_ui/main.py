@@ -202,7 +202,11 @@ async def _spawn_daemon(uid: str) -> asyncio.subprocess.Process:
     """Spawn a daemon process for uid. Write PID file. Store in _daemons.
 
     Per D-06: called by lifespan (boot) and /auth/callback (new user).
-    POLL_INTERVAL_SECONDS is inherited from the parent env (daemon.py defaults to 1s).
+    Adaptive polling tiers (POLL_INTERVAL_ACTIVE / POLL_INTERVAL_IDLE) are
+    inherited from the parent env when set; otherwise daemon.py uses 5s active
+    / 30s idle defaults (quick task 260504-jkb). POLL_INTERVAL_SECONDS is
+    honoured as a deprecated single-tier override but no longer needed in
+    production — the Fly secret should be unset post-deploy.
     stdout/stderr are inherited from uvicorn so daemon log lines reach Fly's
     log capture — the prior DEVNULL hid 429s and other failures.
     """
@@ -495,6 +499,15 @@ async def sse_events(ctx: UserContext = Depends(get_user_context)) -> StreamingR
         _subscribers[ctx.uid] = []
     _subscribers[ctx.uid].append(subscriber)
     _ensure_tail(ctx.uid, ctx.events_path)
+    # Adaptive polling kick (quick task 260504-jkb).
+    # Touch a per-uid kick file so the daemon's next iteration polls
+    # immediately instead of waiting up to POLL_INTERVAL_IDLE seconds.
+    # Best-effort — failure here must not block the SSE response.
+    try:
+        kick_path = os.path.join(os.path.dirname(ctx.state_path), "poll_kick")
+        pathlib.Path(kick_path).touch(exist_ok=True)
+    except OSError as exc:
+        log.warning("web_ui: could not touch poll_kick for uid=%s: %s", ctx.uid, exc)
     return StreamingResponse(
         _sse_event_generator(ctx.uid, subscriber),
         media_type="text/event-stream",
