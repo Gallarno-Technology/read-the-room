@@ -680,10 +680,13 @@ async def poll_loop(
             POLL_INTERVAL_TRACK_END_THRESHOLD_MS,
             override=_POLL_INTERVAL_OVERRIDE,
         )
-        # SSE-reconnect kick: web_ui touches users/{uid}/poll_kick on /events
-        # subscribe; daemon consumes the file and short-circuits the next sleep
-        # so a freshly opened dashboard hydrates within ~1s.
-        kick_path = os.path.join(os.path.dirname(STATE_PATH) or ".", "poll_kick")
+        # SSE-reconnect kick: web_ui touches <data>/poll_kick on /events subscribe;
+        # daemon consumes the file and short-circuits the next sleep so a freshly
+        # opened dashboard hydrates within ~1s. The kick lives in the events/data
+        # dir because that dir is the volume shared between the daemon and web_ui
+        # containers (state.json is bind-mounted as a single file, so its directory
+        # is not shared).
+        kick_path = os.path.join(os.path.dirname(EVENTS_PATH) or ".", "poll_kick")
         if os.path.exists(kick_path):
             try:
                 os.unlink(kick_path)
