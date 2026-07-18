@@ -2,7 +2,7 @@
 
 # Read the Room
 
-Read the Room is a self-hosted background service that monitors Spotify playback and automatically skips songs that violate family-safe content rules. It was built to solve a real parenting problem: having young children (ages 3 and 7) in the room while music plays. The service runs as a Docker stack on any Linux or macOS machine on your home network, with no cloud dependency and no ongoing subscription.
+Read the Room is a self-hosted background service that monitors Spotify playback and automatically skips songs that violate family-safe content rules. It was built to solve a real parenting problem: having young children in the room while music plays. The service runs as a Docker stack on any Linux or macOS machine on your home network, with no cloud dependency and no ongoing subscription.
 
 ## Prerequisites
 
@@ -19,7 +19,9 @@ Read the Room is a self-hosted background service that monitors Spotify playback
 
 - **A Spotify developer app** registered at [developer.spotify.com](https://developer.spotify.com/dashboard). You need:
   - Client ID and Client Secret
-  - `https://127.0.0.1:8080` added to the app's Redirect URIs list
+  - Your redirect URI added to the app's Redirect URIs list — `https://<your-host>/auth/callback`, where `<your-host>` is the LAN IP or domain Caddy serves (e.g. `https://192.168.1.100/auth/callback`)
+
+  Read the Room is single-user: one Spotify account per deployment. (Spotify's development-mode quota caps third-party apps at a handful of listeners, so there is no multi-user mode.)
 
 ## Quick Start
 
@@ -33,7 +35,7 @@ Read the Room is a self-hosted background service that monitors Spotify playback
    ```bash
    cp .env.example .env
    ```
-   Open `.env` and fill in `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, and `SPOTIFY_REDIRECT_URI`. The redirect URI must be `https://127.0.0.1:8080` — register it in your Spotify app dashboard. See `.env.example` for all available options.
+   Open `.env` and fill in `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, and `SPOTIFY_REDIRECT_URI`. The redirect URI must be `https://<your-host>/auth/callback` and must exactly match a Redirect URI registered in your Spotify app dashboard. See `.env.example` for all available options.
 
 3. **Pre-create bind-mount files**
    ```bash
@@ -52,22 +54,19 @@ Read the Room is a self-hosted background service that monitors Spotify playback
    export UID=$(id -u) GID=$(id -g)
    ```
 
-5. **Authenticate with Spotify (one time)**
-   ```bash
-   make auth
-   ```
-   This opens a URL — open it in a browser and approve access in Spotify. The browser will redirect to a page that fails to load (this is expected). Copy the full URL from the address bar and paste it back into the terminal. The token is saved to `token_cache/` and reused automatically.
-
-6. **Start the service**
+5. **Start the service**
    ```bash
    docker compose up -d
    ```
 
-7. **Open the dashboard** — [http://localhost:8888](http://localhost:8888)
+6. **Authenticate with Spotify (one time)**
+   Open the dashboard in a browser. On first visit — before any token exists — it redirects you to Spotify's authorization page. Approve access, and the `/auth/callback` route writes the token to `token_cache/.cache`, which the `daemon` container picks up on its next poll. No CLI step is required.
+
+7. **Open the dashboard** — `https://<your-host>` (Caddy) or `http://localhost:8888` (web_ui directly)
 
 ## How It Works
 
-The daemon polls the Spotify playback API every second to see what is currently playing. When a new track starts, it checks the Spotify explicit flag first. If the track is flagged explicit, it is skipped immediately — no lyrics fetch needed.
+The `daemon` container polls the Spotify playback API on an adaptive cadence (faster while a track is playing, slower when idle) to see what is currently playing. When a new track starts, it checks the Spotify explicit flag first. If the track is flagged explicit, it is skipped immediately — no lyrics fetch needed.
 
 If the explicit flag is not set, the daemon fetches lyrics from LRCLIB, a public and free lyrics API. The lyrics are scanned for profanity, drug references, and sexual content according to the rules of the active filter profile. Lyric scan results are cached in a local SQLite database so the same track is not fetched twice.
 

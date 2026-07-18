@@ -1,19 +1,16 @@
 services:
   daemon:
     build: .
-    restart: always        # D-13: replaces macOS LaunchAgent KeepAlive; auto-restarts on crash
-    network_mode: ${NETWORK_MODE:-host}  # D-04/D-05: VPS sets NETWORK_MODE=bridge; local leaves unset (host for Sonos UPnP)
-    env_file: .env         # D-14: all runtime config from .env; no interpolation needed in compose file
-    user: "${UID}:${GID}"  # Run as host UID:GID so bind-mount files are user-owned, not root-owned
+    restart: always        # replaces macOS LaunchAgent KeepAlive; auto-restarts on crash
+    network_mode: ${NETWORK_MODE:-host}  # host is required for Sonos UPnP/multicast
+    env_file: .env
+    user: "${UID}:${GID}"  # run as host UID:GID so bind-mount files stay user-owned
     volumes:
-      # Bind mounts to host — all paths must be pre-created on host before first `docker compose up`
-      # Pre-create: echo '{"last_track_id": null}' > state.json && mkdir -p token_cache && touch lyrics_cache.db && echo '[]' > users.json
-      - ./users.json:/app/users.json      # User registry shared with web_ui and manage_users.py
-      - ./users:/app/users                # Per-user token cache, daemon PID, and event data
-      - ./state.json:/app/state.json      # Persists track state across container restarts/rebuilds
-      - ./token_cache:/app/token_cache    # Persists OAuth token across container restarts/rebuilds
-      - ./lyrics_cache.db:/app/lyrics_cache.db  # Persists lyrics SQLite cache across restarts (Phase 2)
-      - ./data:/app/data                  # Shared event log (events.jsonl) and now_playing.json (Phase 6)
+      # Bind mounts to host — pre-create with `make setup` before first `docker compose up`.
+      - ./state.json:/app/state.json            # track/FSM/profile state, shared with web_ui
+      - ./token_cache:/app/token_cache          # OAuth token cache, shared with web_ui
+      - ./lyrics_cache.db:/app/lyrics_cache.db  # lyrics SQLite cache
+      - ./data:/app/data                        # events.jsonl + now_playing.json, shared with web_ui
     healthcheck:
       test: ["CMD", "python", "-c", "import os, time; f='/app/.healthcheck'; assert time.time()-os.stat(f).st_mtime<60"]
       interval: 30s
@@ -26,24 +23,22 @@ services:
       context: .
       dockerfile: web_ui/Dockerfile
     restart: always
-    network_mode: ${NETWORK_MODE:-host}  # D-04/D-05: VPS sets NETWORK_MODE=bridge; local leaves unset (host for Sonos UPnP)
+    network_mode: ${NETWORK_MODE:-host}
     env_file: .env
     user: "${UID}:${GID}"
     volumes:
-      - ./users.json:/app/users.json      # User registry shared with daemon and manage_users.py
-      - ./users:/app/users                # Per-user token cache, daemon PID, and event data
-      - ./state.json:/app/state.json  # FSM toggle reads/writes this file (D-09)
-      - ./data:/app/data              # Shared event log (events.jsonl) and now_playing.json (Phase 6)
-      - ./token_cache:/app/token_cache    # Shared OAuth token cache with daemon (Phase 7)
+      - ./state.json:/app/state.json    # FSM/profile toggle reads/writes this file
+      - ./token_cache:/app/token_cache  # writes the OAuth token cache on /auth/callback
+      - ./data:/app/data                # reads events.jsonl + now_playing.json produced by daemon
 
   caddy:
     image: caddy:2-alpine
     restart: always
-    network_mode: ${NETWORK_MODE:-host}  # D-04: on bridge, caddy reaches web_ui via service name (WEB_UI_UPSTREAM=web_ui:8888)
+    network_mode: ${NETWORK_MODE:-host}  # on bridge, caddy reaches web_ui via WEB_UI_UPSTREAM=web_ui:8888
     env_file: .env
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data   # Persists Caddy internal CA so self-signed cert survives restarts
+      - caddy_data:/data   # persists Caddy internal CA so the self-signed cert survives restarts
 
 volumes:
   caddy_data:

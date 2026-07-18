@@ -38,7 +38,18 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 # Configuration — all values from .env (D-05, D-10, D-14)
 # ---------------------------------------------------------------------------
-POLL_INTERVAL = float(os.environ.get("POLL_INTERVAL_SECONDS", "1"))       # D-04, D-05
+# Adaptive polling tiers (quick task 260504-jkb).
+# Active tier: sleep when is_playing=true. Idle tier: sleep when paused / 204 / item=None.
+# Track-end accelerator: when a known item has < threshold_ms remaining, force active
+# tier so we catch the transition into the next track.
+POLL_INTERVAL_ACTIVE = float(os.environ.get("POLL_INTERVAL_ACTIVE", "5"))
+POLL_INTERVAL_IDLE = float(os.environ.get("POLL_INTERVAL_IDLE", "30"))
+POLL_INTERVAL_TRACK_END_THRESHOLD_MS = int(
+    os.environ.get("POLL_INTERVAL_TRACK_END_THRESHOLD_MS", "5000")
+)
+# Deprecated single-tier override (back-compat). When > 0, overrides both tiers.
+# Prefer POLL_INTERVAL_ACTIVE / POLL_INTERVAL_IDLE in production.
+_POLL_INTERVAL_OVERRIDE = float(os.environ.get("POLL_INTERVAL_SECONDS", "0") or "0")
 HEARTBEAT_INTERVAL = float(os.environ.get("HEARTBEAT_INTERVAL_SECONDS", "300"))  # D-10
 STATE_PATH = os.environ.get("STATE_PATH", "state.json")
 PROFANITY_MIN_SEVERITY = int(os.environ.get("PROFANITY_MIN_SEVERITY", "2"))  # D-10
@@ -317,6 +328,35 @@ def _eval_state_from_result(action: str, reason: str) -> str:
     return "skipped"
 
 
+def _compute_next_sleep(
+    result: Optional[dict],
+    active: float,
+    idle: float,
+    threshold_ms: int,
+    override: float = 0.0,
+) -> float:
+    """Return the seconds to sleep until the next poll (quick task 260504-jkb).
+
+    - override > 0 forces single-tier mode (deprecated POLL_INTERVAL_SECONDS path).
+    - No result / no item -> idle tier.
+    - Known item with < threshold_ms remaining -> active tier (catches paused-near-end
+      and auto-advance transitions even when is_playing=False).
+    - Otherwise: active when is_playing=True, idle when paused.
+    """
+    if override > 0:
+        return override
+    item = (result or {}).get("item") if result else None
+    if item is None:
+        return idle
+    is_playing = bool((result or {}).get("is_playing"))
+    duration_ms = item.get("duration_ms") or 0
+    progress_ms = (result or {}).get("progress_ms") or 0
+    remaining_ms = duration_ms - progress_ms
+    if 0 < remaining_ms < threshold_ms:
+        return active
+    return active if is_playing else idle
+
+
 # ---------------------------------------------------------------------------
 # Poll loop
 # ---------------------------------------------------------------------------
@@ -342,14 +382,26 @@ async def poll_loop(
 
     _consecutive_401s = 0  # D-01: consecutive 401 counter; sys.exit(2) after 3
 
-    log.info(
-        "Daemon started. Poll interval=%.1fs, heartbeat=%.1fs",
-        POLL_INTERVAL,
-        HEARTBEAT_INTERVAL,
-    )
+    if _POLL_INTERVAL_OVERRIDE > 0:
+        log.info(
+            "Daemon started. POLL_INTERVAL_SECONDS=%.1f override active "
+            "(deprecated; prefer POLL_INTERVAL_ACTIVE/IDLE)",
+            _POLL_INTERVAL_OVERRIDE,
+        )
+    else:
+        log.info(
+            "Daemon started. Adaptive poll: active=%.1fs idle=%.1fs track-end=%dms",
+            POLL_INTERVAL_ACTIVE,
+            POLL_INTERVAL_IDLE,
+            POLL_INTERVAL_TRACK_END_THRESHOLD_MS,
+        )
+    log.info("Heartbeat interval=%.1fs", HEARTBEAT_INTERVAL)
 
     while not stop_event.is_set():
         Path('/app/.healthcheck').touch()
+        # Adaptive cadence: result lives outside the try/except so the bottom-of-loop
+        # tier selection runs even on a transient error path. None falls back to idle.
+        result = None
         try:
             result = sp.currently_playing()
             _consecutive_401s = 0  # D-02: reset on any successful Spotify API call
@@ -571,13 +623,14 @@ async def poll_loop(
 
         except SpotifyException as exc:
             if exc.http_status == 429:
-                # D-07: 429 backoff — read Retry-After header, apply jitter, sleep interruptibly
-                # getattr guard: SpotifyException.headers may be None on non-HTTP paths
+                # 429 backoff — honour Retry-After verbatim. Capping the wait below
+                # the server's instruction makes things worse: every premature retry
+                # refills Spotify's 30s rolling window, so the cooldown effectively
+                # never ends. 2-hour ceiling is a sanity guard against absurd values.
                 headers = getattr(exc, "headers", {}) or {}
                 retry_after = int(headers.get("Retry-After", 5))
-                # Exponential backoff with full jitter, capped at 120 seconds
-                jitter = random.uniform(0, retry_after * 0.5)
-                wait = min(retry_after + jitter, 120.0)
+                jitter = random.uniform(0, min(retry_after * 0.1, 5.0))
+                wait = min(retry_after + jitter, 7200.0)
                 log.warning(
                     "Rate limited (429). Backing off %.1fs (Retry-After=%s)",
                     wait,
@@ -607,11 +660,46 @@ async def poll_loop(
             else:
                 log.error("Spotify API error %s: %s", exc.http_status, exc)
 
+        except EOFError:
+            log.error(
+                "Spotify auth requires interactive input — no valid token in cache at %s. "
+                "Authenticate via the web UI then redeploy.",
+                os.environ.get("SPOTIFY_CACHE_PATH", "unknown"),
+            )
+            sys.exit(1)
         except Exception as exc:  # noqa: BLE001
             log.error("Unexpected error in poll loop: %s", exc, exc_info=True)
 
-        # D-04: fixed 1s interval; no adaptive rate
-        await asyncio.sleep(POLL_INTERVAL)
+        # Adaptive sleep — quick task 260504-jkb.
+        # Retry-After backoff (429) uses `continue` and never reaches this point,
+        # so kick-file consumption never overrides Spotify's instructed cooldown.
+        next_sleep = _compute_next_sleep(
+            result,
+            POLL_INTERVAL_ACTIVE,
+            POLL_INTERVAL_IDLE,
+            POLL_INTERVAL_TRACK_END_THRESHOLD_MS,
+            override=_POLL_INTERVAL_OVERRIDE,
+        )
+        # SSE-reconnect kick: web_ui touches <data>/poll_kick on /events subscribe;
+        # daemon consumes the file and short-circuits the next sleep so a freshly
+        # opened dashboard hydrates within ~1s. The kick lives in the events/data
+        # dir because that dir is the volume shared between the daemon and web_ui
+        # containers (state.json is bind-mounted as a single file, so its directory
+        # is not shared).
+        kick_path = os.path.join(os.path.dirname(EVENTS_PATH) or ".", "poll_kick")
+        if os.path.exists(kick_path):
+            try:
+                os.unlink(kick_path)
+            except FileNotFoundError:
+                pass
+            next_sleep = 0.0
+
+        # Use asyncio.sleep at the bottom of the loop (not wait_for(stop_event.wait))
+        # so existing test_daemon_events.py harnesses that mock asyncio.sleep continue
+        # to function. SIGTERM during a 30s idle wait will be observed at the next
+        # iteration boundary; the worst-case shutdown latency is POLL_INTERVAL_IDLE.
+        if next_sleep > 0:
+            await asyncio.sleep(next_sleep)
 
 
 # ---------------------------------------------------------------------------
@@ -637,6 +725,14 @@ async def main() -> None:
         cache_handler=cache_handler,
     )
     sp = spotipy.Spotify(auth_manager=auth_manager)
+
+    cached_token = cache_handler.get_cached_token()
+    if not cached_token:
+        log.error(
+            "No Spotify token in cache at %s — authenticate via the web UI first",
+            os.environ["SPOTIFY_CACHE_PATH"],
+        )
+        sys.exit(1)
 
     # Register SIGTERM and SIGINT handlers via asyncio event loop (not signal.signal)
     # loop.add_signal_handler schedules the callback on the event loop thread,
