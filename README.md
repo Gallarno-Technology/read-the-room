@@ -2,7 +2,7 @@
 
 # Read the Room
 
-Read the Room is a self-hosted background service that monitors Spotify playback and automatically skips songs that violate family-safe content rules. It was built to solve a real parenting problem: having young children (ages 3 and 7) in the room while music plays. The service runs as a Docker stack on any Linux or macOS machine on your home network, with no cloud dependency and no ongoing subscription.
+Read the Room is a self-hosted background service that monitors Spotify playback and automatically skips songs that violate family-safe content rules. It was built to solve a real parenting problem: having young children in the room while music plays. The service runs as a Docker stack on any Linux or macOS machine on your home network, with no cloud dependency and no ongoing subscription.
 
 ## Prerequisites
 
