@@ -1,25 +1,44 @@
 services:
+  daemon:
+    build: .
+    restart: always        # replaces macOS LaunchAgent KeepAlive; auto-restarts on crash
+    network_mode: ${NETWORK_MODE:-host}  # host is required for Sonos UPnP/multicast
+    env_file: .env
+    user: "${UID}:${GID}"  # run as host UID:GID so bind-mount files stay user-owned
+    volumes:
+      # Bind mounts to host — pre-create with `make setup` before first `docker compose up`.
+      - ./state.json:/app/state.json            # track/FSM/profile state, shared with web_ui
+      - ./token_cache:/app/token_cache          # OAuth token cache, shared with web_ui
+      - ./lyrics_cache.db:/app/lyrics_cache.db  # lyrics SQLite cache
+      - ./data:/app/data                        # events.jsonl + now_playing.json, shared with web_ui
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, time; f='/app/.healthcheck'; assert time.time()-os.stat(f).st_mtime<60"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
   web_ui:
     build:
       context: .
       dockerfile: web_ui/Dockerfile
     restart: always
-    network_mode: ${NETWORK_MODE:-host}  # D-04/D-05: VPS sets NETWORK_MODE=bridge; local leaves unset (host for Sonos UPnP)
+    network_mode: ${NETWORK_MODE:-host}
     env_file: .env
     user: "${UID}:${GID}"
     volumes:
-      - ./users.json:/app/users.json      # User registry
-      - ./users:/app/users                # Per-user state, token cache, daemon PID, and event data
-      - ./lyrics_cache.db:/app/lyrics_cache.db  # Persists lyrics SQLite cache across restarts
+      - ./state.json:/app/state.json    # FSM/profile toggle reads/writes this file
+      - ./token_cache:/app/token_cache  # writes the OAuth token cache on /auth/callback
+      - ./data:/app/data                # reads events.jsonl + now_playing.json produced by daemon
 
   caddy:
     image: caddy:2-alpine
     restart: always
-    network_mode: ${NETWORK_MODE:-host}  # D-04: on bridge, caddy reaches web_ui via service name (WEB_UI_UPSTREAM=web_ui:8888)
+    network_mode: ${NETWORK_MODE:-host}  # on bridge, caddy reaches web_ui via WEB_UI_UPSTREAM=web_ui:8888
     env_file: .env
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data   # Persists Caddy internal CA so self-signed cert survives restarts
+      - caddy_data:/data   # persists Caddy internal CA so the self-signed cert survives restarts
 
 volumes:
   caddy_data:

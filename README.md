@@ -19,7 +19,9 @@ Read the Room is a self-hosted background service that monitors Spotify playback
 
 - **A Spotify developer app** registered at [developer.spotify.com](https://developer.spotify.com/dashboard). You need:
   - Client ID and Client Secret
-  - `https://127.0.0.1:8080` added to the app's Redirect URIs list
+  - Your redirect URI added to the app's Redirect URIs list — `https://<your-host>/auth/callback`, where `<your-host>` is the LAN IP or domain Caddy serves (e.g. `https://192.168.1.220/auth/callback`)
+
+  Read the Room is single-user: one Spotify account per deployment. (Spotify's development-mode quota caps third-party apps at a handful of listeners, so there is no multi-user mode.)
 
 ## Quick Start
 
@@ -33,7 +35,7 @@ Read the Room is a self-hosted background service that monitors Spotify playback
    ```bash
    cp .env.example .env
    ```
-   Open `.env` and fill in `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, and `SPOTIFY_REDIRECT_URI`. The redirect URI must be `https://127.0.0.1:8080` — register it in your Spotify app dashboard. See `.env.example` for all available options.
+   Open `.env` and fill in `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, and `SPOTIFY_REDIRECT_URI`. The redirect URI must be `https://<your-host>/auth/callback` and must exactly match a Redirect URI registered in your Spotify app dashboard. See `.env.example` for all available options.
 
 3. **Pre-create bind-mount files**
    ```bash
@@ -57,17 +59,14 @@ Read the Room is a self-hosted background service that monitors Spotify playback
    docker compose up -d
    ```
 
-6. **Provision a user (one time per person)**
-   ```bash
-   python scripts/manage_users.py generate-url <name>
-   ```
-   This prints a UID and a Spotify authorization URL. Open the URL in a browser, approve access in Spotify, and the callback will activate the user and start their daemon. The UID is the access code for `/login`.
+6. **Authenticate with Spotify (one time)**
+   Open the dashboard in a browser. On first visit — before any token exists — it redirects you to Spotify's authorization page. Approve access, and the `/auth/callback` route writes the token to `token_cache/.cache`, which the `daemon` container picks up on its next poll. No CLI step is required.
 
-7. **Open the dashboard** — [http://localhost:8888](http://localhost:8888)
+7. **Open the dashboard** — `https://<your-host>` (Caddy) or `http://localhost:8888` (web_ui directly)
 
 ## How It Works
 
-The daemon polls the Spotify playback API every second to see what is currently playing. When a new track starts, it checks the Spotify explicit flag first. If the track is flagged explicit, it is skipped immediately — no lyrics fetch needed.
+The `daemon` container polls the Spotify playback API on an adaptive cadence (faster while a track is playing, slower when idle) to see what is currently playing. When a new track starts, it checks the Spotify explicit flag first. If the track is flagged explicit, it is skipped immediately — no lyrics fetch needed.
 
 If the explicit flag is not set, the daemon fetches lyrics from LRCLIB, a public and free lyrics API. The lyrics are scanned for profanity, drug references, and sexual content according to the rules of the active filter profile. Lyric scan results are cached in a local SQLite database so the same track is not fetched twice.
 
@@ -112,10 +111,6 @@ git pull && docker compose up -d --build
 ```
 
 Data files (`state.json`, `lyrics_cache.db`, `token_cache/`, `data/`) are bind-mounted on the host and survive rebuilds — no manual migration needed.
-
-## Hosted Deployment (Fly.io)
-
-The `read-the-room.fly.dev` instance runs the same image but stores per-user state on a Fly volume instead of host bind mounts. New users must be provisioned via SSH before they can sign in at `/login`. See [FLY-ONBOARDING.md](FLY-ONBOARDING.md) for the steps.
 
 ## License
 

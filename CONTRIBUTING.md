@@ -13,11 +13,10 @@ This repository is proprietary software. A cloud version is planned as a separat
 | `content_checker.py` | Profanity and lyric scan logic — orchestrates all content scanners |
 | `skip_client.py` | Sonos UPnP skip via SoCo; falls back to Spotify API if Sonos is unavailable |
 | `lyrics_service.py` | LRCLIB lyric lookup with SQLite cache (`lyrics_cache.db`) |
-| `setup_auth.py` | One-time Spotify OAuth setup — run via `make auth` |
-| `web_ui/` | FastAPI dashboard (templates, static assets, `main.py`) served on port 8888 |
+| `web_ui/` | FastAPI dashboard (templates, `main.py`) + single-user Spotify OAuth (`/auth/login`, `/auth/callback`) served on port 8888 |
 | `tests/` | pytest test suite — fully mocked, no real Spotify credentials or Docker needed |
-| `docker-compose.yml` | Two services: `daemon` and `web_ui` |
-| `Makefile` | Developer shortcuts (`make setup`, `make auth`, `make up`, `make logs`, etc.) |
+| `docker-compose.yml` | Three services: `daemon`, `web_ui`, and `caddy` (TLS reverse proxy) |
+| `Makefile` | Developer shortcuts (`make setup`, `make up`, `make logs`, `make daemon-logs`, `make ui-logs`, etc.) |
 | `.env.example` | Template for all environment variables with inline explanations |
 | `PROXMOX.md` | Sonos SSDP fix for Proxmox LXC users |
 
@@ -30,11 +29,12 @@ There are two tracks depending on what you want to do.
 ```bash
 make setup      # creates bind-mount files, copies .env.example → .env
 # edit .env — fill in SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI
-make auth       # one-time OAuth — follow the terminal prompts
-make up         # starts daemon + web_ui in the background
+make up         # starts daemon + web_ui + caddy in the background
 ```
 
-Dashboard is available at [http://localhost:8888](http://localhost:8888).
+Dashboard is available at [http://localhost:8888](http://localhost:8888). On first visit it
+redirects you to Spotify to authorize (one time); the callback writes the token cache that the
+`daemon` container then picks up.
 
 ### Running the test suite (host Python)
 

@@ -4,6 +4,9 @@ state.json
 token_cache/
 users.json
 users/
+openaitoken.txt
+*token*.txt
+*.secret
 
 # Python
 __pycache__/
@@ -21,3 +24,6 @@ lyrics_cache.db
 # Dev tooling — personal config with absolute paths, not for public repos
 .claude/
 .planning/
+
+# Local per-host compose overrides
+docker-compose.override.yml
