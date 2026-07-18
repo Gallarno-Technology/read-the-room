@@ -2,7 +2,7 @@
 
 # Read the Room
 
-Read the Room is a self-hosted background service that monitors Spotify playback and automatically skips songs that violate family-safe content rules. It was built to solve a real parenting problem: having young children (ages 3 and 7) in the room while music plays. The service runs as a Docker stack on any Linux or macOS machine on your home network, with no cloud dependency and no ongoing subscription.
+Read the Room is a self-hosted background service that monitors Spotify playback and automatically skips songs that violate family-safe content rules. It was built to solve a real parenting problem: having young children in the room while music plays. The service runs as a Docker stack on any Linux or macOS machine on your home network, with no cloud dependency and no ongoing subscription.
 
 ## Prerequisites
 
@@ -19,7 +19,7 @@ Read the Room is a self-hosted background service that monitors Spotify playback
 
 - **A Spotify developer app** registered at [developer.spotify.com](https://developer.spotify.com/dashboard). You need:
   - Client ID and Client Secret
-  - Your redirect URI added to the app's Redirect URIs list — `https://<your-host>/auth/callback`, where `<your-host>` is the LAN IP or domain Caddy serves (e.g. `https://192.168.1.220/auth/callback`)
+  - Your redirect URI added to the app's Redirect URIs list — `https://<your-host>/auth/callback`, where `<your-host>` is the LAN IP or domain Caddy serves (e.g. `https://192.168.1.100/auth/callback`)
 
   Read the Room is single-user: one Spotify account per deployment. (Spotify's development-mode quota caps third-party apps at a handful of listeners, so there is no multi-user mode.)
 
