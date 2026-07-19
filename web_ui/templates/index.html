@@ -600,21 +600,17 @@
           <button id="profile-dropdown-trigger" class="fsm-dropdown-zone" aria-haspopup="listbox" aria-expanded="false">&#9660;</button>
         </div>
         <div id="profile-dropdown" class="profile-dropdown" hidden role="listbox">
-          <div class="profile-option" data-profile="kids_present" role="option" aria-selected="false">
-            <span class="profile-option-name">Kids Present</span>
-            <span class="profile-option-desc">Skips profanity, drug references, sexual content, and explicit-flagged tracks.</span>
+          <div class="profile-option" data-profile="family_friendly" role="option" aria-selected="false">
+            <span class="profile-option-name">Family Friendly</span>
+            <span class="profile-option-desc">Strict — kids in the room. Skips sexual content, drugs, violence, dark themes, and strong language.</span>
           </div>
-          <div class="profile-option" data-profile="were_all_adults" role="option" aria-selected="false">
-            <span class="profile-option-name">We're All Adults</span>
-            <span class="profile-option-desc">Skips profanity and sexual content.</span>
+          <div class="profile-option" data-profile="mixed_company" role="option" aria-selected="false">
+            <span class="profile-option-name">Mixed Company</span>
+            <span class="profile-option-desc">Around coworkers or guests. Allows profanity and innuendo; skips explicit content, hard drugs, graphic violence, and slurs.</span>
           </div>
-          <div class="profile-option" data-profile="above_the_covers" role="option" aria-selected="false">
-            <span class="profile-option-name">Above The Covers</span>
-            <span class="profile-option-desc">Skips sexual content.</span>
-          </div>
-          <div class="profile-option" data-profile="permissive" role="option" aria-selected="false">
-            <span class="profile-option-name">Permissive</span>
-            <span class="profile-option-desc">Skips explicit-flagged tracks.</span>
+          <div class="profile-option" data-profile="close_friends" role="option" aria-selected="false">
+            <span class="profile-option-name">Close Friends</span>
+            <span class="profile-option-desc">Permissive — your inner circle. Skips only explicit sexual content and slurs.</span>
           </div>
         </div>
       </div>
@@ -661,7 +657,7 @@
     // Active profile initial state injected by web_ui/main.py at serve time (PROF-04)
     const PROFILE_INITIAL = "__PROFILE_INITIAL__";
     let fsmEnabled = FSM_INITIAL === "true";
-    let activeProfile = PROFILE_INITIAL || "kids_present";
+    let activeProfile = PROFILE_INITIAL || "family_friendly";
     let currentTrackId = null;
 
     const fsmSplitBtn = document.getElementById('fsm-split-btn');
@@ -689,10 +685,9 @@
     const isMobile     = () => window.matchMedia('(max-width: 640px)').matches;
 
     const PROFILE_DISPLAY_NAMES = {
-      'kids_present':     'Kids Present',
-      'were_all_adults':  "We're All Adults",
-      'above_the_covers': 'Above The Covers',
-      'permissive':       'Permissive',
+      'family_friendly': 'Family Friendly',
+      'mixed_company':   'Mixed Company',
+      'close_friends':   'Close Friends',
     };
 
     function setFsmUI(enabled, profile) {
@@ -700,7 +695,7 @@
       if (profile !== undefined) {
         activeProfile = profile;
       }
-      const label = PROFILE_DISPLAY_NAMES[activeProfile] || 'Kids Present';
+      const label = PROFILE_DISPLAY_NAMES[activeProfile] || 'Family Friendly';
       // D-04: fresh install — no profile stored AND FSM off shows special label
       const isFresh = !activeProfile && !enabled;
 

@@ -30,19 +30,16 @@ def test_info_panel_present():
 
 
 def test_info_profile_map_present():
-    """INFO-02: Static PROFILE_INFO JS map is defined in the template."""
+    """INFO-02: The three current profile keys are defined in the template."""
     html = _template()
-    assert "PROFILE_INFO" in html, "Missing PROFILE_INFO JS constant"
-    assert "kids_present" in html
-    assert "were_all_adults" in html
-    assert "above_the_covers" in html
-    assert "permissive" in html
+    assert "family_friendly" in html
+    assert "mixed_company" in html
+    assert "close_friends" in html
 
 
 def test_info_prose_sentences_present():
-    """INFO-02: All four profile prose sentences are present in the JS map."""
+    """INFO-02: Each of the three profile prose descriptions is present."""
     html = _template()
-    assert "Skips profanity, drug references, sexual content, and explicit-flagged tracks." in html
-    assert "Skips profanity and sexual content." in html
-    assert "Skips sexual content." in html
-    assert "Skips explicit-flagged tracks." in html
+    assert "Strict — kids in the room." in html
+    assert "Around coworkers or guests." in html
+    assert "Permissive — your inner circle." in html

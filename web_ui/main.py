@@ -43,6 +43,7 @@ from fastapi.responses import (
 from pydantic import BaseModel
 from spotipy.oauth2 import CacheFileHandler, SpotifyOAuth
 
+from profiles import DEFAULT_PROFILE, PROFILES
 from skip_client import SocoSkipClient
 
 load_dotenv()
@@ -266,7 +267,7 @@ async def dashboard() -> HTMLResponse | RedirectResponse:
     state = _load_state()
     fsm_on = str(state.get("family_safe_mode", False)).lower()
     html = html.replace("__FSM_INITIAL__", fsm_on)
-    active_profile = state.get("active_profile", "kids_present")
+    active_profile = state.get("active_profile", DEFAULT_PROFILE)
     html = html.replace("__PROFILE_INITIAL__", active_profile)
     return HTMLResponse(content=html)
 
@@ -405,21 +406,14 @@ async def set_fsm(body: FSMRequest) -> JSONResponse:
 # Filter Profile — PROF-01, PROF-02 (Phase 16)
 # ---------------------------------------------------------------------------
 
-VALID_PROFILES: frozenset = frozenset(
-    {
-        "kids_present",
-        "were_all_adults",
-        "above_the_covers",
-        "permissive",
-    }
-)
+VALID_PROFILES: frozenset = frozenset(PROFILES)
 
 
 @app.get("/profile")
 async def get_profile() -> JSONResponse:
     """Return current active profile from state.json."""
     state = _load_state()
-    return JSONResponse({"active_profile": state.get("active_profile", "kids_present")})
+    return JSONResponse({"active_profile": state.get("active_profile", DEFAULT_PROFILE)})
 
 
 @app.post("/profile")

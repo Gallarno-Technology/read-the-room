@@ -29,6 +29,7 @@ from content_checker import ContentChecker, TrackEvalResult
 from drug_scanner import DrugScanner
 from lyrics_service import LyricsService
 from profanity_scanner import ProfanityScanner
+from profiles import DEFAULT_PROFILE
 from sexual_content_scanner import SexualContentScanner
 from skip_client import SocoSkipClient, SpotifySkipClient
 from track_cache import SQLiteTrackCache
@@ -59,12 +60,15 @@ EVENTS_PATH = os.environ.get("EVENTS_PATH", "data/events.jsonl")
 NOW_PLAYING_PATH = os.path.join(os.path.dirname(EVENTS_PATH) or ".", "now_playing.json")
 
 # ---------------------------------------------------------------------------
-# Filter Profile Map (Phase 16, PROF-03)
-# Maps active_profile state.json keys to ContentChecker constructor kwargs.
-# Scanner objects are long-lived; only the ContentChecker wrapper is rebuilt on change.
+# Filter Profile Map (PROF-03; migrated 4→3 profiles)
+# Maps the active_profile state.json key to keyword-scanner ContentChecker kwargs.
+# These scanners are the fast pre-filter tier; the LLM sentiment tier
+# (profiles.derive_verdict) is layered on top and is what further differentiates
+# Mixed Company from Close Friends. Scanner objects are long-lived; only the
+# ContentChecker wrapper is rebuilt on change.
 # ---------------------------------------------------------------------------
 PROFILE_MAP: dict = {
-    "kids_present": {
+    "family_friendly": {
         "explicit_skip": True,
         "min_severity": 2,
         "drug": True,
@@ -72,29 +76,21 @@ PROFILE_MAP: dict = {
         "profanity": True,
         "lyrics": True,
     },
-    "were_all_adults": {
+    "mixed_company": {
         "explicit_skip": False,
         "min_severity": 3,
         "drug": False,
         "sexual": True,
-        "profanity": True,
+        "profanity": False,
         "lyrics": True,
     },
-    "above_the_covers": {
+    "close_friends": {
         "explicit_skip": False,
-        "min_severity": 2,
+        "min_severity": 3,
         "drug": False,
         "sexual": True,
         "profanity": False,
         "lyrics": True,
-    },
-    "permissive": {
-        "explicit_skip": True,
-        "min_severity": 2,
-        "drug": False,
-        "sexual": False,
-        "profanity": False,
-        "lyrics": False,
     },
 }
 
@@ -270,11 +266,11 @@ def _build_content_checker(
     Passing None for a scanner disables that scan tier.
 
     Args:
-        profile_key: Key from PROFILE_MAP (e.g. "kids_present"). Falls back to
-            "kids_present" if unknown.
+        profile_key: active_profile key (e.g. "family_friendly"). Unknown keys
+            fall back to the default (family_friendly).
         track_cache: TrackCache instance for result caching, or None to disable.
     """
-    cfg = PROFILE_MAP.get(profile_key, PROFILE_MAP["kids_present"])
+    cfg = PROFILE_MAP.get(profile_key, PROFILE_MAP[DEFAULT_PROFILE])
     use_lyrics = cfg.get("lyrics", True)
     use_profanity = cfg.get("profanity", True) and use_lyrics
     return ContentChecker(
@@ -375,7 +371,7 @@ async def poll_loop(
     state = load_state()
     consecutive_skips: int = 0
     prev_fsm: bool = False
-    prev_profile: str = state.get("active_profile", "kids_present")
+    prev_profile: str = state.get("active_profile", DEFAULT_PROFILE)
     idle_counter: int = 0      # consecutive empty-playback polls (D-04)
     was_idle: bool = False     # dedup flag — gates idle write to once per transition (D-05)
     last_heartbeat = time.monotonic()
@@ -449,7 +445,7 @@ async def poll_loop(
                         log.info("[FSM] consecutive_skips reset — FSM re-enabled")
                     prev_fsm = fsm_now
 
-                    current_profile = state.get("active_profile", "kids_present")
+                    current_profile = state.get("active_profile", DEFAULT_PROFILE)
                     if current_profile != prev_profile:
                         content_checker = _build_content_checker(
                             current_profile,
@@ -748,7 +744,7 @@ async def main() -> None:
     drug_scanner = DrugScanner()
     sexual_content_scanner = SexualContentScanner()
     startup_state = load_state()
-    startup_profile = startup_state.get("active_profile", "kids_present")
+    startup_profile = startup_state.get("active_profile", DEFAULT_PROFILE)
     content_checker = _build_content_checker(
         startup_profile, lyrics_service, profanity_scanner, drug_scanner,
         sexual_content_scanner, track_cache

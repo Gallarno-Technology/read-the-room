@@ -41,7 +41,7 @@ def paths(tmp_path, monkeypatch):
             {
                 "last_track_id": None,
                 "family_safe_mode": False,
-                "active_profile": "kids_present",
+                "active_profile": "family_friendly",
             }
         )
     )
@@ -102,12 +102,12 @@ def test_dashboard_serves_html_when_authenticated(client, authed):
 def test_dashboard_injects_profile_initial(client, authed):
     """GET / replaces __PROFILE_INITIAL__ with active_profile from state.json (PROF-04)."""
     authed["state"].write_text(
-        json.dumps({"family_safe_mode": False, "active_profile": "permissive"})
+        json.dumps({"family_safe_mode": False, "active_profile": "close_friends"})
     )
     resp = client.get("/", follow_redirects=False)
     assert resp.status_code == 200
     assert "__PROFILE_INITIAL__" not in resp.text
-    assert "permissive" in resp.text
+    assert "close_friends" in resp.text
 
 
 # ---------------------------------------------------------------------------
@@ -194,11 +194,11 @@ def test_skip_spotify_error_returns_503(client):
 
 
 def test_post_profile_valid(client, paths):
-    resp = client.post("/profile", json={"profile": "kids_present"})
+    resp = client.post("/profile", json={"profile": "family_friendly"})
     assert resp.status_code == 200
-    assert resp.json() == {"active_profile": "kids_present"}
+    assert resp.json() == {"active_profile": "family_friendly"}
     data = json.loads(paths["state"].read_text())
-    assert data["active_profile"] == "kids_present"
+    assert data["active_profile"] == "family_friendly"
 
 
 def test_post_profile_invalid(client, paths):
@@ -211,11 +211,11 @@ def test_post_profile_does_not_change_fsm(client, paths):
     paths["state"].write_text(
         json.dumps({"family_safe_mode": True, "last_track_id": None})
     )
-    resp = client.post("/profile", json={"profile": "were_all_adults"})
+    resp = client.post("/profile", json={"profile": "mixed_company"})
     assert resp.status_code == 200
     data = json.loads(paths["state"].read_text())
     assert data["family_safe_mode"] is True
-    assert data["active_profile"] == "were_all_adults"
+    assert data["active_profile"] == "mixed_company"
 
 
 # ---------------------------------------------------------------------------
