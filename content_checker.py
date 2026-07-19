@@ -18,7 +18,11 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from profiles import DEFAULT_PROFILE, derive_verdict
+
 if TYPE_CHECKING:
+    from sentiment_cache import SentimentCache
+    from sentiment_service import SentimentService, SongAnalysis
     from track_cache import TrackCache
 
 log = logging.getLogger(__name__)
@@ -37,11 +41,13 @@ class TrackEvalResult:
     reason: str    # 'explicit' | 'profanity' | 'instrumental' | 'clean'
                    # | 'lyrics_unavailable' | 'no_lyrics_service'
                    # | 'drug_reference' | 'sexual_content'
+                   # | 'sentiment' (LLM decline) | 'needs_review'
     severity: int  # 0-3 (0=none, 1=mild, 2=moderate, 3=severe)
     explicit: bool = field(default=False)
     profanity: bool = field(default=False)
     drug_reference: bool = field(default=False)
     sexual_content: bool = field(default=False)
+    needs_review: bool = field(default=False)
 
 
 class ContentChecker:
@@ -67,6 +73,9 @@ class ContentChecker:
         min_severity: int = 2,
         explicit_skip: bool = True,   # D-16: when False, Tier 1 explicit check is bypassed
         track_cache: "TrackCache | None" = None,  # D-05: injected seam, None disables caching
+        sentiment_service: "SentimentService | None" = None,
+        sentiment_cache: "SentimentCache | None" = None,
+        active_profile: str = DEFAULT_PROFILE,
     ) -> None:
         self.lyrics_service = lyrics_service
         self.profanity_scanner = profanity_scanner
@@ -75,6 +84,12 @@ class ContentChecker:
         self.min_severity = min_severity
         self.explicit_skip = explicit_skip
         self.track_cache = track_cache
+        # LLM sentiment tier (v1.9). When sentiment_service is set, check() routes
+        # through the LLM pipeline (per-category cache + profile verdict derived in
+        # code) instead of the legacy keyword-decision pipeline.
+        self.sentiment_service = sentiment_service
+        self.sentiment_cache = sentiment_cache
+        self.active_profile = active_profile
 
     async def check(self, track: dict) -> "TrackEvalResult":
         """Check a track against content filter rules.
@@ -94,6 +109,12 @@ class ContentChecker:
                       'drug_reference' | 'sexual_content'
             - severity: 0-3 (0=none, 1=mild, 2=moderate, 3=severe)
         """
+        # LLM sentiment pipeline (v1.9) takes over when a service is wired. It has
+        # its own per-category cache and derives the profile verdict in code, so it
+        # bypasses track_cache (which stores a profile-coupled final action).
+        if self.sentiment_service is not None:
+            return await self._run_sentiment_pipeline(track)
+
         # Cache fast-path (D-06 step 1) — runs before Tier 1
         if self.track_cache is not None:
             cached = await self.track_cache.get(track["id"])
@@ -107,6 +128,97 @@ class ContentChecker:
         if self.track_cache is not None:
             await self.track_cache.put(track["id"], result)
         return result
+
+    async def _run_sentiment_pipeline(self, track: dict) -> "TrackEvalResult":
+        """LLM content pipeline (v1.9). See CLAUDE.md / the plan for the flow:
+
+          1. explicit flag ....... obvious decline, no LLM (respects explicit_skip)
+          2. sentiment_cache hit .. derive the active profile's verdict, no LLM
+          3. lyrics fetch ......... instrumental → allow; no lyrics → needs_review
+                                    (the LLM is NEVER called without lyrics)
+          4. evaluate ............. failure/unknown → needs_review (not cached);
+                                    else cache the analysis + derive the verdict
+
+        Keyword scanners are intentionally NOT used as a decision gate here: they
+        can't tell slur-as-slur from cultural register (the exact call the LLM
+        exists to make), so gating on them would misfire. The only pre-LLM decline
+        is the explicit flag. Cost is bounded by the permanent per-track cache.
+        """
+        track_name = track.get("name", "unknown")
+        artist_name = track["artists"][0]["name"] if track.get("artists") else "unknown"
+        track_id = track["id"]
+
+        # Tier 1: explicit flag — instant decline, no LLM (FF only; MC/CF pass it on).
+        if self.explicit_skip and track.get("explicit", False):
+            log.debug("[SENTIMENT] track=%r explicit → skip", track_name)
+            return TrackEvalResult(action="skip", reason="explicit", severity=3, explicit=True)
+
+        # Tier 2: per-category cache — hit means we NEVER re-run the LLM (the core
+        # "already analyzed, don't recompute" guarantee). Verdict derived in code.
+        if self.sentiment_cache is not None:
+            analysis = await self.sentiment_cache.get(
+                track_id,
+                rubric_version=self.sentiment_service.rubric_version,
+                model_id=self.sentiment_service.provider.model_id,
+            )
+            if analysis is not None:
+                log.debug("[SENTIMENT] track=%r cache hit", track_name)
+                return self._result_from_analysis(analysis)
+
+        # Tier 3: lyrics — required for the LLM (spike lock: no LLM on title only).
+        if self.lyrics_service is None:
+            log.warning("[SENTIMENT] track=%r no lyrics_service → needs_review", track_name)
+            return self._review_result(action="allow", reason="no_lyrics_service")
+
+        lyrics_result = await self.lyrics_service.get_lyrics(
+            track_id=track_id, track_name=track_name, artist_name=artist_name
+        )
+        if lyrics_result.instrumental:
+            return TrackEvalResult(action="allow", reason="instrumental", severity=0)
+        if lyrics_result.lyrics is None:
+            log.debug("[SENTIMENT] track=%r no lyrics → needs_review", track_name)
+            return self._review_result(action="allow", reason="needs_review")
+
+        # Tier 4: LLM evaluation.
+        analysis = await self.sentiment_service.evaluate(
+            track_id, track_name, artist_name, lyrics_result.lyrics
+        )
+        if analysis is None:
+            # Transient failure — allow (don't skip music we couldn't assess) and
+            # flag for review. Not cached, so it re-evaluates next play.
+            log.warning("[SENTIMENT] track=%r eval failed → needs_review", track_name)
+            return self._review_result(action="allow", reason="needs_review")
+        if analysis.confidence == "unknown":
+            # Model couldn't ground its answer despite lyrics — fail-safe decline +
+            # review, and do NOT cache an ungrounded analysis (spike lock).
+            log.warning("[SENTIMENT] track=%r confidence=unknown → skip+review", track_name)
+            return self._review_result(action="skip", reason="needs_review")
+
+        # Cache the profile-agnostic analysis, then derive this profile's verdict.
+        if self.sentiment_cache is not None:
+            await self.sentiment_cache.put(track_id, analysis)
+        return self._result_from_analysis(analysis)
+
+    def _result_from_analysis(self, analysis: "SongAnalysis") -> "TrackEvalResult":
+        """Derive the active profile's verdict from a cached/fresh analysis and map
+        it onto a TrackEvalResult, surfacing category booleans for the UI badges."""
+        verdict = derive_verdict(analysis, self.active_profile)
+        skip = verdict == "decline"
+        return TrackEvalResult(
+            action="skip" if skip else "allow",
+            reason="sentiment" if skip else "clean",
+            severity=3 if skip else 0,
+            profanity=analysis.language.severity != "none",
+            drug_reference=analysis.drug_references.severity != "none",
+            sexual_content=analysis.sexual.severity != "none",
+        )
+
+    @staticmethod
+    def _review_result(action: str, reason: str) -> "TrackEvalResult":
+        """A result flagged for the manual-review queue (v1 just sets the flag)."""
+        return TrackEvalResult(
+            action=action, reason=reason, severity=0, needs_review=True
+        )
 
     async def _run_pipeline(self, track: dict) -> "TrackEvalResult":
         """Execute the five-tier content filter pipeline.
