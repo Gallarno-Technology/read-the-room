@@ -30,6 +30,8 @@ from drug_scanner import DrugScanner
 from lyrics_service import LyricsService
 from profanity_scanner import ProfanityScanner
 from profiles import DEFAULT_PROFILE
+from sentiment_cache import SQLiteSentimentCache
+from sentiment_service import SentimentService
 from sexual_content_scanner import SexualContentScanner
 from skip_client import SocoSkipClient, SpotifySkipClient
 from track_cache import SQLiteTrackCache
@@ -56,6 +58,9 @@ STATE_PATH = os.environ.get("STATE_PATH", "state.json")
 PROFANITY_MIN_SEVERITY = int(os.environ.get("PROFANITY_MIN_SEVERITY", "2"))  # D-10
 IDLE_THRESHOLD: int = 3  # consecutive empty polls before writing idle state (D-03)
 LYRICS_DB_PATH = os.environ.get("LYRICS_DB_PATH", "lyrics_cache.db")
+# LLM sentiment tier (v1.9). Enabled by default; needs ANTHROPIC_API_KEY in env.
+SENTIMENT_ENABLED = os.environ.get("SENTIMENT_ENABLED", "true").lower() in ("1", "true", "yes")
+SENTIMENT_MODEL = os.environ.get("SENTIMENT_MODEL", "claude-haiku-4-5-20251001")
 EVENTS_PATH = os.environ.get("EVENTS_PATH", "data/events.jsonl")
 NOW_PLAYING_PATH = os.path.join(os.path.dirname(EVENTS_PATH) or ".", "now_playing.json")
 
@@ -258,6 +263,8 @@ def _build_content_checker(
     drug_scanner,
     sexual_content_scanner,
     track_cache=None,   # D-07: default None disables caching
+    sentiment_service=None,
+    sentiment_cache=None,
 ) -> ContentChecker:
     """Construct ContentChecker from the active profile config (D-14, D-15, PROF-03).
 
@@ -270,7 +277,8 @@ def _build_content_checker(
             fall back to the default (family_friendly).
         track_cache: TrackCache instance for result caching, or None to disable.
     """
-    cfg = PROFILE_MAP.get(profile_key, PROFILE_MAP[DEFAULT_PROFILE])
+    profile_key = profile_key if profile_key in PROFILE_MAP else DEFAULT_PROFILE
+    cfg = PROFILE_MAP[profile_key]
     use_lyrics = cfg.get("lyrics", True)
     use_profanity = cfg.get("profanity", True) and use_lyrics
     return ContentChecker(
@@ -281,6 +289,9 @@ def _build_content_checker(
         min_severity=cfg["min_severity"],
         explicit_skip=cfg["explicit_skip"],
         track_cache=track_cache,
+        sentiment_service=sentiment_service,
+        sentiment_cache=sentiment_cache,
+        active_profile=profile_key,
     )
 
 
@@ -366,6 +377,8 @@ async def poll_loop(
     drug_scanner=None,
     sexual_content_scanner=None,
     track_cache=None,
+    sentiment_service=None,
+    sentiment_cache=None,
 ) -> None:
     """Main polling coroutine. Runs until stop_event is set."""
     state = load_state()
@@ -454,6 +467,8 @@ async def poll_loop(
                             drug_scanner,
                             sexual_content_scanner,
                             track_cache,
+                            sentiment_service,
+                            sentiment_cache,
                         )
                         prev_profile = current_profile
                         log.info("[PROFILE] switched to %r", current_profile)
@@ -745,9 +760,23 @@ async def main() -> None:
     sexual_content_scanner = SexualContentScanner()
     startup_state = load_state()
     startup_profile = startup_state.get("active_profile", DEFAULT_PROFILE)
+
+    # LLM sentiment tier (v1.9). Enabled only when configured AND an API key is
+    # present; otherwise the daemon falls back to the keyword-only pipeline.
+    sentiment_service = None
+    sentiment_cache = None
+    if SENTIMENT_ENABLED and os.environ.get("ANTHROPIC_API_KEY"):
+        sentiment_service = SentimentService(model=SENTIMENT_MODEL)
+        sentiment_cache = SQLiteSentimentCache(db_path=LYRICS_DB_PATH)
+        log.info("[SENTIMENT] enabled (model=%s)", SENTIMENT_MODEL)
+    elif SENTIMENT_ENABLED:
+        log.warning("[SENTIMENT] SENTIMENT_ENABLED but ANTHROPIC_API_KEY unset — using keyword-only pipeline")
+    else:
+        log.info("[SENTIMENT] disabled — using keyword-only pipeline")
+
     content_checker = _build_content_checker(
         startup_profile, lyrics_service, profanity_scanner, drug_scanner,
-        sexual_content_scanner, track_cache
+        sexual_content_scanner, track_cache, sentiment_service, sentiment_cache,
     )
     log.info("[PROFILE] startup profile: %r", startup_profile)
     soco_skip = SocoSkipClient()
@@ -767,9 +796,13 @@ async def main() -> None:
         drug_scanner,
         sexual_content_scanner,
         track_cache,
+        sentiment_service,
+        sentiment_cache,
     )
     await lyrics_service.close()
     await track_cache.close()
+    if sentiment_cache is not None:
+        await sentiment_cache.close()
     log.info("Daemon stopped cleanly")
 
 
