@@ -47,7 +47,10 @@ class TrackEvalResult:
     profanity: bool = field(default=False)
     drug_reference: bool = field(default=False)
     sexual_content: bool = field(default=False)
+    violence: bool = field(default=False)
+    dark_themes: bool = field(default=False)
     needs_review: bool = field(default=False)
+    detail: str = field(default="")  # LLM's own one-line summary, for UI tooltips
 
 
 class ContentChecker:
@@ -219,6 +222,9 @@ class ContentChecker:
             profanity=analysis.language.severity != "none",
             drug_reference=analysis.drug_references.severity != "none",
             sexual_content=analysis.sexual.severity != "none",
+            violence=analysis.violence.severity != "none",
+            dark_themes=analysis.dark_themes.severity != "none",
+            detail=analysis.summary,
         )
 
     @staticmethod

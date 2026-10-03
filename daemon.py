@@ -181,6 +181,16 @@ def save_state(daemon_fields: dict) -> None:
         json.dump(on_disk, f)
 
 
+def _now_iso() -> str:
+    """Timezone-aware UTC timestamp for events/now_playing.
+
+    ISO8601 with offset (not a bare HH:MM:SS) so the frontend can render it in
+    the viewer's own local time instead of the container's — which, in prod,
+    runs in UTC and previously showed up as a confusing offset from wall clock.
+    """
+    return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+
 def _append_event(event: dict) -> None:
     """Append a JSON line to the events log (all daemon event types).
 
@@ -232,7 +242,10 @@ def _emit_eval_result(
     profanity = result.profanity if result is not None else False
     drug_reference = result.drug_reference if result is not None else False
     sexual_content = result.sexual_content if result is not None else False
+    violence = result.violence if result is not None else False
+    dark_themes = result.dark_themes if result is not None else False
     needs_review = result.needs_review if result is not None else False
+    detail = result.detail if result is not None else ""
 
     _append_event({
         "type": "eval_result",
@@ -243,8 +256,11 @@ def _emit_eval_result(
         "profanity": profanity,
         "drug_reference": drug_reference,
         "sexual_content": sexual_content,
+        "violence": violence,
+        "dark_themes": dark_themes,
         "needs_review": needs_review,
-        "timestamp": time.strftime("%H:%M:%S"),
+        "detail": detail,
+        "timestamp": _now_iso(),
     })
     _write_now_playing({
         "track_id": track_id,
@@ -257,8 +273,11 @@ def _emit_eval_result(
         "profanity": profanity,
         "drug_reference": drug_reference,
         "sexual_content": sexual_content,
+        "violence": violence,
+        "dark_themes": dark_themes,
         "needs_review": needs_review,
-        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+        "detail": detail,
+        "timestamp": _now_iso(),
     })
 
 
@@ -446,7 +465,7 @@ async def poll_loop(
                     _write_now_playing({"status": "idle"})
                     _append_event({
                         "type": "idle",
-                        "timestamp": time.strftime("%H:%M:%S"),
+                        "timestamp": _now_iso(),
                     })
                     was_idle = True
                     log.info("[IDLE] no active playback — idle state written")
@@ -509,7 +528,7 @@ async def poll_loop(
                         "album_art_url": album_art_url,
                         "eval_state": "evaluating",
                         "started_at": eval_started_at,
-                        "timestamp": time.strftime("%H:%M:%S"),
+                        "timestamp": _now_iso(),
                     })
                     # DAEM-03: write now_playing.json at "evaluating" state (D-06)
                     _write_now_playing({
@@ -519,7 +538,7 @@ async def poll_loop(
                         "album_art_url": album_art_url,
                         "eval_state": "evaluating",
                         "started_at": eval_started_at,
-                        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+                        "timestamp": _now_iso(),
                     })
 
                     # Phase 2: Content filtering (FSM-02: only when FSM is on)
@@ -551,7 +570,7 @@ async def poll_loop(
                                 "type": "eval_stage",
                                 "track_id": track_id,
                                 "stage": stage,
-                                "timestamp": time.strftime("%H:%M:%S"),
+                                "timestamp": _now_iso(),
                             })
                             _write_now_playing({
                                 "track_id": track_id,
@@ -561,7 +580,7 @@ async def poll_loop(
                                 "eval_state": "evaluating",
                                 "eval_stage": stage,
                                 "started_at": eval_started_at,
-                                "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+                                "timestamp": _now_iso(),
                             })
 
                         eval_result = await content_checker.check(track, on_stage=_emit_eval_stage)
@@ -605,11 +624,11 @@ async def poll_loop(
                                     log.warning("[5SKIP] pause failed for device %r — playback may continue", device_name)
                                 skip_event_queue.put_nowait({
                                     "type": "five_skip_warning",
-                                    "timestamp": time.strftime("%H:%M:%S"),
+                                    "timestamp": _now_iso(),
                                 })
                                 _append_event({
                                     "type": "five_skip_warning",
-                                    "timestamp": time.strftime("%H:%M:%S"),
+                                    "timestamp": _now_iso(),
                                 })
                                 consecutive_skips = 0
                                 # DAEM-02: eval_result for 5th-skip pause
@@ -646,8 +665,11 @@ async def poll_loop(
                                         "profanity": eval_result.profanity,
                                         "drug_reference": eval_result.drug_reference,
                                         "sexual_content": eval_result.sexual_content,
+                                        "violence": eval_result.violence,
+                                        "dark_themes": eval_result.dark_themes,
                                         "needs_review": eval_result.needs_review,
-                                        "timestamp": time.strftime("%H:%M:%S"),
+                                        "detail": eval_result.detail,
+                                        "timestamp": _now_iso(),
                                     })
                                     _append_event({
                                         "type": "skip",
@@ -658,8 +680,11 @@ async def poll_loop(
                                         "profanity": eval_result.profanity,
                                         "drug_reference": eval_result.drug_reference,
                                         "sexual_content": eval_result.sexual_content,
+                                        "violence": eval_result.violence,
+                                        "dark_themes": eval_result.dark_themes,
                                         "needs_review": eval_result.needs_review,
-                                        "timestamp": time.strftime("%H:%M:%S"),
+                                        "detail": eval_result.detail,
+                                        "timestamp": _now_iso(),
                                     })
                                     consecutive_skips += 1
                                     # DAEM-02: eval_result for successful auto-skip

@@ -166,6 +166,29 @@ async def test_category_booleans_surface_for_badges(cache):
     assert res.sexual_content is True
     assert res.drug_reference is True
     assert res.profanity is True
+    assert res.violence is False
+
+
+async def test_violence_and_dark_themes_surface_for_badges(cache):
+    """Violence/dark_themes weren't surfaced as booleans at all before — a
+    sentiment-triggered skip for either showed only a generic 'Flagged:
+    content' badge with no way to tell which category actually fired."""
+    svc = FakeService(_analysis(
+        violence=CategoryRating("graphic", "first-person shooter POV"),
+        dark_themes=CategoryRating("explicit", "suicidal ideation"),
+        sexual=CategoryRating("none", ""),
+        drug_references=CategoryRating("none", ""),
+        language=CategoryRating("none", ""),
+        summary="Graphic violence and explicit dark themes.",
+    ))
+    checker = _checker(svc, cache=cache, lyrics=_lyrics(), profile=FAMILY_FRIENDLY)
+    res = await checker.check(_track())
+    assert res.action == "skip"
+    assert res.violence is True
+    assert res.dark_themes is True
+    assert res.sexual_content is False
+    assert res.drug_reference is False
+    assert res.detail == "Graphic violence and explicit dark themes."
 
 
 # ---------------------------------------------------------------------------

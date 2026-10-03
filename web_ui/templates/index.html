@@ -530,6 +530,18 @@
       border-color: rgba(200, 90, 60, 0.3);
     }
 
+    .badge--violence {
+      background: rgba(168, 50, 50, 0.2);
+      color: #e06060;
+      border-color: rgba(168, 50, 50, 0.3);
+    }
+
+    .badge--dark-themes {
+      background: rgba(90, 100, 130, 0.2);
+      color: #8a9ac0;
+      border-color: rgba(90, 100, 130, 0.3);
+    }
+
     .badge--needs-review {
       background: rgba(70, 120, 175, 0.2);
       color: #6aa6d8;
@@ -905,25 +917,33 @@
       }
     });
 
-    function setBadgeClass(reason) {
-      const r = (reason || '').toLowerCase();
-      if (r.includes('review')) return 'badge--needs-review';
+    // For LLM-pipeline skips (reason === 'sentiment'), the generic reason string
+    // doesn't say WHICH category fired — the per-category booleans on the event
+    // do. Check those first; only fall back to reason-string matching for the
+    // keyword pipeline's single-category reasons, which don't carry booleans.
+    function setBadgeClass(evt) {
+      const r = (evt.reason || '').toLowerCase();
+      if (r.includes('review') || evt.needs_review) return 'badge--needs-review';
       if (r.includes('explicit')) return 'badge--explicit';
-      if (r.includes('profanity') || r.includes('language')) return 'badge--profanity';
-      if (r.includes('drug')) return 'badge--drug-reference';
-      if (r.includes('sexual')) return 'badge--sexual-content';
+      if (evt.sexual_content) return 'badge--sexual-content';
+      if (evt.drug_reference) return 'badge--drug-reference';
+      if (evt.violence) return 'badge--violence';
+      if (evt.dark_themes) return 'badge--dark-themes';
+      if (evt.profanity || r.includes('profanity') || r.includes('language')) return 'badge--profanity';
       if (r.includes('sentiment')) return 'badge--sentiment';
       if (r.includes('adult')) return 'badge--adult';
       return 'badge--explicit';
     }
 
-    function badgeLabel(reason) {
-      const r = (reason || '').toLowerCase();
-      if (r.includes('review')) return 'Needs review';
+    function badgeLabel(evt) {
+      const r = (evt.reason || '').toLowerCase();
+      if (r.includes('review') || evt.needs_review) return 'Needs review';
       if (r.includes('explicit')) return 'Flagged: explicit tag';
-      if (r.includes('profanity') || r.includes('language')) return 'Flagged: strong language';
-      if (r.includes('drug')) return 'Drug reference';
-      if (r.includes('sexual')) return 'Sexual content';
+      if (evt.sexual_content) return 'Sexual content';
+      if (evt.drug_reference) return 'Drug reference';
+      if (evt.violence) return 'Violence';
+      if (evt.dark_themes) return 'Dark themes';
+      if (evt.profanity || r.includes('profanity') || r.includes('language')) return 'Flagged: strong language';
       if (r.includes('sentiment')) return 'Flagged: content';
       if (r.includes('adult')) return 'Flagged: adult themes';
       return 'Flagged: explicit tag';
@@ -1064,6 +1084,18 @@
       if (empty) empty.remove();
     }
 
+    // Backend sends timezone-aware ISO8601 (e.g. "2026-10-03T20:38:25.123456+00:00").
+    // Render it in the viewer's own local time/format instead of the raw string —
+    // older entries from before this changed may still be a bare "HH:MM:SS" (no
+    // timezone, container-local), which Date() can't parse; fall back to showing
+    // those as-is rather than "Invalid Date".
+    function formatTimestamp(raw) {
+      if (!raw) return '';
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return raw;
+      return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+    }
+
     function prependSkipItem(evt) {
       removeEmptyState();
 
@@ -1088,8 +1120,11 @@
       sep2.textContent = ' \u00b7 ';
 
       const badge = document.createElement('span');
-      badge.className = 'badge ' + setBadgeClass(evt.reason);
-      badge.textContent = badgeLabel(evt.reason);
+      badge.className = 'badge ' + setBadgeClass(evt);
+      badge.textContent = badgeLabel(evt);
+      if (evt.detail) {
+        badge.title = evt.detail;  // the LLM's own one-line reason, on hover
+      }
 
       const sep3 = document.createElement('span');
       sep3.className = 'feed-sep';
@@ -1097,7 +1132,7 @@
 
       const ts = document.createElement('span');
       ts.className = 'feed-timestamp';
-      ts.textContent = evt.timestamp || '';
+      ts.textContent = formatTimestamp(evt.timestamp);
 
       li.appendChild(track);
       li.appendChild(sep1);
@@ -1130,7 +1165,7 @@
 
       const ts = document.createElement('span');
       ts.className = 'feed-timestamp';
-      ts.textContent = evt.timestamp || '';
+      ts.textContent = formatTimestamp(evt.timestamp);
 
       li.appendChild(msg);
       li.appendChild(sep);

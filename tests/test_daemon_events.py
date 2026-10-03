@@ -1,5 +1,6 @@
 """Tests for Phase 6 daemon SSE event emission (DAEM-01, DAEM-02, DAEM-03)."""
 import asyncio
+import datetime
 import json
 import os
 import sys
@@ -183,9 +184,11 @@ async def test_track_change_schema(data_dir):
     assert evt["artist"] == "Test Artist"
     assert evt["album_art_url"] == "https://i.scdn.co/image/abc"
     assert evt["eval_state"] == "evaluating"
-    # timestamp must be HH:MM:SS format (8 chars, colons at positions 2 and 5)
+    # timestamp must be timezone-aware ISO8601 (so the frontend can render it in
+    # the viewer's own local time rather than the container's, e.g. UTC in prod)
     ts = evt["timestamp"]
-    assert len(ts) == 8 and ts[2] == ":" and ts[5] == ":", f"timestamp {ts!r} not in HH:MM:SS format"
+    parsed = datetime.datetime.fromisoformat(ts)
+    assert parsed.tzinfo is not None, f"timestamp {ts!r} is not timezone-aware"
 
 
 @pytest.mark.asyncio
