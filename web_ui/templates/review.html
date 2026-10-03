@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review — Read the Room</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;600&family=Playfair+Display:wght@600&family=Source+Sans+3:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0b08;
+      --surface: #1c1a14;
+      --surface-raised: #242018;
+      --accent: #c9a84c;
+      --accent-dim: #8a6f2e;
+      --danger: #a83232;
+      --warn: #b5722a;
+      --pass: #6f8f4e;
+      --text: #e8e0cc;
+      --text-dim: #9a9080;
+      --text-faint: #5a5448;
+      --border: #2e2a1e;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Source Sans 3', sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    button, select, input { font: inherit; color: inherit; touch-action: manipulation; }
+
+    .page-wrap { max-width: 760px; margin: 0 auto; padding: 48px 32px; }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+    .back-link, .export-link {
+      font-family: 'Courier Prime', monospace;
+      font-size: 12px;
+      color: var(--text-dim);
+      text-decoration: none;
+    }
+    .back-link:hover, .export-link:hover { color: var(--accent); }
+
+    .intro { color: var(--text-dim); margin-bottom: 24px; max-width: 60ch; }
+
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+    .tab {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 8px 12px;
+      font-family: 'Courier Prime', monospace;
+      font-size: 13px;
+      color: var(--text-dim);
+      cursor: pointer;
+      margin-bottom: -1px;
+    }
+    .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+    .tab .count { color: var(--text-faint); margin-left: 4px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .fb-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin-bottom: 8px; }
+    .fb-track { font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 600; }
+    .fb-artist { color: var(--text-dim); }
+    .fb-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; align-items: center; }
+    .fb-time { font-family: 'Courier Prime', monospace; font-size: 12px; color: var(--text-faint); }
+
+    .chip {
+      font-family: 'Courier Prime', monospace;
+      font-size: 11px;
+      padding: 3px 7px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+    .chip--wrong { border-color: var(--danger); color: #d98080; }
+    .chip--manual { border-color: var(--warn); color: #d9a066; }
+    .chip--pass { border-color: var(--pass); color: #a5c283; }
+    .chip--decline { border-color: var(--danger); color: #d98080; }
+    .chip--either { border-color: var(--text-faint); color: var(--text-dim); }
+
+    .summary {
+      border-left: 2px solid var(--accent-dim);
+      padding: 2px 0 2px 10px;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+    .listener-note { color: var(--text-dim); font-style: italic; margin-bottom: 12px; }
+
+    .cats { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 13px; }
+    .cats th, .cats td { text-align: left; padding: 4px 8px 4px 0; vertical-align: top; border-top: 1px solid var(--border); }
+    .cats th { font-family: 'Courier Prime', monospace; font-weight: 400; color: var(--text-dim); width: 120px; white-space: nowrap; }
+    .cats td.sev { font-family: 'Courier Prime', monospace; width: 96px; white-space: nowrap; }
+    .cats td.sev--none { color: var(--text-faint); }
+    .cats td.reason { color: var(--text-dim); }
+
+    .section-label {
+      font-family: 'Courier Prime', monospace;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-faint);
+      margin: 12px 0 6px;
+    }
+    .verdict-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .model-line { font-family: 'Courier Prime', monospace; font-size: 11px; color: var(--text-faint); margin-top: 6px; }
+
+    .expected { display: grid; grid-template-columns: max-content 1fr; gap: 6px 12px; align-items: center; }
+    .expected label { font-family: 'Courier Prime', monospace; font-size: 12px; color: var(--text-dim); }
+    .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; width: max-content; }
+    .seg button {
+      background: none;
+      border: none;
+      padding: 6px 12px;
+      min-height: 32px;
+      font-family: 'Courier Prime', monospace;
+      font-size: 12px;
+      color: var(--text-dim);
+      cursor: pointer;
+    }
+    .seg button + button { border-left: 1px solid var(--border); }
+    .seg button[aria-pressed="true"][data-value="pass"] { background: rgba(111, 143, 78, 0.2); color: #a5c283; }
+    .seg button[aria-pressed="true"][data-value="decline"] { background: rgba(168, 50, 50, 0.2); color: #d98080; }
+    .seg button[aria-pressed="true"][data-value="either"] { background: var(--surface-raised); color: var(--text); }
+    .changed-dot { color: var(--accent); margin-left: 6px; font-size: 12px; }
+
+    .notes-input {
+      width: 100%;
+      margin-top: 12px;
+      padding: 8px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    .notes-input:focus { outline: none; border-color: var(--accent-dim); }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .btn {
+      min-height: 40px;
+      padding: 0 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface-raised);
+      font-family: 'Courier Prime', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn--primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+    .btn--primary:hover { background: #d6b75c; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn--ghost { background: none; color: var(--text-dim); }
+    .btn--ghost:hover { color: var(--text); }
+    .error { color: #d98080; font-size: 12px; margin-top: 6px; min-height: 16px; }
+
+    .empty { color: var(--text-dim); padding: 24px 0; }
+    .empty strong { display: block; font-family: 'Playfair Display', serif; color: var(--text); margin-bottom: 4px; }
+
+    .golden-toolbar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; gap: 12px; }
+    .golden-toolbar span { color: var(--text-dim); font-size: 13px; }
+    .golden-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 4px 12px;
+      align-items: center;
+      padding: 10px 0;
+      border-top: 1px solid var(--border);
+    }
+    .golden-row:first-child { border-top: none; }
+    .golden-song { min-width: 0; }
+    .golden-song .t { font-weight: 600; }
+    .golden-song .a { color: var(--text-dim); }
+    .golden-song .n { color: var(--text-faint); font-size: 12px; margin-top: 2px; }
+    .golden-verdicts { display: flex; gap: 4px; }
+    .golden-verdicts .chip::before { content: attr(data-p) " "; color: var(--text-faint); }
+    .icon-btn {
+      background: none;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      color: var(--text-faint);
+      min-width: 32px;
+      min-height: 32px;
+      cursor: pointer;
+    }
+    .icon-btn:hover { color: #d98080; border-color: var(--border); }
+
+    .history-row { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; padding: 8px 0; border-top: 1px solid var(--border); }
+    .history-row:first-child { border-top: none; }
+
+    @media (max-width: 640px) {
+      .page-wrap { padding: 24px 16px; }
+      .golden-row { grid-template-columns: 1fr auto; }
+      .golden-verdicts { grid-column: 1 / -1; }
+      .cats th { width: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+    <header>
+      <h1>Review</h1>
+      <a href="/" class="back-link">&larr; Dashboard</a>
+    </header>
+    <p class="intro">Skips flagged with 👎 and manual skips from the app land here with the reasoning behind them. Set what each profile <em>should</em> have done and add the song to the golden set &mdash; the list future prompt changes get tested against.</p>
+
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="pending" aria-selected="true">Pending<span class="count" id="count-pending"></span></button>
+      <button class="tab" role="tab" data-tab="golden" aria-selected="false">Golden set<span class="count" id="count-golden"></span></button>
+      <button class="tab" role="tab" data-tab="history" aria-selected="false">History</button>
+    </div>
+
+    <section id="panel-pending" role="tabpanel"></section>
+    <section id="panel-golden" role="tabpanel" hidden></section>
+    <section id="panel-history" role="tabpanel" hidden></section>
+  </div>
+
+  <script>
+    const PROFILES = ['family_friendly', 'mixed_company', 'close_friends'];
+    const PROFILE_NAMES = { family_friendly: 'Family Friendly', mixed_company: 'Mixed Company', close_friends: 'Close Friends' };
+    const PROFILE_SHORT = { family_friendly: 'FF', mixed_company: 'MC', close_friends: 'CF' };
+    const CATEGORIES = [
+      ['sexual', 'Sexual'], ['drug_references', 'Drugs'], ['violence', 'Violence'],
+      ['dark_themes', 'Dark themes'], ['language', 'Language']
+    ];
+    const KIND_LABEL = { wrong_skip: 'Wrong skip', manual_skip: 'Manual skip' };
+
+    function el(tag, attrs, children) {
+      const node = document.createElement(tag);
+      if (attrs) {
+        for (const k in attrs) {
+          if (k === 'class') node.className = attrs[k];
+          else if (k === 'text') node.textContent = attrs[k];
+          else node.setAttribute(k, attrs[k]);
+        }
+      }
+      (children || []).forEach(function(c) { if (c) node.appendChild(c); });
+      return node;
+    }
+
+    function chip(text, mod) { return el('span', { class: 'chip' + (mod ? ' chip--' + mod : ''), text: text }); }
+
+    function fmtTime(raw) {
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return raw || '';
+      return d.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    }
+
+    async function api(method, url, body) {
+      const resp = await fetch(url, {
+        method: method,
+        headers: body ? { 'Content-Type': 'application/json' } : {},
+        body: body ? JSON.stringify(body) : undefined
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      return resp.json();
+    }
+
+    // Pre-fill: what the current rules decide, with the flagged profile flipped
+    // to what the listener signalled. Without an LLM analysis (keyword-tier skip)
+    // only the flagged profile gets a value; the rest default to 'either'.
+    function defaultExpected(fb) {
+      const exp = {};
+      PROFILES.forEach(function(p) { exp[p] = fb.verdicts ? fb.verdicts[p] : 'either'; });
+      if (fb.profile && exp.hasOwnProperty(fb.profile)) {
+        exp[fb.profile] = fb.kind === 'wrong_skip' ? 'pass' : 'decline';
+      }
+      return exp;
+    }
+
+    function renderAnalysis(fb, container) {
+      const a = fb.analysis;
+      if (!a) {
+        container.appendChild(el('p', { class: 'listener-note', text: 'No LLM analysis recorded (keyword-tier decision or not evaluated).' }));
+        return;
+      }
+      const tbody = el('tbody');
+      CATEGORIES.forEach(function(c) {
+        const r = a[c[0]] || { severity: 'none', reason: '' };
+        tbody.appendChild(el('tr', null, [
+          el('th', { text: c[1] }),
+          el('td', { class: 'sev' + (r.severity === 'none' ? ' sev--none' : ''), text: r.severity }),
+          el('td', { class: 'reason', text: r.reason || '' })
+        ]));
+      });
+      tbody.appendChild(el('tr', null, [
+        el('th', { text: 'Framing' }),
+        el('td', { class: 'sev', text: a.framing }),
+        el('td', { class: 'reason', text: 'confidence: ' + a.confidence })
+      ]));
+      container.appendChild(el('table', { class: 'cats' }, [tbody]));
+
+      if (fb.verdicts) {
+        container.appendChild(el('div', { class: 'section-label', text: 'Current rules decide' }));
+        container.appendChild(el('div', { class: 'verdict-row' }, PROFILES.map(function(p) {
+          return chip(PROFILE_SHORT[p] + ' ' + fb.verdicts[p], fb.verdicts[p]);
+        })));
+      }
+      container.appendChild(el('div', { class: 'model-line', text: (a.rubric_version || '?') + ' · ' + (a.model_id || '?') }));
+    }
+
+    function renderFeedbackCard(fb) {
+      const card = el('article', { class: 'card' });
+      card.appendChild(el('div', { class: 'fb-head' }, [
+        el('span', { class: 'fb-track', text: fb.track }),
+        el('span', { class: 'fb-artist', text: fb.artist })
+      ]));
+      card.appendChild(el('div', { class: 'fb-meta' }, [
+        chip(KIND_LABEL[fb.kind] || fb.kind, fb.kind === 'wrong_skip' ? 'wrong' : 'manual'),
+        fb.profile ? chip(PROFILE_NAMES[fb.profile] || fb.profile) : null,
+        fb.eval_state ? chip('was: ' + fb.eval_state) : null,
+        el('span', { class: 'fb-time', text: fmtTime(fb.created_at) })
+      ]));
+      if (fb.detail) card.appendChild(el('p', { class: 'summary', text: fb.detail }));
+      if (fb.note) card.appendChild(el('p', { class: 'listener-note', text: '“' + fb.note + '”' }));
+      renderAnalysis(fb, card);
+
+      // Expected verdicts
+      const expected = defaultExpected(fb);
+      card.appendChild(el('div', { class: 'section-label', text: 'Should have' }));
+      const grid = el('div', { class: 'expected' });
+      PROFILES.forEach(function(p) {
+        const seg = el('div', { class: 'seg', role: 'group', 'aria-label': PROFILE_NAMES[p] + ' expected verdict' });
+        const marker = el('span', { class: 'changed-dot', 'aria-hidden': 'true' });
+        function sync() {
+          seg.querySelectorAll('button').forEach(function(b) {
+            b.setAttribute('aria-pressed', String(b.dataset.value === expected[p]));
+          });
+          // Dot = differs from what the current rules decide (i.e. a rule/prompt change is needed)
+          marker.textContent = fb.verdicts && expected[p] !== 'either' && expected[p] !== fb.verdicts[p] ? '● differs from current rules' : '';
+        }
+        ['pass', 'decline', 'either'].forEach(function(v) {
+          const b = el('button', { type: 'button', 'data-value': v, text: v });
+          b.addEventListener('click', function() { expected[p] = v; sync(); });
+          seg.appendChild(b);
+        });
+        sync();
+        grid.appendChild(el('label', { text: PROFILE_NAMES[p] }));
+        grid.appendChild(el('div', null, [seg, marker]));
+      });
+      card.appendChild(grid);
+
+      const notes = el('input', { class: 'notes-input', type: 'text', placeholder: 'Why? (kept with the golden-set entry)', 'aria-label': 'Notes' });
+      notes.value = fb.note || '';
+      card.appendChild(notes);
+
+      const err = el('div', { class: 'error', role: 'status' });
+      const promoteBtn = el('button', { class: 'btn btn--primary', type: 'button', text: 'Add to golden set' });
+      const dismissBtn = el('button', { class: 'btn btn--ghost', type: 'button', text: 'Dismiss' });
+      async function act(fn) {
+        promoteBtn.disabled = dismissBtn.disabled = true;
+        err.textContent = '';
+        try { await fn(); await loadAll(); }
+        catch (e) { err.textContent = 'Could not save — try again.'; promoteBtn.disabled = dismissBtn.disabled = false; }
+      }
+      promoteBtn.addEventListener('click', function() {
+        act(function() {
+          return api('POST', '/api/feedback/' + fb.id + '/promote', Object.assign({ notes: notes.value }, expected));
+        });
+      });
+      dismissBtn.addEventListener('click', function() {
+        act(function() { return api('POST', '/api/feedback/' + fb.id + '/dismiss'); });
+      });
+      card.appendChild(el('div', { class: 'actions' }, [promoteBtn, dismissBtn]));
+      card.appendChild(err);
+      return card;
+    }
+
+    function emptyState(title, body) {
+      return el('div', { class: 'empty' }, [el('strong', { text: title }), el('span', { text: body })]);
+    }
+
+    function renderPending(rows) {
+      const panel = document.getElementById('panel-pending');
+      panel.replaceChildren();
+      document.getElementById('count-pending').textContent = rows.length ? rows.length : '';
+      if (!rows.length) {
+        panel.appendChild(emptyState('Nothing to review', 'Tap 👎 on a skip in the Incident Log, or skip a song from the app, and it shows up here.'));
+        return;
+      }
+      rows.forEach(function(fb) { panel.appendChild(renderFeedbackCard(fb)); });
+    }
+
+    function renderGolden(rows) {
+      const panel = document.getElementById('panel-golden');
+      panel.replaceChildren();
+      document.getElementById('count-golden').textContent = rows.length ? rows.length : '';
+      panel.appendChild(el('div', { class: 'golden-toolbar' }, [
+        el('span', { text: rows.length + ' songs with known expected verdicts' }),
+        el('a', { class: 'export-link', href: '/golden-set.csv', text: 'Export CSV ↓' })
+      ]));
+      if (!rows.length) {
+        panel.appendChild(emptyState('Golden set is empty', 'Promote reviewed feedback, or seed it from rtr-test-fixtures.csv with scripts/seed_golden_set.py.'));
+        return;
+      }
+      const list = el('div', { class: 'card' });
+      rows.forEach(function(g) {
+        const del = el('button', { class: 'icon-btn', type: 'button', text: '✕', 'aria-label': 'Remove ' + g.track + ' from golden set' });
+        del.addEventListener('click', async function() {
+          if (!confirm('Remove "' + g.track + '" from the golden set?')) return;
+          try { await api('DELETE', '/api/golden-set/' + g.id); await loadAll(); } catch (e) { /* leave row */ }
+        });
+        list.appendChild(el('div', { class: 'golden-row' }, [
+          el('div', { class: 'golden-song' }, [
+            el('div', null, [el('span', { class: 't', text: g.track }), el('span', { class: 'a', text: ' — ' + g.artist })]),
+            g.notes ? el('div', { class: 'n', text: g.notes }) : null
+          ]),
+          el('div', { class: 'golden-verdicts' }, PROFILES.map(function(p) {
+            const c = chip(g.expected[p], g.expected[p]);
+            c.setAttribute('data-p', PROFILE_SHORT[p]);
+            return c;
+          })),
+          del
+        ]));
+      });
+      panel.appendChild(list);
+    }
+
+    function renderHistory(rows) {
+      const panel = document.getElementById('panel-history');
+      panel.replaceChildren();
+      if (!rows.length) {
+        panel.appendChild(emptyState('No history yet', 'Promoted and dismissed feedback is listed here.'));
+        return;
+      }
+      const list = el('div', { class: 'card' });
+      rows.forEach(function(fb) {
+        list.appendChild(el('div', { class: 'history-row' }, [
+          chip(fb.status, fb.status === 'promoted' ? 'pass' : 'either'),
+          chip(KIND_LABEL[fb.kind] || fb.kind, fb.kind === 'wrong_skip' ? 'wrong' : 'manual'),
+          el('span', { text: fb.track + ' — ' + fb.artist }),
+          el('span', { class: 'fb-time', text: fmtTime(fb.created_at) })
+        ]));
+      });
+      panel.appendChild(list);
+    }
+
+    async function loadAll() {
+      try {
+        const results = await Promise.all([
+          api('GET', '/api/feedback?status=pending'),
+          api('GET', '/api/golden-set'),
+          api('GET', '/api/feedback?status=all')
+        ]);
+        renderPending(results[0]);
+        renderGolden(results[1]);
+        renderHistory(results[2].filter(function(f) { return f.status !== 'pending'; }));
+      } catch (e) {
+        document.getElementById('panel-pending').replaceChildren(emptyState('Could not load feedback', 'Check the web_ui logs and reload.'));
+      }
+    }
+
+    document.querySelectorAll('.tab').forEach(function(tab) {
+      tab.addEventListener('click', function() {
+        document.querySelectorAll('.tab').forEach(function(t) {
+          const on = t === tab;
+          t.setAttribute('aria-selected', String(on));
+          document.getElementById('panel-' + t.dataset.tab).hidden = !on;
+        });
+      });
+    });
+
+    loadAll();
+  </script>
+</body>
+</html>

@@ -611,6 +611,44 @@
       opacity: 0.5;
       cursor: not-allowed;
     }
+
+    /* 👎 "this skip was wrong" — pushed to the end of the feed row */
+    .feedback-btn {
+      margin-left: auto;
+      min-width: 32px;
+      min-height: 32px;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-dim);
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .feedback-btn:hover:not(:disabled) {
+      border-color: var(--accent-dim);
+      color: var(--text);
+    }
+    .feedback-btn:disabled {
+      cursor: default;
+    }
+    .feedback-btn--sent {
+      border-color: var(--accent-dim);
+      color: var(--accent);
+      font-family: 'Courier Prime', monospace;
+      font-size: 11px;
+    }
+
+    .review-link {
+      font-family: 'Courier Prime', monospace;
+      font-size: 12px;
+      color: var(--text-dim);
+      text-decoration: none;
+    }
+    .review-link:hover {
+      color: var(--accent);
+    }
   </style>
 </head>
 <body>
@@ -692,7 +730,10 @@
     </div>
 
     <div class="card">
-      <h2 class="card-heading">Incident Log</h2>
+      <div style="display:flex; align-items:baseline; justify-content:space-between; gap:8px">
+        <h2 class="card-heading">Incident Log</h2>
+        <a href="/review" class="review-link">Review feedback &rarr;</a>
+      </div>
       <hr class="section-divider">
       <ul id="skip-feed" aria-label="Skip history" aria-live="polite">
         <li class="empty">
@@ -1096,6 +1137,44 @@
       return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
     }
 
+    // 👎 on an auto-skip: "this shouldn't have been skipped". The server looks
+    // the event up by id and snapshots the profile + LLM reasoning itself.
+    function makeFeedbackButton(evt) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'feedback-btn';
+      const markSent = function() {
+        btn.disabled = true;
+        btn.classList.add('feedback-btn--sent');
+        btn.textContent = 'Flagged';
+        btn.title = 'Logged for review';
+        btn.setAttribute('aria-label', 'Skip flagged for review');
+      };
+      if (evt.feedback_sent) {
+        markSent();
+        return btn;
+      }
+      btn.textContent = '\uD83D\uDC4E';
+      btn.title = "This shouldn't have been skipped";
+      btn.setAttribute('aria-label', 'Flag skip of ' + (evt.track || 'track') + ' as wrong');
+      btn.addEventListener('click', async function() {
+        btn.disabled = true;
+        try {
+          const resp = await fetch('/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event_id: evt.id })
+          });
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          markSent();
+        } catch (err) {
+          btn.disabled = false;
+          btn.title = 'Could not send \u2014 try again';
+        }
+      });
+      return btn;
+    }
+
     function prependSkipItem(evt) {
       removeEmptyState();
 
@@ -1141,6 +1220,9 @@
       li.appendChild(badge);
       li.appendChild(sep3);
       li.appendChild(ts);
+      if (evt.id !== undefined) {
+        li.appendChild(makeFeedbackButton(evt));
+      }
 
       skipFeed.insertBefore(li, skipFeed.firstChild);
       while (skipFeed.children.length > 20) {
@@ -1157,7 +1239,10 @@
       }
 
       const msg = document.createElement('span');
-      msg.textContent = '5 consecutive skips -- playback paused';
+      // Newer warnings carry the track that triggered the pause.
+      msg.textContent = evt.track
+        ? '5 consecutive skips -- paused on ' + evt.track + ' \u2014 ' + (evt.artist || '')
+        : '5 consecutive skips -- playback paused';
 
       const sep = document.createElement('span');
       sep.className = 'feed-sep';
@@ -1170,6 +1255,9 @@
       li.appendChild(msg);
       li.appendChild(sep);
       li.appendChild(ts);
+      if (evt.track && evt.id !== undefined) {
+        li.appendChild(makeFeedbackButton(evt));
+      }
 
       skipFeed.insertBefore(li, skipFeed.firstChild);
       while (skipFeed.children.length > 20) {

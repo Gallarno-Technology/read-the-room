@@ -11,6 +11,15 @@ FastAPI app serving the dashboard HTML and providing:
   POST /profile       -> set active filter profile
   GET  /now-playing   -> current track state; {"status":"idle"} when absent
   POST /skip          -> skip current track via Spotify API; {"ok":true} on success
+                         (also logs a 'manual_skip' feedback row for review)
+  POST /feedback      -> 👎 on an auto-skip event {"event_id": int, "note"?: str}
+  GET  /review        -> feedback review + golden set page
+  GET  /api/feedback  -> feedback rows (?status=pending|promoted|dismissed|all)
+  POST /api/feedback/{id}/promote -> copy into golden set with expected verdicts
+  POST /api/feedback/{id}/dismiss -> mark reviewed, not promoted
+  GET  /api/golden-set            -> golden set rows
+  DELETE /api/golden-set/{id}     -> remove a golden set row
+  GET  /golden-set.csv            -> golden set export
 
 Single-user model: one Spotify account per deployment. All on-disk paths are
 process-global env vars shared with the daemon container (STATE_PATH,
@@ -25,7 +34,9 @@ asyncio is single-threaded; no locks needed.
 """
 
 import asyncio
+import csv
 import html as _html
+import io
 import json
 import logging
 import os
@@ -38,11 +49,13 @@ from fastapi.responses import (
     HTMLResponse,
     JSONResponse,
     RedirectResponse,
+    Response,
     StreamingResponse,
 )
 from pydantic import BaseModel
 from spotipy.oauth2 import CacheFileHandler, SpotifyOAuth
 
+from feedback_store import FeedbackStore
 from profiles import DEFAULT_PROFILE, PROFILES
 from skip_client import SocoSkipClient
 
@@ -243,6 +256,18 @@ class ProfileRequest(BaseModel):
     profile: str
 
 
+class FeedbackRequest(BaseModel):
+    event_id: int
+    note: str = ""
+
+
+class PromoteRequest(BaseModel):
+    family_friendly: str
+    mixed_company: str
+    close_friends: str
+    notes: str = ""
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -439,18 +464,25 @@ async def set_profile(body: ProfileRequest) -> JSONResponse:
 # ---------------------------------------------------------------------------
 
 
+def _read_now_playing() -> dict | None:
+    """now_playing.json contents, or None when absent/unparseable."""
+    try:
+        with open(NOW_PLAYING_PATH) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
 @app.get("/now-playing")
 async def now_playing() -> JSONResponse:
     """Return current track state from now_playing.json for page-load hydration.
 
     Returns {"status": "idle"} (HTTP 200) if the file does not yet exist.
     """
-    try:
-        with open(NOW_PLAYING_PATH) as f:
-            data = json.load(f)
-        return JSONResponse(data, headers={"Cache-Control": "no-store"})
-    except (FileNotFoundError, json.JSONDecodeError):
+    data = _read_now_playing()
+    if data is None:
         return JSONResponse({"status": "idle"}, headers={"Cache-Control": "no-store"})
+    return JSONResponse(data, headers={"Cache-Control": "no-store"})
 
 
 # ---------------------------------------------------------------------------
@@ -480,6 +512,13 @@ async def feed() -> JSONResponse:
             events.append(evt)
             if len(events) >= 20:
                 break
+    try:
+        flagged = _store().flagged_event_ids()
+    except Exception as exc:  # noqa: BLE001 — feedback must never break the feed
+        log.warning("feed: could not read feedback store: %s", exc)
+        flagged = set()
+    for evt in events:
+        evt["feedback_sent"] = evt.get("id") in flagged
     return JSONResponse(events, headers={"Cache-Control": "no-store"})
 
 
@@ -510,8 +549,12 @@ async def skip_track() -> JSONResponse:
                 "reason": "Spotify client not configured",
             },
         )
+    # Snapshot what's playing BEFORE skipping — the daemon rewrites
+    # now_playing.json as soon as it sees the next track.
+    playing = _read_now_playing()
     try:
         client.next_track()
+        _log_manual_skip(playing)
         return JSONResponse({"ok": True})
     except spotipy.SpotifyException as exc:
         if exc.http_status != 403:
@@ -537,6 +580,7 @@ async def skip_track() -> JSONResponse:
             device = playback["device"]
             success = await _soco_skip.skip(device["name"], device.get("id", ""))
             if success:
+                _log_manual_skip(playing)
                 return JSONResponse({"ok": True})
             return JSONResponse(
                 status_code=503,
@@ -551,3 +595,160 @@ async def skip_track() -> JSONResponse:
                 status_code=503,
                 content={"detail": "skip_failed", "reason": str(fallback_exc)},
             )
+
+
+# ---------------------------------------------------------------------------
+# Listener feedback + golden set
+#
+# 👎 on an auto-skip (wrong_skip) and every in-app manual skip (manual_skip) are
+# logged with the active profile and the LLM's full analysis, then reviewed on
+# /review and optionally promoted into the golden set — the known-borderline
+# list rubric revisions get A/B tested against.
+# ---------------------------------------------------------------------------
+
+# Event types a 👎 can target: auto-skips and the 5th-skip pause (which carries
+# the paused track's details).
+_FEEDBACK_EVENT_TYPES = ("skip", "five_skip_warning")
+
+
+def _store() -> FeedbackStore:
+    """Per-request store. Lives beside events.jsonl in the shared data/ volume
+    (FEEDBACK_DB_PATH overrides); resolved per call so tests that repoint
+    EVENTS_PATH get an isolated database."""
+    path = os.environ.get("FEEDBACK_DB_PATH") or os.path.join(
+        os.path.dirname(EVENTS_PATH) or ".", "feedback.db"
+    )
+    return FeedbackStore(path)
+
+
+def _find_event(event_id: int) -> dict | None:
+    """Find an event by id in events.jsonl, scanning newest-first."""
+    try:
+        with open(EVENTS_PATH) as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        return None
+    for line in reversed(lines):
+        try:
+            evt = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if evt.get("id") == event_id:
+            return evt
+    return None
+
+
+def _log_manual_skip(playing: dict | None) -> None:
+    """Record an in-app manual skip as feedback. Best-effort — a feedback write
+    failure must never turn a successful skip into an error."""
+    if not playing or not playing.get("track_id"):
+        return
+    try:
+        _store().add_feedback(
+            kind="manual_skip",
+            track_id=playing.get("track_id"),
+            track=playing.get("track") or "Unknown track",
+            artist=playing.get("artist") or "Unknown artist",
+            profile=playing.get("profile") or _load_state().get("active_profile"),
+            eval_state=playing.get("eval_state"),
+            reason=playing.get("reason", ""),
+            detail=playing.get("detail", ""),
+            analysis=playing.get("analysis"),
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("manual-skip feedback not recorded: %s", exc)
+
+
+@app.post("/feedback")
+async def post_feedback(body: FeedbackRequest) -> JSONResponse:
+    """👎 an auto-skip. The server snapshots the event itself (by id) rather than
+    trusting client-sent reasoning. Repeat votes on the same event are no-ops."""
+    evt = _find_event(body.event_id)
+    if evt is None or evt.get("type") not in _FEEDBACK_EVENT_TYPES or not evt.get("track"):
+        raise HTTPException(status_code=404, detail="Skip event not found")
+    row, created = _store().add_feedback(
+        kind="wrong_skip",
+        event_id=body.event_id,
+        track_id=evt.get("track_id"),
+        track=evt["track"],
+        artist=evt.get("artist") or "Unknown artist",
+        profile=evt.get("profile"),
+        eval_state="paused" if evt["type"] == "five_skip_warning" else "skipped",
+        reason=evt.get("reason", ""),
+        detail=evt.get("detail", ""),
+        analysis=evt.get("analysis"),
+        note=body.note,
+    )
+    return JSONResponse({"feedback": row, "created": created}, status_code=201 if created else 200)
+
+
+@app.get("/review", response_class=HTMLResponse)
+async def review_page() -> HTMLResponse:
+    with open(os.path.join(TEMPLATES_DIR, "review.html")) as f:
+        return HTMLResponse(content=f.read())
+
+
+@app.get("/api/feedback")
+async def list_feedback(status: str = "pending") -> JSONResponse:
+    if status not in ("pending", "promoted", "dismissed", "all"):
+        raise HTTPException(status_code=400, detail=f"Unknown status: {status!r}")
+    rows = _store().list_feedback(None if status == "all" else status)
+    return JSONResponse(rows, headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/feedback/{feedback_id}/promote")
+async def promote_feedback(feedback_id: int, body: PromoteRequest) -> JSONResponse:
+    expected = {
+        "family_friendly": body.family_friendly,
+        "mixed_company": body.mixed_company,
+        "close_friends": body.close_friends,
+    }
+    try:
+        golden = _store().promote(feedback_id, expected, notes=body.notes)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if golden is None:
+        raise HTTPException(status_code=404, detail="Feedback not found")
+    return JSONResponse(golden)
+
+
+@app.post("/api/feedback/{feedback_id}/dismiss")
+async def dismiss_feedback(feedback_id: int) -> JSONResponse:
+    if not _store().set_status(feedback_id, "dismissed"):
+        raise HTTPException(status_code=404, detail="Feedback not found")
+    return JSONResponse({"ok": True})
+
+
+@app.get("/api/golden-set")
+async def list_golden_set() -> JSONResponse:
+    return JSONResponse(_store().list_golden(), headers={"Cache-Control": "no-store"})
+
+
+@app.delete("/api/golden-set/{golden_id}")
+async def delete_golden(golden_id: int) -> JSONResponse:
+    if not _store().delete_golden(golden_id):
+        raise HTTPException(status_code=404, detail="Golden set entry not found")
+    return JSONResponse({"ok": True})
+
+
+@app.get("/golden-set.csv")
+async def golden_set_csv() -> Response:
+    """Export in the same column shape as rtr-test-fixtures.csv's verdict columns."""
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow([
+        "Song", "Artist", "Spotify Track ID",
+        "Family Friendly Expected", "Mixed Company Expected", "Close Friends Expected",
+        "Notes", "Source",
+    ])
+    for g in _store().list_golden():
+        writer.writerow([
+            g["track"], g["artist"], g["track_id"] or "",
+            g["expected"]["family_friendly"], g["expected"]["mixed_company"],
+            g["expected"]["close_friends"], g["notes"], g["source"],
+        ])
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="golden-set.csv"'},
+    )

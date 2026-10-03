@@ -14,6 +14,7 @@ LyricsService and ProfanityScanner.
 """
 from __future__ import annotations
 
+import dataclasses
 import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
@@ -51,6 +52,9 @@ class TrackEvalResult:
     dark_themes: bool = field(default=False)
     needs_review: bool = field(default=False)
     detail: str = field(default="")  # LLM's own one-line summary, for UI tooltips
+    # Full LLM SongAnalysis as a plain dict (dataclasses.asdict) — carried on
+    # skip/eval events so listener feedback can snapshot the exact reasoning.
+    analysis: dict | None = field(default=None, compare=False, hash=False)
 
 
 class ContentChecker:
@@ -225,6 +229,7 @@ class ContentChecker:
             violence=analysis.violence.severity != "none",
             dark_themes=analysis.dark_themes.severity != "none",
             detail=analysis.summary,
+            analysis=dataclasses.asdict(analysis),
         )
 
     @staticmethod

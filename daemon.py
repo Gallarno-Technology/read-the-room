@@ -232,11 +232,14 @@ def _emit_eval_result(
     eval_state: str,
     severity: int,
     result: Optional["TrackEvalResult"],
+    profile: Optional[str] = None,
 ) -> None:
     """Emit eval_result event to events.jsonl and now_playing.json atomically (D-04, D-10).
 
     Accepts result=None for the fsm-off path where no scan ran (D-05).
     All four boolean fields default to False when result is None (D-09).
+    now_playing.json also carries the active profile and full LLM analysis so a
+    manual skip from the web UI can log feedback with the reasoning it overrode.
     """
     explicit = result.explicit if result is not None else False
     profanity = result.profanity if result is not None else False
@@ -260,6 +263,7 @@ def _emit_eval_result(
         "dark_themes": dark_themes,
         "needs_review": needs_review,
         "detail": detail,
+        "profile": profile,
         "timestamp": _now_iso(),
     })
     _write_now_playing({
@@ -277,8 +281,41 @@ def _emit_eval_result(
         "dark_themes": dark_themes,
         "needs_review": needs_review,
         "detail": detail,
+        "reason": result.reason if result is not None else "",
+        "profile": profile,
+        "analysis": result.analysis if result is not None else None,
         "timestamp": _now_iso(),
     })
+
+
+def _skip_event(
+    event_type: str,
+    track_id: str,
+    track: dict,
+    result: "TrackEvalResult",
+    profile: Optional[str],
+) -> dict:
+    """Build a skip / five_skip_warning event. Carries track_id, the active
+    profile and the full LLM analysis so a 👎 in the web UI can snapshot exactly
+    what was decided, under which rules, for later review."""
+    return {
+        "type": event_type,
+        "track_id": track_id,
+        "track": track["name"],
+        "artist": track["artists"][0]["name"],
+        "reason": result.reason,
+        "explicit": result.explicit,
+        "profanity": result.profanity,
+        "drug_reference": result.drug_reference,
+        "sexual_content": result.sexual_content,
+        "violence": result.violence,
+        "dark_themes": result.dark_themes,
+        "needs_review": result.needs_review,
+        "detail": result.detail,
+        "profile": profile,
+        "analysis": result.analysis,
+        "timestamp": _now_iso(),
+    }
 
 
 async def _attempt_pause(client, spotify_skip, is_restricted, device_name, device_id) -> bool:
@@ -602,6 +639,7 @@ async def poll_loop(
                                 eval_state=eval_state,
                                 severity=eval_result.severity,
                                 result=eval_result,
+                                profile=current_profile,
                             )
 
                         if eval_result.action == "skip":
@@ -622,14 +660,12 @@ async def poll_loop(
                                 )
                                 if not paused:
                                     log.warning("[5SKIP] pause failed for device %r — playback may continue", device_name)
-                                skip_event_queue.put_nowait({
-                                    "type": "five_skip_warning",
-                                    "timestamp": _now_iso(),
-                                })
-                                _append_event({
-                                    "type": "five_skip_warning",
-                                    "timestamp": _now_iso(),
-                                })
+                                # Carries the paused track's details so it can get a 👎 too.
+                                warn_evt = _skip_event(
+                                    "five_skip_warning", track_id, track, eval_result, current_profile
+                                )
+                                skip_event_queue.put_nowait(warn_evt)
+                                _append_event(warn_evt)
                                 consecutive_skips = 0
                                 # DAEM-02: eval_result for 5th-skip pause
                                 _emit_eval_result(
@@ -640,6 +676,7 @@ async def poll_loop(
                                     eval_state="paused",
                                     severity=eval_result.severity,
                                     result=eval_result,
+                                    profile=current_profile,
                                 )
                             else:
                                 success = await client.skip(device_name, device.get("id"))
@@ -656,36 +693,11 @@ async def poll_loop(
                                         track["artists"][0]["name"],
                                     )
                                     # Phase 3 D-08: push structured event to SSE queue
-                                    skip_event_queue.put_nowait({
-                                        "type": "skip",
-                                        "track": track["name"],
-                                        "artist": track["artists"][0]["name"],
-                                        "reason": eval_result.reason,
-                                        "explicit": eval_result.explicit,
-                                        "profanity": eval_result.profanity,
-                                        "drug_reference": eval_result.drug_reference,
-                                        "sexual_content": eval_result.sexual_content,
-                                        "violence": eval_result.violence,
-                                        "dark_themes": eval_result.dark_themes,
-                                        "needs_review": eval_result.needs_review,
-                                        "detail": eval_result.detail,
-                                        "timestamp": _now_iso(),
-                                    })
-                                    _append_event({
-                                        "type": "skip",
-                                        "track": track["name"],
-                                        "artist": track["artists"][0]["name"],
-                                        "reason": eval_result.reason,
-                                        "explicit": eval_result.explicit,
-                                        "profanity": eval_result.profanity,
-                                        "drug_reference": eval_result.drug_reference,
-                                        "sexual_content": eval_result.sexual_content,
-                                        "violence": eval_result.violence,
-                                        "dark_themes": eval_result.dark_themes,
-                                        "needs_review": eval_result.needs_review,
-                                        "detail": eval_result.detail,
-                                        "timestamp": _now_iso(),
-                                    })
+                                    skip_evt = _skip_event(
+                                        "skip", track_id, track, eval_result, current_profile
+                                    )
+                                    skip_event_queue.put_nowait(skip_evt)
+                                    _append_event(skip_evt)
                                     consecutive_skips += 1
                                     # DAEM-02: eval_result for successful auto-skip
                                     _emit_eval_result(
@@ -696,6 +708,7 @@ async def poll_loop(
                                         eval_state="skipped",
                                         severity=eval_result.severity,
                                         result=eval_result,
+                                        profile=current_profile,
                                     )
                                 else:
                                     log.warning(
@@ -726,6 +739,7 @@ async def poll_loop(
                                             eval_state="paused",
                                             severity=eval_result.severity,
                                             result=eval_result,
+                                            profile=current_profile,
                                         )
                                     else:
                                         log.error(
@@ -742,6 +756,7 @@ async def poll_loop(
                                             eval_state="skip-failed",
                                             severity=eval_result.severity,
                                             result=eval_result,
+                                            profile=current_profile,
                                         )
                     else:
                         # FSM off — D-03: still emit eval_result with fsm-off
