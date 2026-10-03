@@ -523,6 +523,41 @@
       border-color: rgba(190, 80, 140, 0.3);
     }
 
+    /* v1.9 LLM sentiment tier */
+    .badge--sentiment {
+      background: rgba(200, 90, 60, 0.2);
+      color: #db8a5a;
+      border-color: rgba(200, 90, 60, 0.3);
+    }
+
+    .badge--needs-review {
+      background: rgba(70, 120, 175, 0.2);
+      color: #6aa6d8;
+      border-color: rgba(70, 120, 175, 0.3);
+    }
+
+    /* Skip failed and nothing could pause it either — nothing automated is
+       going to protect you here, go act on it yourself. */
+    .badge--skip-failed {
+      background: rgba(210, 40, 40, 0.25);
+      color: #ff6f6f;
+      border-color: rgba(210, 40, 40, 0.45);
+    }
+
+    /* Transparency watchdog: still evaluating, but past the normal window. */
+    .badge--slow {
+      background: rgba(181, 114, 42, 0.25);
+      color: #e0a050;
+      border-color: rgba(181, 114, 42, 0.4);
+    }
+
+    /* Past the slow threshold too — hand trust back to the person. */
+    .badge--stuck {
+      background: rgba(210, 40, 40, 0.25);
+      color: #ff6f6f;
+      border-color: rgba(210, 40, 40, 0.45);
+    }
+
     @keyframes fadeIn {
       from { opacity: 0; }
       to { opacity: 1; }
@@ -620,7 +655,12 @@
     <div class="card" id="now-playing-card" aria-live="polite">
       <h2 class="card-heading">Now Playing</h2>
       <hr class="section-divider">
-      <p id="now-playing-idle" class="empty-body">Nothing playing</p>
+      <p id="now-playing-idle" class="empty-body">
+        Nothing playing
+        <br>
+        <span style="color: var(--text-faint)">Expecting to see something here?</span>
+        <a href="/auth/login" style="color: var(--accent)">Reauth</a>
+      </p>
       <div id="now-playing-track" style="display:none">
         <div style="display:flex; align-items:center; gap:16px">
           <img id="now-playing-art" src="" alt="" width="64" height="64"
@@ -659,6 +699,19 @@
     let fsmEnabled = FSM_INITIAL === "true";
     let activeProfile = PROFILE_INITIAL || "family_friendly";
     let currentTrackId = null;
+
+    // Transparency watchdog thresholds — tuned against the backend's own
+    // worst-case budget (10s lyrics timeout + SENTIMENT_EVAL_TIMEOUT_SECONDS
+    // for the LLM call, ≈30s). Keep these in sync if that budget changes.
+    const EVAL_SLOW_SECONDS = 45;
+    const EVAL_STUCK_SECONDS = 75;
+    const EVAL_WATCHDOG_POLL_MS = 5000;
+
+    let evalStartedAt = null;       // seconds since epoch, from the backend
+    let currentStage = null;        // 'lyrics' | 'llm' | null
+    let evalTickTimer = null;       // 1s: elapsed display + threshold checks
+    let evalWatchdogPollTimer = null; // 5s: re-poll /now-playing once slow/stuck
+    let evalWatchdogState = null;   // null | 'slow' | 'stuck'
 
     const fsmSplitBtn = document.getElementById('fsm-split-btn');
     const fsmMainZone = document.getElementById('fsm-toggle');
@@ -854,39 +907,51 @@
 
     function setBadgeClass(reason) {
       const r = (reason || '').toLowerCase();
+      if (r.includes('review')) return 'badge--needs-review';
       if (r.includes('explicit')) return 'badge--explicit';
       if (r.includes('profanity') || r.includes('language')) return 'badge--profanity';
       if (r.includes('drug')) return 'badge--drug-reference';
       if (r.includes('sexual')) return 'badge--sexual-content';
+      if (r.includes('sentiment')) return 'badge--sentiment';
       if (r.includes('adult')) return 'badge--adult';
       return 'badge--explicit';
     }
 
     function badgeLabel(reason) {
       const r = (reason || '').toLowerCase();
+      if (r.includes('review')) return 'Needs review';
       if (r.includes('explicit')) return 'Flagged: explicit tag';
       if (r.includes('profanity') || r.includes('language')) return 'Flagged: strong language';
       if (r.includes('drug')) return 'Drug reference';
       if (r.includes('sexual')) return 'Sexual content';
+      if (r.includes('sentiment')) return 'Flagged: content';
       if (r.includes('adult')) return 'Flagged: adult themes';
       return 'Flagged: explicit tag';
     }
 
     const EVAL_BADGE_CLASS = {
-      'evaluating': 'badge--evaluating',
-      'passed':     'badge--passed',
-      'no-lyrics':  'badge--no-lyrics',
-      'skipped':    'badge--skipped',
-      'paused':     'badge--paused',
-      'fsm-off':    'badge--fsm-off',
+      'evaluating':   'badge--evaluating',
+      'passed':       'badge--passed',
+      'no-lyrics':    'badge--no-lyrics',
+      'skipped':      'badge--skipped',
+      'paused':       'badge--paused',
+      'fsm-off':      'badge--fsm-off',
+      'needs-review': 'badge--needs-review',
+      'skip-failed':  'badge--skip-failed',
     };
     const EVAL_BADGE_LABEL = {
-      'evaluating': 'Checking\u2026',
-      'passed':     'Passed',
-      'no-lyrics':  'No lyrics',
-      'skipped':    'Skipped',
-      'paused':     'Paused',
-      'fsm-off':    'Monitoring off',
+      'evaluating':   'Checking\u2026',
+      'passed':       'Passed',
+      'no-lyrics':    'No lyrics',
+      'skipped':      'Skipped',
+      'paused':       'Paused',
+      'fsm-off':      'Monitoring off',
+      'needs-review': 'Needs review',
+      'skip-failed':  'Skip blocked',
+    };
+    const STAGE_LABEL = {
+      'lyrics': 'Checking lyrics\u2026',
+      'llm':    'Analyzing content\u2026',
     };
 
     function setEvalBadge(evalState, severity) {
@@ -904,6 +969,50 @@
       }
     }
 
+    // --- Real-time "evaluating" transparency: elapsed counter + two-stage
+    // watchdog. The ticking number is cosmetic client-side math (Date.now() -
+    // evalStartedAt) -- it is NOT proof the backend is alive. Real liveness
+    // comes from backend-pushed eval_stage events and the watchdog's own
+    // periodic resync against /now-playing below.
+
+    function stopEvalTracking() {
+      if (evalTickTimer) { clearInterval(evalTickTimer); evalTickTimer = null; }
+      if (evalWatchdogPollTimer) { clearInterval(evalWatchdogPollTimer); evalWatchdogPollTimer = null; }
+      evalWatchdogState = null;
+    }
+
+    function renderEvalProgress() {
+      const elapsed = Math.max(0, Math.floor(Date.now() / 1000 - evalStartedAt));
+
+      if (elapsed >= EVAL_STUCK_SECONDS) {
+        evalWatchdogState = 'stuck';
+        nowPlayingBadge.className = 'badge badge--stuck';
+        nowPlayingBadge.textContent = 'Stuck (' + elapsed + 's) \u2014 check manually';
+      } else if (elapsed >= EVAL_SLOW_SECONDS) {
+        evalWatchdogState = 'slow';
+        nowPlayingBadge.className = 'badge badge--slow';
+        nowPlayingBadge.textContent = 'Taking longer than usual\u2026 ' + elapsed + 's';
+      } else {
+        nowPlayingBadge.className = 'badge badge--evaluating';
+        nowPlayingBadge.textContent = (STAGE_LABEL[currentStage] || 'Checking\u2026') + ' ' + elapsed + 's';
+      }
+
+      // Past the slow threshold, keep re-pulling the authoritative state every
+      // few seconds -- this also self-heals a late eval_result that got dropped
+      // by a missed/raced track_change (see es.onmessage's track_id check).
+      if (evalWatchdogState && !evalWatchdogPollTimer) {
+        evalWatchdogPollTimer = setInterval(hydrateNowPlaying, EVAL_WATCHDOG_POLL_MS);
+      }
+    }
+
+    function startEvalTracking(startedAt, stage) {
+      stopEvalTracking();
+      evalStartedAt = startedAt || (Date.now() / 1000);
+      currentStage = stage || null;
+      renderEvalProgress();
+      evalTickTimer = setInterval(renderEvalProgress, 1000);
+    }
+
     function renderTrack(data) {
       nowPlayingIdle.style.display = 'none';
       nowPlayingTrack.style.display = '';
@@ -915,10 +1024,17 @@
       } else {
         nowPlayingArt.style.display = 'none';
       }
-      setEvalBadge(data.eval_state || 'evaluating', data.severity || 0);
+      const evalState = data.eval_state || 'evaluating';
+      if (evalState === 'evaluating') {
+        startEvalTracking(data.started_at, data.eval_stage || null);
+      } else {
+        stopEvalTracking();
+        setEvalBadge(evalState, data.severity || 0);
+      }
     }
 
     function renderIdle() {
+      stopEvalTracking();
       nowPlayingIdle.style.display = '';
       nowPlayingTrack.style.display = 'none';
     }
@@ -1078,9 +1194,13 @@
         } else if (evt.type === 'track_change') {
           renderTrack(evt);
           currentTrackId = evt.track_id;
-          setEvalBadge('evaluating', 0);
+        } else if (evt.type === 'eval_stage') {
+          if (evt.track_id === currentTrackId) {
+            currentStage = evt.stage || null;
+          }
         } else if (evt.type === 'eval_result') {
           if (evt.track_id === currentTrackId) {
+            stopEvalTracking();
             setEvalBadge(evt.eval_state, evt.severity || 0);
           }
         } else if (evt.type === 'idle') {

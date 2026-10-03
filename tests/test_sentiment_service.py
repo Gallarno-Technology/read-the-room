@@ -12,6 +12,8 @@ tool-use block is parsed and forced correctly, without hitting the API.
 
 asyncio_mode = "auto" — no @pytest.mark.asyncio needed.
 """
+import time
+
 import pytest
 
 from sentiment_provider import AnthropicProvider, SentimentProvider
@@ -117,6 +119,34 @@ async def test_confidence_unknown_is_surfaced(rubric):
     analysis = await svc.evaluate("t1", "Song", "Artist", "lyrics")
     assert analysis is not None
     assert analysis.confidence == "unknown"
+
+
+class SlowProvider(SentimentProvider):
+    """Simulates a stalled network call (not an exception) — exactly the kind
+    of hang that used to leave 'Checking…' frozen forever."""
+
+    def __init__(self, delay):
+        self._delay = delay
+
+    @property
+    def model_id(self):
+        return "slow-model"
+
+    def evaluate(self, system_prompt, user_message, schema):
+        time.sleep(self._delay)
+        return _rating()
+
+
+async def test_evaluate_times_out_and_degrades_to_none(rubric):
+    svc = SentimentService(
+        provider=SlowProvider(delay=0.3), rubric_path=rubric, timeout_seconds=0.05
+    )
+    start = time.monotonic()
+    result = await svc.evaluate("t1", "Song", "Artist", "lyrics")
+    elapsed = time.monotonic() - start
+
+    assert result is None
+    assert elapsed < 0.2, f"evaluate() should be bounded by timeout_seconds, took {elapsed:.3f}s"
 
 
 def test_default_provider_is_anthropic():

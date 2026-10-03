@@ -66,10 +66,14 @@ class AnthropicProvider(SentimentProvider):
         api_key: str | None = None,
         model: str = DEFAULT_ANTHROPIC_MODEL,
         max_tokens: int = 1024,
+        timeout: float = 15.0,
+        max_retries: int = 1,
     ) -> None:
         self._api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         self._model = model
         self._max_tokens = max_tokens
+        self._timeout = timeout
+        self._max_retries = max_retries
         self._client = None  # lazily constructed anthropic.Anthropic
 
     @property
@@ -82,7 +86,12 @@ class AnthropicProvider(SentimentProvider):
 
             if not self._api_key:
                 raise RuntimeError("ANTHROPIC_API_KEY is not set — cannot evaluate")
-            self._client = anthropic.Anthropic(api_key=self._api_key)
+            # Explicit timeout/max_retries — this is what actually unblocks the
+            # run_in_executor thread on a stalled connection; the asyncio.wait_for
+            # in SentimentService.evaluate() alone can't cancel this thread.
+            self._client = anthropic.Anthropic(
+                api_key=self._api_key, timeout=self._timeout, max_retries=self._max_retries
+            )
         return self._client
 
     def evaluate(self, system_prompt: str, user_message: str, schema: dict) -> dict | None:

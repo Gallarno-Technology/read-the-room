@@ -200,6 +200,7 @@ class SentimentService:
         *,
         api_key: str | None = None,
         model: str = DEFAULT_ANTHROPIC_MODEL,
+        timeout_seconds: float = 20.0,
     ) -> None:
         if provider is None:
             from sentiment_provider import AnthropicProvider
@@ -209,6 +210,7 @@ class SentimentService:
         self.rubric_version = rubric_version
         self._rubric_path = Path(rubric_path) if rubric_path else _RUBRIC_PATH
         self._rubric: str | None = None
+        self._timeout_seconds = timeout_seconds
 
     @property
     def rubric(self) -> str:
@@ -236,9 +238,18 @@ class SentimentService:
         user_message = _user_message(title, artist, lyrics)
         loop = asyncio.get_event_loop()
         try:
-            data = await loop.run_in_executor(
-                None, self.provider.evaluate, self.rubric, user_message, OUTPUT_SCHEMA
+            data = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None, self.provider.evaluate, self.rubric, user_message, OUTPUT_SCHEMA
+                ),
+                timeout=self._timeout_seconds,
             )
+        except asyncio.TimeoutError:
+            log.warning(
+                "sentiment eval TIMED OUT after %.0fs for %s (%s)",
+                self._timeout_seconds, track_id, title,
+            )
+            return None
         except Exception as exc:  # noqa: BLE001 — degrade to review on any backend error
             log.warning("sentiment eval failed for %s (%s): %s", track_id, title, exc)
             return None

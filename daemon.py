@@ -61,6 +61,9 @@ LYRICS_DB_PATH = os.environ.get("LYRICS_DB_PATH", "lyrics_cache.db")
 # LLM sentiment tier (v1.9). Enabled by default; needs ANTHROPIC_API_KEY in env.
 SENTIMENT_ENABLED = os.environ.get("SENTIMENT_ENABLED", "true").lower() in ("1", "true", "yes")
 SENTIMENT_MODEL = os.environ.get("SENTIMENT_MODEL", "claude-haiku-4-5-20251001")
+# Bounds the LLM call so a stalled network/API never leaves eval_state stuck on
+# "evaluating" — mirrors the existing 10s timeout already used for lyrics fetches.
+SENTIMENT_EVAL_TIMEOUT_SECONDS = float(os.environ.get("SENTIMENT_EVAL_TIMEOUT_SECONDS", "20"))
 EVENTS_PATH = os.environ.get("EVENTS_PATH", "data/events.jsonl")
 NOW_PLAYING_PATH = os.path.join(os.path.dirname(EVENTS_PATH) or ".", "now_playing.json")
 
@@ -229,6 +232,7 @@ def _emit_eval_result(
     profanity = result.profanity if result is not None else False
     drug_reference = result.drug_reference if result is not None else False
     sexual_content = result.sexual_content if result is not None else False
+    needs_review = result.needs_review if result is not None else False
 
     _append_event({
         "type": "eval_result",
@@ -239,6 +243,7 @@ def _emit_eval_result(
         "profanity": profanity,
         "drug_reference": drug_reference,
         "sexual_content": sexual_content,
+        "needs_review": needs_review,
         "timestamp": time.strftime("%H:%M:%S"),
     })
     _write_now_playing({
@@ -252,8 +257,20 @@ def _emit_eval_result(
         "profanity": profanity,
         "drug_reference": drug_reference,
         "sexual_content": sexual_content,
+        "needs_review": needs_review,
         "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
     })
+
+
+async def _attempt_pause(client, spotify_skip, is_restricted, device_name, device_id) -> bool:
+    """Try to pause on `client`, falling back to the Spotify API client for a
+    restricted device. Shared by the 5-consecutive-skip path and the
+    skip-failed fallback so both degrade the same way.
+    """
+    paused = await client.pause(device_name, device_id)
+    if not paused and is_restricted:
+        paused = await spotify_skip.pause(device_name, device_id)
+    return paused
 
 
 def _build_content_checker(
@@ -325,9 +342,16 @@ async def probe_sonos_speakers(soco_client: SocoSkipClient) -> None:
         )
 
 
-def _eval_state_from_result(action: str, reason: str) -> str:
-    """Map ContentChecker (action, reason) tuple to canonical eval_state string (D-02)."""
+def _eval_state_from_result(action: str, reason: str, needs_review: bool = False) -> str:
+    """Map ContentChecker (action, reason) tuple to canonical eval_state string (D-02).
+
+    needs_review (v1.9 LLM tier): an allowed-but-unassessed track (no lyrics, eval
+    failure) surfaces as its own "needs-review" state so the UI can distinguish it
+    from a clean "passed" verdict. A skipped track keeps "skipped" regardless.
+    """
     if action == "allow":
+        if needs_review:
+            return "needs-review"
         if reason in ("lyrics_unavailable", "no_lyrics_service"):
             return "no-lyrics"
         return "passed"
@@ -476,6 +500,7 @@ async def poll_loop(
                     # DAEM-01: emit track_change immediately on detection, before evaluation
                     images = track.get("album", {}).get("images", [])
                     album_art_url = images[0]["url"] if images else None
+                    eval_started_at = time.time()
                     _append_event({
                         "type": "track_change",
                         "track_id": track_id,
@@ -483,6 +508,7 @@ async def poll_loop(
                         "artist": track["artists"][0]["name"],
                         "album_art_url": album_art_url,
                         "eval_state": "evaluating",
+                        "started_at": eval_started_at,
                         "timestamp": time.strftime("%H:%M:%S"),
                     })
                     # DAEM-03: write now_playing.json at "evaluating" state (D-06)
@@ -492,6 +518,7 @@ async def poll_loop(
                         "artist": track["artists"][0]["name"],
                         "album_art_url": album_art_url,
                         "eval_state": "evaluating",
+                        "started_at": eval_started_at,
                         "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
                     })
 
@@ -508,7 +535,27 @@ async def poll_loop(
                             device_name, is_restricted,
                         )
 
-                        eval_result = await content_checker.check(track)
+                        def _emit_eval_stage(stage: str) -> None:
+                            """Lightweight in-flight progress signal — does not touch
+                            eval_state, which stays 'evaluating' until check() returns."""
+                            _append_event({
+                                "type": "eval_stage",
+                                "track_id": track_id,
+                                "stage": stage,
+                                "timestamp": time.strftime("%H:%M:%S"),
+                            })
+                            _write_now_playing({
+                                "track_id": track_id,
+                                "track": track["name"],
+                                "artist": track["artists"][0]["name"],
+                                "album_art_url": album_art_url,
+                                "eval_state": "evaluating",
+                                "eval_stage": stage,
+                                "started_at": eval_started_at,
+                                "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+                            })
+
+                        eval_result = await content_checker.check(track, on_stage=_emit_eval_stage)
 
                         # D-09: [SCAN] log is emitted inside content_checker.check()
                         # for all code paths (explicit, instrumental, profanity, clean, etc.)
@@ -516,7 +563,9 @@ async def poll_loop(
                         if eval_result.action == "allow":
                             consecutive_skips = 0
                             # DAEM-02: emit eval_result for every allowed track
-                            eval_state = _eval_state_from_result(eval_result.action, eval_result.reason)
+                            eval_state = _eval_state_from_result(
+                                eval_result.action, eval_result.reason, eval_result.needs_review
+                            )
                             _emit_eval_result(
                                 track_id=track_id,
                                 track_name=track["name"],
@@ -540,9 +589,9 @@ async def poll_loop(
                             # causing playback to continue.
                             if consecutive_skips + 1 >= 5:
                                 log.warning("[5SKIP] 5 consecutive skips — pausing playback")
-                                paused = await client.pause(device_name, device.get("id"))
-                                if not paused and is_restricted:
-                                    paused = await spotify_skip.pause(device_name, device.get("id"))
+                                paused = await _attempt_pause(
+                                    client, spotify_skip, is_restricted, device_name, device.get("id")
+                                )
                                 if not paused:
                                     log.warning("[5SKIP] pause failed for device %r — playback may continue", device_name)
                                 skip_event_queue.put_nowait({
@@ -588,6 +637,7 @@ async def poll_loop(
                                         "profanity": eval_result.profanity,
                                         "drug_reference": eval_result.drug_reference,
                                         "sexual_content": eval_result.sexual_content,
+                                        "needs_review": eval_result.needs_review,
                                         "timestamp": time.strftime("%H:%M:%S"),
                                     })
                                     _append_event({
@@ -599,6 +649,7 @@ async def poll_loop(
                                         "profanity": eval_result.profanity,
                                         "drug_reference": eval_result.drug_reference,
                                         "sexual_content": eval_result.sexual_content,
+                                        "needs_review": eval_result.needs_review,
                                         "timestamp": time.strftime("%H:%M:%S"),
                                     })
                                     consecutive_skips += 1
@@ -619,6 +670,45 @@ async def poll_loop(
                                         track["name"],
                                         track["artists"][0]["name"],
                                     )
+                                    # Skip itself failed (e.g. Spotify returns 403
+                                    # "Restricted device") — fall back to pausing so
+                                    # flagged content doesn't keep playing to the end
+                                    # while the UI silently sits on "evaluating".
+                                    paused = await _attempt_pause(
+                                        client, spotify_skip, is_restricted, device_name, device.get("id")
+                                    )
+                                    if paused:
+                                        log.warning(
+                                            "[SKIP_FAILED_PAUSED] reason=%s track=%r artist=%r",
+                                            eval_result.reason,
+                                            track["name"],
+                                            track["artists"][0]["name"],
+                                        )
+                                        _emit_eval_result(
+                                            track_id=track_id,
+                                            track_name=track["name"],
+                                            artist=track["artists"][0]["name"],
+                                            album_art_url=album_art_url,
+                                            eval_state="paused",
+                                            severity=eval_result.severity,
+                                            result=eval_result,
+                                        )
+                                    else:
+                                        log.error(
+                                            "[SKIP_FAILED_PAUSE_FAILED] reason=%s track=%r artist=%r",
+                                            eval_result.reason,
+                                            track["name"],
+                                            track["artists"][0]["name"],
+                                        )
+                                        _emit_eval_result(
+                                            track_id=track_id,
+                                            track_name=track["name"],
+                                            artist=track["artists"][0]["name"],
+                                            album_art_url=album_art_url,
+                                            eval_state="skip-failed",
+                                            severity=eval_result.severity,
+                                            result=eval_result,
+                                        )
                     else:
                         # FSM off — D-03: still emit eval_result with fsm-off
                         # severity=0: no profanity check ran (FSM disabled)
@@ -766,7 +856,9 @@ async def main() -> None:
     sentiment_service = None
     sentiment_cache = None
     if SENTIMENT_ENABLED and os.environ.get("ANTHROPIC_API_KEY"):
-        sentiment_service = SentimentService(model=SENTIMENT_MODEL)
+        sentiment_service = SentimentService(
+            model=SENTIMENT_MODEL, timeout_seconds=SENTIMENT_EVAL_TIMEOUT_SECONDS
+        )
         sentiment_cache = SQLiteSentimentCache(db_path=LYRICS_DB_PATH)
         log.info("[SENTIMENT] enabled (model=%s)", SENTIMENT_MODEL)
     elif SENTIMENT_ENABLED:

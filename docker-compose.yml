@@ -39,6 +39,7 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data   # persists Caddy internal CA so the self-signed cert survives restarts
+      - /var/run/tailscale/tailscaled.sock:/var/run/tailscale/tailscaled.sock  # lets Caddy mint a real cert for *.ts.net domains via the Tailscale cert manager
 
 volumes:
   caddy_data:

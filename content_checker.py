@@ -91,7 +91,7 @@ class ContentChecker:
         self.sentiment_cache = sentiment_cache
         self.active_profile = active_profile
 
-    async def check(self, track: dict) -> "TrackEvalResult":
+    async def check(self, track: dict, on_stage=None) -> "TrackEvalResult":
         """Check a track against content filter rules.
 
         Cache fast-path: if track_cache is set and the track is already cached,
@@ -100,6 +100,10 @@ class ContentChecker:
         Args:
             track: Spotify track object from currently_playing() API response.
                    Must contain: id, name, artists, explicit fields.
+            on_stage: optional callback(stage: str) invoked at the start of each
+                   I/O step of the sentiment pipeline ("lyrics", "llm") — purely
+                   an in-flight progress signal for the caller to surface (e.g.
+                   as a UI badge update); has no effect on the result.
 
         Returns:
             TrackEvalResult with fields:
@@ -113,7 +117,7 @@ class ContentChecker:
         # its own per-category cache and derives the profile verdict in code, so it
         # bypasses track_cache (which stores a profile-coupled final action).
         if self.sentiment_service is not None:
-            return await self._run_sentiment_pipeline(track)
+            return await self._run_sentiment_pipeline(track, on_stage=on_stage)
 
         # Cache fast-path (D-06 step 1) — runs before Tier 1
         if self.track_cache is not None:
@@ -129,7 +133,7 @@ class ContentChecker:
             await self.track_cache.put(track["id"], result)
         return result
 
-    async def _run_sentiment_pipeline(self, track: dict) -> "TrackEvalResult":
+    async def _run_sentiment_pipeline(self, track: dict, on_stage=None) -> "TrackEvalResult":
         """LLM content pipeline (v1.9). See CLAUDE.md / the plan for the flow:
 
           1. explicit flag ....... obvious decline, no LLM (respects explicit_skip)
@@ -170,6 +174,8 @@ class ContentChecker:
             log.warning("[SENTIMENT] track=%r no lyrics_service → needs_review", track_name)
             return self._review_result(action="allow", reason="no_lyrics_service")
 
+        if on_stage is not None:
+            on_stage("lyrics")
         lyrics_result = await self.lyrics_service.get_lyrics(
             track_id=track_id, track_name=track_name, artist_name=artist_name
         )
@@ -180,6 +186,8 @@ class ContentChecker:
             return self._review_result(action="allow", reason="needs_review")
 
         # Tier 4: LLM evaluation.
+        if on_stage is not None:
+            on_stage("llm")
         analysis = await self.sentiment_service.evaluate(
             track_id, track_name, artist_name, lyrics_result.lyrics
         )

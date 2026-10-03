@@ -47,7 +47,7 @@ def _make_track(track_id="spotify:track:abc123", name="Test Song",
 
 def _mock_sp(track):
     sp = MagicMock()
-    sp.current_playback.return_value = {
+    sp.currently_playing.return_value = {
         "item": track,
         "device": {"name": "TestDevice", "id": "dev1", "is_restricted": False},
     }
@@ -121,7 +121,7 @@ async def _run_n_empty_cycles(n: int, data_dir, resume_on=None, resume_track=Non
             return {"item": resume_track, "device": {"name": "Dev", "id": "d1", "is_restricted": False}}
         return None
 
-    sp.current_playback.side_effect = _playback
+    sp.currently_playing.side_effect = _playback
     checker = MagicMock()
     checker.check = AsyncMock(return_value=TrackEvalResult(action="allow", reason="clean", severity=0))
 
@@ -141,7 +141,7 @@ async def test_track_change_emitted_before_check(data_dir):
     """track_change must be written to events.jsonl BEFORE check() is called."""
     check_called_before = []
 
-    async def _check_spy(track):
+    async def _check_spy(track, on_stage=None):
         check_called_before.append(
             (data_dir / "events.jsonl").read_text()
             if (data_dir / "events.jsonl").exists()
@@ -280,8 +280,10 @@ async def test_eval_result_fsm_off(data_dir):
 
 
 @pytest.mark.asyncio
-async def test_eval_result_not_emitted_on_skip_failure(data_dir):
-    """eval_result must NOT be written when skip() returns False."""
+async def test_eval_result_skip_failed_pause_succeeds(data_dir):
+    """When skip() fails, the daemon falls back to pause(); on success the
+    track is marked 'paused' — flagged content stops instead of playing on
+    while the badge silently sits on 'evaluating'."""
     checker = MagicMock()
     checker.check = AsyncMock(return_value=TrackEvalResult(action="skip", reason="explicit", severity=3))
     track = _make_track(explicit=True)
@@ -292,6 +294,7 @@ async def test_eval_result_not_emitted_on_skip_failure(data_dir):
     soco_skip.pause.return_value = False
     spotify_skip = AsyncMock()
     spotify_skip.skip.return_value = False
+    spotify_skip.pause.return_value = True  # is_restricted=False → client is spotify_skip
 
     daemon.stop_event.clear()
     call_count = 0
@@ -312,11 +315,53 @@ async def test_eval_result_not_emitted_on_skip_failure(data_dir):
                     await daemon.poll_loop(sp, checker, soco_skip, spotify_skip)
 
     events_file = data_dir / "events.jsonl"
-    if not events_file.exists():
-        return  # No events written at all — acceptable; no eval_result
+    assert events_file.exists()
     lines = [json.loads(l) for l in events_file.read_text().strip().splitlines() if l.strip()]
     eval_result_lines = [l for l in lines if l.get("type") == "eval_result"]
-    assert len(eval_result_lines) == 0, "eval_result must NOT be emitted when skip fails"
+    assert len(eval_result_lines) == 1
+    assert eval_result_lines[0]["eval_state"] == "paused"
+
+
+@pytest.mark.asyncio
+async def test_eval_result_skip_failed_pause_also_fails(data_dir):
+    """When both skip() and the pause fallback fail, eval_state must become
+    'skip-failed' — never left stuck on 'evaluating' with no terminal state."""
+    checker = MagicMock()
+    checker.check = AsyncMock(return_value=TrackEvalResult(action="skip", reason="explicit", severity=3))
+    track = _make_track(explicit=True)
+    sp = _mock_sp(track)
+
+    soco_skip = AsyncMock()
+    soco_skip.skip.return_value = False
+    soco_skip.pause.return_value = False
+    spotify_skip = AsyncMock()
+    spotify_skip.skip.return_value = False
+    spotify_skip.pause.return_value = False  # is_restricted=False → client is spotify_skip
+
+    daemon.stop_event.clear()
+    call_count = 0
+    original_sleep = asyncio.sleep
+
+    async def _one_shot_sleep(t):
+        nonlocal call_count
+        call_count += 1
+        if call_count >= 1:
+            daemon.stop_event.set()
+        await original_sleep(0)
+
+    state = {"last_track_id": None, "family_safe_mode": True, "consecutive_skips": 0}
+    with patch("daemon.load_state", side_effect=[state, state]):
+        with patch("daemon.save_state"):
+            with patch("asyncio.sleep", side_effect=_one_shot_sleep):
+                with patch("pathlib.Path.touch"):
+                    await daemon.poll_loop(sp, checker, soco_skip, spotify_skip)
+
+    events_file = data_dir / "events.jsonl"
+    assert events_file.exists()
+    lines = [json.loads(l) for l in events_file.read_text().strip().splitlines() if l.strip()]
+    eval_result_lines = [l for l in lines if l.get("type") == "eval_result"]
+    assert len(eval_result_lines) == 1
+    assert eval_result_lines[0]["eval_state"] == "skip-failed"
 
 
 @pytest.mark.asyncio
@@ -324,7 +369,7 @@ async def test_now_playing_evaluating(data_dir):
     """now_playing.json must be written with eval_state='evaluating' BEFORE check() runs."""
     now_playing_snapshots = []
 
-    async def _check_spy(track):
+    async def _check_spy(track, on_stage=None):
         np_file = data_dir / "now_playing.json"
         now_playing_snapshots.append(
             json.loads(np_file.read_text()) if np_file.exists() else None
@@ -675,7 +720,7 @@ async def _drive_poll_loop_with_401s(
     call_count = [0]
     original_sleep = asyncio.sleep
 
-    # Build the sequence of responses for sp.current_playback()
+    # Build the sequence of responses for sp.currently_playing()
     responses = []
     for _ in range(n_401s):
         responses.append(SpotifyException(http_status=401, code=-1, msg="Unauthorized"))
@@ -707,7 +752,7 @@ async def _drive_poll_loop_with_401s(
         await original_sleep(0)
 
     sp = MagicMock()
-    sp.current_playback.side_effect = playback_side_effect
+    sp.currently_playing.side_effect = playback_side_effect
 
     state = {"last_track_id": None, "family_safe_mode": False, "consecutive_skips": 0}
     with patch("daemon.load_state", return_value=state), \
@@ -768,3 +813,57 @@ async def test_single_401_does_not_exit(data_dir):
         pytest.fail(
             f"A single 401 must not trigger sys.exit(2); got sys.exit({exc.code})"
         )
+
+
+# ---------------------------------------------------------------------------
+# v1.9 LLM sentiment tier — needs_review flag + eval_state surfacing (Task A)
+# These exercise the pure emit/mapping surfaces directly (no poll_loop), so
+# they are unaffected by the MagicMock infra flakiness in the loop-driven tests.
+# ---------------------------------------------------------------------------
+
+def test_eval_state_needs_review():
+    """An allowed-but-unassessed track maps to the 'needs-review' eval_state."""
+    assert daemon._eval_state_from_result("allow", "needs_review", True) == "needs-review"
+
+
+def test_eval_state_needs_review_does_not_override_skip():
+    """needs_review on a skip keeps 'skipped' (the track was still skipped)."""
+    assert daemon._eval_state_from_result("skip", "needs_review", True) == "skipped"
+
+
+def test_eval_state_clean_still_passed():
+    """A clean allow with needs_review False is unchanged ('passed')."""
+    assert daemon._eval_state_from_result("allow", "clean", False) == "passed"
+
+
+def test_emit_eval_result_surfaces_needs_review(data_dir):
+    """needs_review propagates into both the eval_result event and now_playing.json."""
+    result = TrackEvalResult(
+        action="allow", reason="needs_review", severity=0, needs_review=True
+    )
+    daemon._emit_eval_result(
+        track_id="tid", track_name="Song", artist="Artist",
+        album_art_url=None, eval_state="needs-review", severity=0, result=result,
+    )
+
+    events_file = data_dir / "events.jsonl"
+    lines = [json.loads(line) for line in events_file.read_text().strip().splitlines() if line.strip()]
+    ev = [line for line in lines if line.get("type") == "eval_result"][0]
+    assert ev["needs_review"] is True
+    assert ev["eval_state"] == "needs-review"
+
+    np = json.loads((data_dir / "now_playing.json").read_text())
+    assert np["needs_review"] is True
+    assert np["eval_state"] == "needs-review"
+
+
+def test_emit_eval_result_needs_review_defaults_false(data_dir):
+    """The result=None path (fsm-off) defaults needs_review to False (D-09)."""
+    daemon._emit_eval_result(
+        track_id="tid", track_name="Song", artist="Artist",
+        album_art_url=None, eval_state="fsm-off", severity=0, result=None,
+    )
+    events_file = data_dir / "events.jsonl"
+    lines = [json.loads(line) for line in events_file.read_text().strip().splitlines() if line.strip()]
+    ev = [line for line in lines if line.get("type") == "eval_result"][0]
+    assert ev["needs_review"] is False

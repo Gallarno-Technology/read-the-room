@@ -8,6 +8,7 @@ fail-safes (eval failure, confidence=unknown).
 
 asyncio_mode = "auto" — no @pytest.mark.asyncio needed.
 """
+import time
 import types
 
 import pytest
@@ -15,7 +16,8 @@ import pytest
 from content_checker import ContentChecker
 from profiles import CLOSE_FRIENDS, FAMILY_FRIENDLY
 from sentiment_cache import SQLiteSentimentCache
-from sentiment_service import CategoryRating, SongAnalysis
+from sentiment_provider import SentimentProvider
+from sentiment_service import CategoryRating, SentimentService, SongAnalysis
 
 
 def _track(track_id="t1", name="Song", artist="Artist", explicit=False):
@@ -215,3 +217,42 @@ async def test_confidence_unknown_declines_and_reviews_not_cached(cache):
     res = await checker.check(_track())
     assert res.action == "skip" and res.needs_review is True  # fail-safe decline
     assert await cache.get("t1") is None  # ungrounded → not cached
+
+
+# ---------------------------------------------------------------------------
+# A hung (not failed) LLM call must still bound check() and degrade to review
+# ---------------------------------------------------------------------------
+
+class _SlowProvider(SentimentProvider):
+    """Simulates a stalled network call through the REAL SentimentService —
+    proves the timeout plumbing (not just the FakeService stand-in) actually
+    bounds ContentChecker.check() end-to-end."""
+
+    def __init__(self, delay):
+        self._delay = delay
+
+    @property
+    def model_id(self):
+        return "slow-model"
+
+    def evaluate(self, system_prompt, user_message, schema):
+        time.sleep(self._delay)
+        return None  # never reached within the timeout anyway
+
+
+async def test_hang_in_llm_provider_bounds_check_and_needs_review(cache, tmp_path):
+    rubric = tmp_path / "rubric.md"
+    rubric.write_text("RUBRIC TEXT")
+    svc = SentimentService(provider=_SlowProvider(delay=0.3), rubric_path=rubric, timeout_seconds=0.05)
+    checker = ContentChecker(
+        lyrics_service=FakeLyrics(_lyrics()), sentiment_service=svc, sentiment_cache=cache,
+        active_profile=FAMILY_FRIENDLY,
+    )
+
+    start = time.monotonic()
+    res = await checker.check(_track())
+    elapsed = time.monotonic() - start
+
+    assert elapsed < 0.2, f"check() should be bounded by the service timeout, took {elapsed:.3f}s"
+    assert res.action == "allow" and res.reason == "needs_review" and res.needs_review is True
+    assert await cache.get("t1") is None  # timeout degrades like any other failure — not cached
