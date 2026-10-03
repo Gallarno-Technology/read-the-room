@@ -47,7 +47,7 @@ def _make_track(track_id="spotify:track:abc123", name="Test Song",
 
 def _mock_sp(track):
     sp = MagicMock()
-    sp.currently_playing.return_value = {
+    sp.current_playback.return_value = {
         "item": track,
         "device": {"name": "TestDevice", "id": "dev1", "is_restricted": False},
     }
@@ -121,7 +121,7 @@ async def _run_n_empty_cycles(n: int, data_dir, resume_on=None, resume_track=Non
             return {"item": resume_track, "device": {"name": "Dev", "id": "d1", "is_restricted": False}}
         return None
 
-    sp.currently_playing.side_effect = _playback
+    sp.current_playback.side_effect = _playback
     checker = MagicMock()
     checker.check = AsyncMock(return_value=TrackEvalResult(action="allow", reason="clean", severity=0))
 
@@ -720,7 +720,7 @@ async def _drive_poll_loop_with_401s(
     call_count = [0]
     original_sleep = asyncio.sleep
 
-    # Build the sequence of responses for sp.currently_playing()
+    # Build the sequence of responses for sp.current_playback()
     responses = []
     for _ in range(n_401s):
         responses.append(SpotifyException(http_status=401, code=-1, msg="Unauthorized"))
@@ -752,7 +752,7 @@ async def _drive_poll_loop_with_401s(
         await original_sleep(0)
 
     sp = MagicMock()
-    sp.currently_playing.side_effect = playback_side_effect
+    sp.current_playback.side_effect = playback_side_effect
 
     state = {"last_track_id": None, "family_safe_mode": False, "consecutive_skips": 0}
     with patch("daemon.load_state", return_value=state), \
@@ -867,3 +867,36 @@ def test_emit_eval_result_needs_review_defaults_false(data_dir):
     lines = [json.loads(line) for line in events_file.read_text().strip().splitlines() if line.strip()]
     ev = [line for line in lines if line.get("type") == "eval_result"][0]
     assert ev["needs_review"] is False
+
+
+@pytest.mark.asyncio
+async def test_restricted_device_routes_to_soco(data_dir):
+    """A Sonos (is_restricted) device in the playback response skips via SoCo, not the Spotify API."""
+    checker = MagicMock()
+    checker.check = AsyncMock(return_value=TrackEvalResult(action="skip", reason="explicit", severity=3))
+    sp = MagicMock()
+    sp.current_playback.return_value = {
+        "item": _make_track(explicit=True),
+        "device": {"name": "Living Room", "id": "dev1", "is_restricted": True},
+    }
+
+    soco_skip = AsyncMock()
+    soco_skip.skip.return_value = True
+    spotify_skip = AsyncMock()
+
+    daemon.stop_event.clear()
+    original_sleep = asyncio.sleep
+
+    async def _one_shot_sleep(t):
+        daemon.stop_event.set()
+        await original_sleep(0)
+
+    state = {"last_track_id": None, "family_safe_mode": True, "consecutive_skips": 0}
+    with patch("daemon.load_state", side_effect=[state, state]):
+        with patch("daemon.save_state"):
+            with patch("asyncio.sleep", side_effect=_one_shot_sleep):
+                with patch("pathlib.Path.touch"):
+                    await daemon.poll_loop(sp, checker, soco_skip, spotify_skip)
+
+    soco_skip.skip.assert_awaited_once_with("Living Room", "dev1")
+    spotify_skip.skip.assert_not_awaited()

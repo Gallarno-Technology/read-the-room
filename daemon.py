@@ -436,7 +436,7 @@ async def poll_loop(
         # tier selection runs even on a transient error path. None falls back to idle.
         result = None
         try:
-            result = sp.currently_playing()
+            result = sp.current_playback()
             _consecutive_401s = 0  # D-02: reset on any successful Spotify API call
 
             if result is None or result.get("item") is None:
@@ -525,7 +525,16 @@ async def poll_loop(
                     # Phase 2: Content filtering (FSM-02: only when FSM is on)
                     # D-06: read family_safe_mode each cycle — toggle takes effect within 1 poll
                     if state.get("family_safe_mode", False):
-                        device = result.get("device", {})
+                        device = result.get("device")
+                        if not device:
+                            # Without device info is_restricted defaults to False, so a
+                            # Sonos skip would be routed to the Spotify API and 403.
+                            # Usually means the token lacks user-read-playback-state.
+                            log.warning(
+                                "[DEVICE] playback response has no device info — "
+                                "re-auth with user-read-playback-state scope"
+                            )
+                            device = {}
                         device_name = device.get("name", "unknown")
                         is_restricted = device.get("is_restricted", False)
 
@@ -821,7 +830,7 @@ async def main() -> None:
         client_id=os.environ["SPOTIFY_CLIENT_ID"],
         client_secret=os.environ["SPOTIFY_CLIENT_SECRET"],
         redirect_uri=os.environ["SPOTIFY_REDIRECT_URI"],
-        scope="user-read-currently-playing user-modify-playback-state",
+        scope="user-read-playback-state user-read-currently-playing user-modify-playback-state",
         open_browser=False,  # D-01 pattern: headless, never block on browser
         cache_handler=cache_handler,
     )
