@@ -768,3 +768,36 @@ async def test_single_401_does_not_exit(data_dir):
         pytest.fail(
             f"A single 401 must not trigger sys.exit(2); got sys.exit({exc.code})"
         )
+
+
+@pytest.mark.asyncio
+async def test_restricted_device_routes_to_soco(data_dir):
+    """A Sonos (is_restricted) device in the playback response skips via SoCo, not the Spotify API."""
+    checker = MagicMock()
+    checker.check = AsyncMock(return_value=TrackEvalResult(action="skip", reason="explicit", severity=3))
+    sp = MagicMock()
+    sp.current_playback.return_value = {
+        "item": _make_track(explicit=True),
+        "device": {"name": "Living Room", "id": "dev1", "is_restricted": True},
+    }
+
+    soco_skip = AsyncMock()
+    soco_skip.skip.return_value = True
+    spotify_skip = AsyncMock()
+
+    daemon.stop_event.clear()
+    original_sleep = asyncio.sleep
+
+    async def _one_shot_sleep(t):
+        daemon.stop_event.set()
+        await original_sleep(0)
+
+    state = {"last_track_id": None, "family_safe_mode": True, "consecutive_skips": 0}
+    with patch("daemon.load_state", side_effect=[state, state]):
+        with patch("daemon.save_state"):
+            with patch("asyncio.sleep", side_effect=_one_shot_sleep):
+                with patch("pathlib.Path.touch"):
+                    await daemon.poll_loop(sp, checker, soco_skip, spotify_skip)
+
+    soco_skip.skip.assert_awaited_once_with("Living Room", "dev1")
+    spotify_skip.skip.assert_not_awaited()

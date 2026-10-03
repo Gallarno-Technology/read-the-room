@@ -114,7 +114,7 @@ async def test_poll_loop_uses_active_tier_when_playing(tmp_path, monkeypatch):
     monkeypatch.setattr(daemon, "NOW_PLAYING_PATH", str(tmp_path / "now_playing.json"))
 
     mock_sp = MagicMock()
-    mock_sp.currently_playing.return_value = {
+    mock_sp.current_playback.return_value = {
         "is_playing": True,
         "progress_ms": 1000,
         "item": {
@@ -176,7 +176,7 @@ async def test_poll_loop_consumes_kick_file_and_short_circuits(tmp_path, monkeyp
 
     mock_sp = MagicMock()
     # Idle response — would normally choose IDLE tier
-    mock_sp.currently_playing.return_value = None
+    mock_sp.current_playback.return_value = None
 
     daemon.stop_event.clear()
     captured_sleeps: list[float] = []
@@ -184,13 +184,13 @@ async def test_poll_loop_consumes_kick_file_and_short_circuits(tmp_path, monkeyp
 
     # Stop the loop on the SECOND poll call so we observe the kick-consume iteration
     # AND confirm the next iteration was reached without going through the idle wait.
-    def stopping_currently_playing():
+    def stopping_current_playback():
         poll_count["n"] += 1
         if poll_count["n"] >= 2:
             daemon.stop_event.set()
         return None
 
-    mock_sp.currently_playing.side_effect = stopping_currently_playing
+    mock_sp.current_playback.side_effect = stopping_current_playback
 
     async def fake_sleep(t):
         captured_sleeps.append(t)
@@ -228,7 +228,7 @@ async def test_poll_loop_no_kick_file_is_noop(tmp_path, monkeypatch):
     assert not kick_path.exists()
 
     mock_sp = MagicMock()
-    mock_sp.currently_playing.return_value = None  # idle
+    mock_sp.current_playback.return_value = None  # idle
 
     daemon.stop_event.clear()
     captured_sleeps: list[float] = []

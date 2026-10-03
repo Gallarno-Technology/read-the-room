@@ -67,7 +67,7 @@ NOW_PLAYING_PATH = os.path.join(os.path.dirname(EVENTS_PATH) or ".", "now_playin
 SPOTIFY_CACHE_PATH = os.environ.get("SPOTIFY_CACHE_PATH", "token_cache/.cache")
 
 # Scope must exactly match daemon.py — a mismatch causes Spotify 403.
-SCOPE = "user-read-currently-playing user-modify-playback-state"
+SCOPE = "user-read-playback-state user-read-currently-playing user-modify-playback-state"
 # Fixed OAuth state token — single-user CSRF guard (no per-user uid anymore).
 _OAUTH_STATE = "read-the-room"
 
