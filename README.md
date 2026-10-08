@@ -68,29 +68,27 @@ Read the Room is a self-hosted background service that monitors Spotify playback
 
 The `daemon` container polls the Spotify playback API on an adaptive cadence (faster while a track is playing, slower when idle) to see what is currently playing. When a new track starts, it checks the Spotify explicit flag first. If the track is flagged explicit, it is skipped immediately — no lyrics fetch needed.
 
-If the explicit flag is not set, the daemon fetches lyrics from LRCLIB, a public and free lyrics API. The lyrics are scanned for profanity, drug references, and sexual content according to the rules of the active filter profile. Lyric scan results are cached in a local SQLite database so the same track is not fetched twice.
+If the explicit flag is not set, the daemon fetches lyrics from LRCLIB, a public and free lyrics API. The lyrics are rated by an LLM (Claude by default, behind a pluggable provider interface) and the active filter profile decides whether the rating passes. Lyric scan results are cached in a local SQLite database so the same track is not fetched twice.
 
 When a track fails the content check, Read the Room sends a skip command to the Sonos speaker via SoCo using UPnP. If the speaker is unreachable or returns an error (for example, when Sonos is in Spotify Connect mode), the daemon falls back to the Spotify API skip command. A Docker healthcheck confirms the daemon is alive by checking a `.healthcheck` file that the daemon touches every polling cycle. The dashboard, served by FastAPI on port 8888, shows the current track, a Family Safe Mode toggle, skip history, and a filter profile selector.
 
 ## Filter Profiles
 
-Read the Room ships with four named filter profiles. The active profile controls which content rules apply during playback. You can change the active profile at any time from the dashboard.
+Read the Room ships with three named profiles. Each song is rated once by an LLM against a profile-agnostic rubric (sexual content, drug references, violence, dark themes, language, and overall framing) and the result is cached. The active profile's verdict is then derived from that cached rating in code, so switching profiles from the dashboard is instant and never re-evaluates a song. The rating covers themes the keyword scanners cannot see, such as violence on clean lyrics or a cautionary versus glorifying take on drugs. Tracks Spotify flags explicit are still skipped under every profile except where noted, and a track the model cannot rate confidently is skipped and routed to manual review.
 
-### Kids Present
+### Family Friendly
 
-The strictest profile. It skips any track that Spotify has flagged explicit and scans all other tracks for profanity, drug references, and sexual content. Any match triggers a skip. This is the right choice when young children are in the room and you want the broadest filtering net.
+The strictest profile and the default. It skips any song with innuendo or stronger sexual content, casual or heavier drug references, narrative or graphic violence, present or prominent dark themes, moderate or heavy language, or an objectifying, glorifying or transactional framing. Use it when young children are in the room.
 
-### We're All Adults
+### Mixed Company
 
-A middle-ground profile for mixed company. It skips profanity and sexual content but allows drug references to pass through. Tracks that Spotify flags explicit are still skipped.
+For a mixed crowd. It skips explicit sexual content, hard-drug references that are not cautionary, graphic violence, prominent dark themes, heavy language, and objectifying, glorifying or transactional framing. Heavy language used in a cultural register (for example in an artistic context) is not treated as a slur.
 
-### Above The Covers
+### Close Friends
 
-A light-touch profile that only skips tracks containing sexual content. Profanity and drug references pass through. Tracks flagged explicit by Spotify are still skipped.
+The lightest touch: "we're not a censor." It skips only explicit sexual content and slurs used as slurs. Everything else passes.
 
-### Permissive
-
-The most lenient profile. No lyric scanning is performed. Read the Room skips only tracks that Spotify itself has flagged explicit, and allows everything else.
+See `profiles.py` for the exact decision rules and `.env.example` for the LLM settings (`ANTHROPIC_API_KEY`, `SENTIMENT_MODEL`). If the LLM tier is disabled or has no API key, the daemon falls back to the keyword-only pipeline (profanity, drug and sexual-content scanners plus the explicit flag).
 
 ## Sonos Notes
 
